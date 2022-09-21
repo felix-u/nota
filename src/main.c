@@ -19,8 +19,7 @@ int main(int argc, char **argv) {
 
     // @Feature Run on all files in current directory, not just one manually specified file @Feature
 
-    char **input_arg = (char *[]){"-i", "--input"};
-    char *input_path = args_singleValueOf(argc, argv, input_arg);
+    char *input_path = args_singleValueOf(argc, argv, (char *[2]){"-i", "--input"});
     if (input_path == NULL) {
         printf("ERROR: Must provide path to file.\n");
         exit(EX_USAGE);
