@@ -1,0 +1,14 @@
+This is a sentence qaml should know absolutely nothing about.
+
+@Section(Nâme 1)[2000-01-01] {
+    This text should be in a Section with name "Name 1" and date 2000-01-01.
+}
+
+@Section (Ñame 2) [2020-01-01]{ This is the Section, with different whitespace. }
+
+@Section(Name 3) {
+    @Subsection { wow, a subsection! }
+    @Subsection(A Name 大)[1990-01-01] {
+        OOh, another!
+    }
+}

@@ -7,6 +7,8 @@
 
 #include "args.c"
 
+const wint_t DATA_CHAR = '@';
+
 
 int main(int argc, char **argv) {
 
@@ -25,9 +27,10 @@ int main(int argc, char **argv) {
         exit(EX_NOINPUT);
     }
 
+
+    // Iterate over file characters
     setlocale(LC_ALL, "");
     wint_t c;
-    // âñ大
     while ((c = fgetwc(input_file)) != WEOF) {
         printf("%lc", c);
     }
