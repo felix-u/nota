@@ -13,12 +13,15 @@
 #include "node.c"
 #include "process.c"
 
-const wint_t NODE_CHAR = L'@';
+const wint_t NODE_CHAR = '@';
+const wint_t DESC_DLMT[2] = { '(', ')' };
+const wint_t DATE_DLMT[2] = { '[', ']' };
+const wint_t NODE_DLMT[2] = { '{', '}' };
 
 
 int main(int argc, char **argv) {
 
-    // @Feature Run on all files in current directory, not just one manually specified file @Feature
+    // @Feature { Run on all files in current directory, not just one manually specified file }
 
     char *input_path = args_singleValueOf(argc, argv, (char *[2]){"-i", "--input"});
     if (input_path == NULL) {
@@ -33,40 +36,51 @@ int main(int argc, char **argv) {
     }
 
     setlocale(LC_ALL, "");
-    Node *root = NULL;
 
-    // Iterate over file characters
+    Node *root = NULL;
+    Node *current_node = root;
 
     wint_t c;
-    wchar_t *substr = malloc(7 * sizeof(wint_t));
     int64_t index = 0;
-    int64_t from_char = 0;
+
+    wint_t *name = NULL;
+    wint_t *desc = NULL;
+    wint_t *date = NULL;
+    wint_t *text = NULL;
     bool getting_name = false;
+    bool getting_desc = false;
+    bool getting_date = false;
+    bool getting_text = false;
 
     while ((c = fgetwc(input_file)) != WEOF) {
-        if (c == NODE_CHAR) {
-            getting_name = true;
-            from_char = index;
-            printf("A bit of data!\n");
+
+        if (getting_name == true) {
+            if (isWhiteSpace(c) || c == '(' || c == '[' || c == '{') getting_name = false;
+            else arrput(name, c);
         }
 
-        if (getting_name == true && isWhiteSpace(c)) {
-            int substr_size = index - from_char;
-            fseek(input_file, -(substr_size + 1), SEEK_CUR);
-            // for (wint_t i = from_char; i < index; i++) arrput(substr, input_file[i]);
-            char* result = realloc(substr, (substr_size + 1) * sizeof(wint_t));
-            fgetws(substr, substr_size, input_file);
-            fseek(input_file, (substr_size + 1), SEEK_CUR);
-
-            printf("%s\n%ls\n", result, substr);
+        if (getting_desc == true) {
+            if (c == ')') getting_desc = false;
+            else arrput(desc, c);
         }
+
+        if (c == NODE_CHAR) getting_name = true;
+        else if (c == '(') getting_desc = true;
 
         index++;
     }
 
+    // DEBUG
+    for (int i = 0; i < arrlen(name); i++) printf("%lc", name[i]);
+    putchar('\n');
+    for (int i = 0; i < arrlen(desc); i++) printf("%lc", desc[i]);
+    putchar('\n');
 
     arrfree(root);
-    free(substr);
+    arrfree(name);
+    arrfree(desc);
+    arrfree(date);
+    arrfree(text);
     fclose(input_file);
     return EXIT_SUCCESS;
 }
