@@ -14,9 +14,9 @@
 #include "process.c"
 
 const wint_t NODE_CHAR = '@';
-const wint_t DESC_DLMT[2] = { '(', ')' };
-const wint_t DATE_DLMT[2] = { '[', ']' };
-const wint_t NODE_DLMT[2] = { '{', '}' };
+const Delimiter DESC_DLM = { '(', ')' };
+const Delimiter DATE_DLM = { '[', ']' };
+const Delimiter NODE_DLM = { '{', '}' };
 
 
 int main(int argc, char **argv) {
@@ -55,17 +55,17 @@ int main(int argc, char **argv) {
     while ((c = fgetwc(input_file)) != WEOF) {
 
         if (getting_name == true) {
-            if (isWhiteSpace(c) || c == '(' || c == '[' || c == '{') getting_name = false;
+            if (isWhiteSpace(c) || c == DESC_DLM.beg || c == DATE_DLM.beg || c == NODE_DLM.beg) getting_name = false;
             else arrput(name, c);
         }
 
         if (getting_desc == true) {
-            if (c == ')') getting_desc = false;
+            if (c == DESC_DLM.end) getting_desc = false;
             else arrput(desc, c);
         }
 
         if (c == NODE_CHAR) getting_name = true;
-        else if (c == '(') getting_desc = true;
+        else if (c == DESC_DLM.beg) getting_desc = true;
 
         index++;
     }

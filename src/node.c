@@ -9,8 +9,3 @@ typedef struct Node {
     wint_t *text;
     struct Node *children;
 } Node;
-
-typedef struct Delimiter {
-    wint_t beg;
-    wint_t end;
-} Delimiter;
