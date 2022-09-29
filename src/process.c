@@ -7,6 +7,7 @@ typedef struct Delimiter {
     wint_t end;
 } Delimiter;
 
+
 bool isWhiteSpace(char c) {
     if (c == ' ' || c == '\n' || c == '\t') return true;
     return false;
