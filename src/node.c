@@ -3,8 +3,12 @@
 #include <wchar.h>
 #include <wctype.h>
 
+#include "node_print.c"
+
+#ifndef STB_DS_IMPLEMENTATION
 #define STB_DS_IMPLEMENTATION
 #include "../deps/stb_ds-v0.67/stb_ds.h"
+#endif
 
 
 typedef struct Node {
@@ -78,12 +82,22 @@ Node processNode(Node *parent_node, FILE *file) {
         child_nodes
     };
 
-    arrfree(parent_node);
-    arrfree(name);
-    arrfree(desc);
-    arrfree(date);
-    arrfree(text);
-    arrfree(child_nodes);
+    // DEBUG
+    printls(node_return.name);
+    putchar('\n');
+    printls(node_return.desc);
+    putchar('\n');
+    printls(node_return.date);
+    putchar('\n');
+
+    // @Missing { None of this allocated memory is ever freed! }
+
+    // arrfree(parent_node);
+    // arrfree(name);
+    // arrfree(desc);
+    // arrfree(date);
+    // arrfree(text);
+    // arrfree(child_nodes);
 
     return node_return;
 }
