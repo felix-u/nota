@@ -6,17 +6,13 @@
 #include <wctype.h>
 #include <locale.h>
 
-#define STB_DS_IMPLEMENTATION
-#include "../deps/stb_ds-v0.67/stb_ds.h"
-
 #include "args.c"
 #include "node.c"
-#include "process.c"
 
-const wint_t NODE_CHAR = '@';
-const Delimiter DESC_DLM = { '(', ')' };
-const Delimiter DATE_DLM = { '[', ']' };
-const Delimiter NODE_DLM = { '{', '}' };
+#ifndef STB_DS_IMPLEMENTATION
+#define STB_DS_IMPLEMENTATION
+#include "../deps/stb_ds-v0.67/stb_ds.h"
+#endif
 
 
 int main(int argc, char **argv) {
@@ -37,50 +33,57 @@ int main(int argc, char **argv) {
 
     setlocale(LC_ALL, "");
 
-    Node *root = NULL;
-    Node *current_node = root;
+    Node root;
+    root = processNode(&root, input_file);
+    // wint_t c;
+    // int64_t index = 0;
+    //
+    // wint_t *name = NULL;
+    // wint_t *desc = NULL;
+    // wint_t *date = NULL;
+    // wint_t *text = NULL;
+    // bool getting_name = false;
+    // bool getting_desc = false;
+    // bool getting_date = false;
+    // bool getting_text = false;
+    //
+    // while ((c = fgetwc(input_file)) != WEOF) {
+    //
+    //     if (getting_name == true) {
+    //         if (isWhiteSpace(c) || c == DESC_DLM.beg || c == DATE_DLM.beg || c == NODE_DLM.beg) getting_name = false;
+    //         else arrput(name, c);
+    //     }
+    //
+    //     if (getting_desc == true) {
+    //         if (c == DESC_DLM.end) getting_desc = false;
+    //         else arrput(desc, c);
+    //     }
+    //
+    //     if (c == NODE_CHAR) getting_name = true;
+    //     else if (c == DESC_DLM.beg) getting_desc = true;
+    //
+    //     index++;
+    // }
 
-    wint_t c;
-    int64_t index = 0;
-
-    wint_t *name = NULL;
-    wint_t *desc = NULL;
-    wint_t *date = NULL;
-    wint_t *text = NULL;
-    bool getting_name = false;
-    bool getting_desc = false;
-    bool getting_date = false;
-    bool getting_text = false;
-
-    while ((c = fgetwc(input_file)) != WEOF) {
-
-        if (getting_name == true) {
-            if (isWhiteSpace(c) || c == DESC_DLM.beg || c == DATE_DLM.beg || c == NODE_DLM.beg) getting_name = false;
-            else arrput(name, c);
-        }
-
-        if (getting_desc == true) {
-            if (c == DESC_DLM.end) getting_desc = false;
-            else arrput(desc, c);
-        }
-
-        if (c == NODE_CHAR) getting_name = true;
-        else if (c == DESC_DLM.beg) getting_desc = true;
-
-        index++;
-    }
+    // // DEBUG
+    // for (int i = 0; i < arrlen(name); i++) printf("%lc", name[i]);
+    // putchar('\n');
+    // for (int i = 0; i < arrlen(desc); i++) printf("%lc", desc[i]);
+    // putchar('\n');
 
     // DEBUG
-    for (int i = 0; i < arrlen(name); i++) printf("%lc", name[i]);
-    putchar('\n');
-    for (int i = 0; i < arrlen(desc); i++) printf("%lc", desc[i]);
-    putchar('\n');
+    for (int i = 0; i < arrlen(root.children); i++) {
+        for (int j = 0; j < arrlen(root.children[i].text); j++) {
+            printf("%lc", root.children[i].text[i]);
+        }
+        putchar('\n');
+    }
 
-    arrfree(root);
-    arrfree(name);
-    arrfree(desc);
-    arrfree(date);
-    arrfree(text);
+    // arrfree(root);
+    // arrfree(name);
+    // arrfree(desc);
+    // arrfree(date);
+    // arrfree(text);
     fclose(input_file);
     return EXIT_SUCCESS;
 }
