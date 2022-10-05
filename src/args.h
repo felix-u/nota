@@ -3,12 +3,28 @@
 #include <stdio.h>
 
 
-// We return not just whether the flag is present, but also its index.
-
-typedef struct BoolFlagReturn {
+typedef struct {
     bool is_present;
     int index;
 } BoolFlagReturn;
+
+BoolFlagReturn args_isPresent(int argc, char** argv, char** flag);
+char* args_singleValueOf(int argc, char** argv, char** flag);
+
+typedef struct {
+    int offset;
+    int end;
+} MultipleValReturn;
+
+MultipleValReturn args_multipleValuesOf(int argc, char** argv, char** flag);
+
+
+#ifdef ARGS_IMPLEMENTATION
+
+
+#ifndef ARGS_EQUIVALENT_FLAGS
+    #define ARGS_EQUIVALENT_FLAGS 3
+#endif
 
 
 // Checks if a boolean flag exists
@@ -16,13 +32,11 @@ typedef struct BoolFlagReturn {
 BoolFlagReturn args_isPresent(int argc, char** argv, char** flag) {
 
     for (int i = 1; i < argc; i++) {
-        if (!strcasecmp(argv[i], flag[0])) {
-            BoolFlagReturn this_return = {true, i};
-            return this_return;
-        }
-        else if (!strcasecmp(argv[i], flag[1])) {
-            BoolFlagReturn this_return = {true, i};
-            return this_return;
+        for (int j = 0; j < ARGS_EQUIVALENT_FLAGS; j++) {
+            if (!strcasecmp(argv[i], flag[j])) {
+                BoolFlagReturn this_return = {true, i};
+                return this_return;
+            }
         }
     }
 
@@ -53,14 +67,6 @@ char* args_singleValueOf(int argc, char** argv, char** flag) {
     // Flag not present
     return NULL;
 }
-
-
-// We return an offset and a length for "slicing" argv.
-
-typedef struct MultipleValReturn {
-    int offset;
-    int end;
-} MultipleValReturn;
 
 
 // Returns multiple values of flag
@@ -101,3 +107,5 @@ MultipleValReturn args_multipleValuesOf(int argc, char** argv, char** flag) {
     MultipleValReturn this_return = {0, 0};
     return this_return;
 }
+
+#endif // ARGS_IMPLEMENTATION

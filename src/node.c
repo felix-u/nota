@@ -5,10 +5,7 @@
 
 #include "node_print.c"
 
-#ifndef STB_DS_IMPLEMENTATION
-#define STB_DS_IMPLEMENTATION
 #include "../deps/stb_ds-v0.67/stb_ds.h"
-#endif
 
 
 typedef struct Node {
