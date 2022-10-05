@@ -42,6 +42,9 @@ int main(int argc, char **argv) {
     //     putchar('\n');
     // }
 
+    // @Missing { We need to go through all nodes in the arr_arena and free their data, children first. }
+
+    deallocNode(&root);
     fclose(input_file);
     return EXIT_SUCCESS;
 }

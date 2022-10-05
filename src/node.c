@@ -64,7 +64,9 @@ Node processNode(Node *parent_node, FILE *file) {
         else if (c == DESC_DLM.beg) getting_desc = true;
         else if (c == DATE_DLM.beg) getting_date = true;
         else if (c == NODE_DLM.beg) {
-            arrput(child_nodes, processNode(parent_node, file));
+            Node child_node;
+            processNode(&child_node, file);
+            arrput(child_nodes, child_node);
         }
         else if (c == NODE_DLM.end) break;
         else arrput(text, c);
@@ -87,14 +89,17 @@ Node processNode(Node *parent_node, FILE *file) {
     printls(node_return.date);
     putchar('\n');
 
-    // @Missing { None of this allocated memory is ever freed! }
-
-    // arrfree(parent_node);
-    // arrfree(name);
-    // arrfree(desc);
-    // arrfree(date);
-    // arrfree(text);
-    // arrfree(child_nodes);
 
     return node_return;
+}
+
+
+void deallocNode(Node *node) {
+    if (node->name != NULL) arrfree(node->name);
+    if (node->desc != NULL) arrfree(node->desc);
+    if (node->date != NULL) arrfree(node->date);
+    if (node->text != NULL) arrfree(node->text);
+    if (node->children != NULL) {
+        for (int i = 0; i < arrlen(node->children); i++) deallocNode(&(node->children[i]));
+    }
 }
