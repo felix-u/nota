@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <wchar.h>
@@ -60,7 +61,8 @@ typedef struct NodeArray {
 } NodeArray;
 
 void NodeArray_init(NodeArray *arr, size_t init_size) {
-    arr->nodes = malloc(init_size * sizeof(Node));
+    // arr->nodes = malloc(init_size * sizeof(Node));
+    arr->nodes = calloc(init_size, sizeof(Node));
     arr->len = 0;
     arr->cap = init_size;
 }
