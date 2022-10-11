@@ -87,6 +87,10 @@ int main(int argc, char **argv) {
     printf("Date: %ls\n", date.wstr);
     printf("Text: %ls\n", text.wstr);
 
+    free(name.wstr);
+    free(desc.wstr);
+    free(date.wstr);
+    free(text.wstr);
     fclose(input_file);
     return EXIT_SUCCESS;
 }
