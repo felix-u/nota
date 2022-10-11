@@ -1,6 +1,8 @@
+#include <stdlib.h>
+#include <stdbool.h>
+#include <stddef.h>
 #include <wchar.h>
 #include <wctype.h>
-
 
 typedef struct {
     wint_t beg;
@@ -11,3 +13,62 @@ const wint_t NODE_MARKER = '@';
 const DelimiterSet DLM_DESC = {'(', ')'};
 const DelimiterSet DLM_DATE = {'[', ']'};
 const DelimiterSet DLM_TEXT = {'{', '}'};
+
+bool charIsWhiteSpace(wint_t c) {
+    if (c == ' ' || c == '\t' || c == '\n') return true;
+    return false;
+}
+
+// https://stackoverflow.com/questions/3536153/c-dynamically-growing-array
+
+
+typedef struct {
+    size_t len;
+    size_t cap;
+    wint_t *wstr;
+} wstring;
+
+void wstring_init(wstring *arr, size_t init_size) {
+    arr->wstr = malloc(init_size * sizeof(wint_t));
+    arr->len = 0;
+    arr->cap = init_size;
+}
+
+void wstring_append(wstring *arr, wint_t c) {
+    if (arr->len == arr->cap) {
+        arr->cap *= 2;
+        arr->wstr = realloc(arr->wstr, arr->cap * sizeof(wint_t));
+    }
+    arr->wstr[arr->len++] = c;
+}
+
+
+typedef struct Node {
+    struct Node *parent;
+    wstring name;
+    wstring desc;
+    wstring date;
+    wstring text;
+    struct NodeArray *children;
+} Node;
+
+
+typedef struct NodeArray {
+    size_t len;
+    size_t cap;
+    struct Node *nodes;
+} NodeArray;
+
+void NodeArray_init(NodeArray *arr, size_t init_size) {
+    arr->nodes = malloc(init_size * sizeof(Node));
+    arr->len = 0;
+    arr->cap = init_size;
+}
+
+void NodeArray_append(NodeArray *arr, Node node) {
+    if (arr->len == arr->cap) {
+        arr->cap *= 2;
+        arr->nodes = realloc(arr->nodes, arr->cap * sizeof(Node));
+    }
+    arr->nodes[arr->len++] = node;
+}
