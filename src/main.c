@@ -1,5 +1,8 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <wchar.h>
+#include <wctype.h>
+#include <locale.h>
 
 #include <sysexits.h>
 
@@ -22,6 +25,11 @@ int main(int argc, char **argv) {
         exit(EX_IOERR);
     }
 
+    setlocale(LC_ALL, "");
+    wint_t c;
+    while ((c = fgetwc(input_file)) != WEOF) {
+        putwchar(c);
+    }
 
     fclose(input_file);
     return EXIT_SUCCESS;
