@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
     setlocale(LC_ALL, "");
 
     Node root;
-    NodeArray_init(root.children, 1);
+    NodeArray_init(&root.children, 1);
 
     wint_t c;
     wchar_t wc;
@@ -39,15 +39,15 @@ int main(int argc, char **argv) {
         wc = (wchar_t)c;
 
         if (wc == NODE_MARKER) {
-            NodeArray_append(root.children, Node_process(input_file, &root));
+            NodeArray_append(&root.children, Node_process(input_file, &root));
         }
     }
 
-    for (size_t i = 0; i < root.children->len; i++) {
-        printf("Name: %ls\n", root.children->nodes[i].name.wstr);
-        printf("Desc: %ls\n", root.children->nodes[i].desc.wstr);
-        printf("Date: %ls\n", root.children->nodes[i].date.wstr);
-        printf("Text: %ls\n", root.children->nodes[i].text.wstr);
+
+    // Node_print(root);
+    for (size_t i = 0; i < root.children.len; i++) {
+        // printf("\n\n NODE \n\n");
+        Node_print(root.children.nodes[i]);
     }
 
     // free(name.wstr);

@@ -15,12 +15,11 @@ const DelimiterSet DLM_DESC = {'(', ')'};
 const DelimiterSet DLM_DATE = {'[', ']'};
 const DelimiterSet DLM_TEXT = {'{', '}'};
 
+
 bool charIsWhiteSpace(wchar_t c) {
     if (c == ' ' || c == '\t' || c == '\n') return true;
     return false;
 }
-
-// https://stackoverflow.com/questions/3536153/c-dynamically-growing-array
 
 
 typedef struct {
@@ -44,25 +43,23 @@ void wstring_append(wstring *arr, wchar_t c) {
 }
 
 
-typedef struct Node {
-    struct Node *parent;
-    wstring name;
-    wstring desc;
-    wstring date;
-    wstring text;
-    struct NodeArray *children;
-} Node;
-
-
 typedef struct NodeArray {
     size_t len;
     size_t cap;
     struct Node *nodes;
 } NodeArray;
 
+typedef struct Node {
+    struct Node *parent;
+    wstring name;
+    wstring desc;
+    wstring date;
+    wstring text;
+    struct NodeArray children;
+} Node;
+
 void NodeArray_init(NodeArray *arr, size_t init_size) {
-    // arr->nodes = malloc(init_size * sizeof(Node));
-    arr->nodes = calloc(init_size, sizeof(Node));
+    arr->nodes = malloc(init_size * sizeof(Node));
     arr->len = 0;
     arr->cap = init_size;
 }
@@ -84,7 +81,7 @@ Node Node_process(FILE *file, Node *parent) {
     wstring_init(&this_node.desc, 1);
     wstring_init(&this_node.date, 1);
     wstring_init(&this_node.text, 1);
-    NodeArray_init(this_node.children, 1);
+    NodeArray_init(&this_node.children, 1);
 
     bool getting_name = true;
     bool getting_desc = false;
@@ -110,31 +107,44 @@ Node Node_process(FILE *file, Node *parent) {
                 getting_name = false;
                 getting_text = true;
             }
-            else wstring_append(&this_node.name, c);
+            else wstring_append(&this_node.name, wc);
         }
         else if (getting_desc == true) {
             if (wc == DLM_DESC.end) getting_desc = false;
-            else wstring_append(&this_node.desc, c);
+            else wstring_append(&this_node.desc, wc);
         }
         else if (getting_date == true) {
             if (wc == DLM_DATE.end) getting_date = false;
-            else wstring_append(&this_node.date, c);
+            else wstring_append(&this_node.date, wc);
         }
         else if (getting_text == true) {
             if (wc == DLM_TEXT.end) {
                 getting_text = false;
                 break;
             }
-            else wstring_append(&this_node.text, c);
+            else wstring_append(&this_node.text, wc);
         }
 
-        // if (wc == NODE_MARKER) {
-        //     NodeArray_append(this_node.children, Node_process(file, &this_node));
-        // }
+        if (wc == NODE_MARKER) {
+            NodeArray_append(&this_node.children, Node_process(file, &this_node));
+        }
         if (wc == DLM_DESC.beg) getting_desc = true;
         else if (wc == DLM_DATE.beg) getting_date = true;
         else if (wc == DLM_TEXT.beg) getting_text = true;
     }
 
     return this_node;
+}
+
+
+void Node_print(Node node) {
+    printf("\n\n----------- NODE -------\n\n");
+    if (node.name.len > 0) printf("Name: %ls\n", node.name.wstr);
+    if (node.desc.len > 0) printf("Desc: %ls\n", node.desc.wstr);
+    if (node.date.len > 0) printf("Date: %ls\n", node.date.wstr);
+    if (node.text.len > 0) printf("Text: %ls\n", node.text.wstr);
+    for (size_t i = 0; i < node.children.len; i++) {
+        printf("\n\n //// CHILD OF NODE %ls (%ls): /////", node.name.wstr, node.desc.wstr);
+        Node_print(node.children.nodes[i]);
+    }
 }
