@@ -5,16 +5,16 @@
 #include <wctype.h>
 
 typedef struct {
-    wint_t beg;
-    wint_t end;
+    wchar_t beg;
+    wchar_t end;
 } DelimiterSet;
 
-const wint_t NODE_MARKER = '@';
+const wchar_t NODE_MARKER = '@';
 const DelimiterSet DLM_DESC = {'(', ')'};
 const DelimiterSet DLM_DATE = {'[', ']'};
 const DelimiterSet DLM_TEXT = {'{', '}'};
 
-bool charIsWhiteSpace(wint_t c) {
+bool charIsWhiteSpace(wchar_t c) {
     if (c == ' ' || c == '\t' || c == '\n') return true;
     return false;
 }
@@ -25,19 +25,19 @@ bool charIsWhiteSpace(wint_t c) {
 typedef struct {
     size_t len;
     size_t cap;
-    wint_t *wstr;
+    wchar_t *wstr;
 } wstring;
 
 void wstring_init(wstring *arr, size_t init_size) {
-    arr->wstr = malloc(init_size * sizeof(wint_t));
+    arr->wstr = malloc(init_size * sizeof(wchar_t));
     arr->len = 0;
     arr->cap = init_size;
 }
 
-void wstring_append(wstring *arr, wint_t c) {
+void wstring_append(wstring *arr, wchar_t c) {
     if (arr->len == arr->cap) {
         arr->cap *= 2;
-        arr->wstr = realloc(arr->wstr, arr->cap * sizeof(wint_t));
+        arr->wstr = realloc(arr->wstr, arr->cap * sizeof(wchar_t));
     }
     arr->wstr[arr->len++] = c;
 }
