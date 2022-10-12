@@ -30,6 +30,11 @@ int main(int argc, char **argv) {
     setlocale(LC_ALL, "");
 
     Node root;
+    root.parent = NULL;
+    wstring_init(&root.name, 1);
+    wstring_init(&root.desc, 1);
+    wstring_init(&root.date, 1);
+    wstring_init(&root.text, 1);
     NodeArray_init(&root.children, 1);
 
     wint_t c;
@@ -50,10 +55,8 @@ int main(int argc, char **argv) {
         Node_print(root.children.nodes[i]);
     }
 
-    // free(name.wstr);
-    // free(desc.wstr);
-    // free(date.wstr);
-    // free(text.wstr);
+
+    Node_free(root);
     fclose(input_file);
     return EXIT_SUCCESS;
 }

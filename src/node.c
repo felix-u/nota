@@ -98,28 +98,41 @@ Node Node_process(FILE *file, Node *parent) {
             if (wc == DLM_DESC.beg) {
                 getting_name = false;
                 getting_desc = true;
+                wstring_append(&this_node.name, '\0');
+                continue;
             }
             else if (wc == DLM_DATE.beg) {
                 getting_name = false;
                 getting_date = true;
+                wstring_append(&this_node.desc, '\0');
+                continue;
             }
             else if (wc == DLM_TEXT.beg) {
                 getting_name = false;
                 getting_text = true;
+                wstring_append(&this_node.desc, '\0');
+                continue;
             }
             else wstring_append(&this_node.name, wc);
         }
         else if (getting_desc == true) {
-            if (wc == DLM_DESC.end) getting_desc = false;
+            if (wc == DLM_DESC.end) {
+                getting_desc = false;
+                wstring_append(&this_node.desc, '\0');
+            }
             else wstring_append(&this_node.desc, wc);
         }
         else if (getting_date == true) {
-            if (wc == DLM_DATE.end) getting_date = false;
+            if (wc == DLM_DATE.end) {
+                getting_date = false;
+                wstring_append(&this_node.date, '\0');
+            }
             else wstring_append(&this_node.date, wc);
         }
         else if (getting_text == true) {
             if (wc == DLM_TEXT.end) {
                 getting_text = false;
+                wstring_append(&this_node.text, '\0');
                 break;
             }
             else wstring_append(&this_node.text, wc);
@@ -128,7 +141,7 @@ Node Node_process(FILE *file, Node *parent) {
         if (wc == NODE_MARKER) {
             NodeArray_append(&this_node.children, Node_process(file, &this_node));
         }
-        if (wc == DLM_DESC.beg) getting_desc = true;
+        else if (wc == DLM_DESC.beg) getting_desc = true;
         else if (wc == DLM_DATE.beg) getting_date = true;
         else if (wc == DLM_TEXT.beg) getting_text = true;
     }
@@ -147,4 +160,16 @@ void Node_print(Node node) {
         printf("\n\n //// CHILD OF NODE %ls (%ls): /////", node.name.wstr, node.desc.wstr);
         Node_print(node.children.nodes[i]);
     }
+}
+
+
+void Node_free(Node node) {
+    if (node.name.wstr != NULL) free(node.name.wstr);
+    if (node.desc.wstr != NULL) free(node.desc.wstr);
+    if (node.date.wstr != NULL) free(node.date.wstr);
+    if (node.text.wstr != NULL) free(node.text.wstr);
+    for (size_t i = 0; i < node.children.len; i++) {
+        Node_free(node.children.nodes[i]);
+    }
+    free(node.children.nodes);
 }
