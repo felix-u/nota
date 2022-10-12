@@ -144,6 +144,7 @@ Node Node_process(FILE *file, Node *parent) {
         else if (wc == DLM_DESC.beg) getting_desc = true;
         else if (wc == DLM_DATE.beg) getting_date = true;
         else if (wc == DLM_TEXT.beg) getting_text = true;
+
     }
 
     return this_node;
