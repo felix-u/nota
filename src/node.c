@@ -42,6 +42,37 @@ void wstring_append(wstring *arr, wchar_t c) {
     arr->wstr[arr->len++] = c;
 }
 
+void wstring_print(wstring str) {
+    for (size_t i = 0; i < str.len; i++) printf("%lc", str.wstr[i]);
+}
+
+void wstring_println(wstring str) {
+    wstring_print(str);
+    putchar('\n');
+}
+
+void wstring_removeSurroundingWhitespace(wstring *str) {
+    for (size_t i = 0; i < str->len; i++) {
+        if (!charIsWhiteSpace(str->wstr[i])) {
+            if (i > 0) {
+                str->len -= i;
+                wmemmove(str->wstr, (str->wstr + i), str->len);
+            }
+            break;
+        }
+    }
+
+    for (int i = str->len; i >= 0; i--) {
+        if (!charIsWhiteSpace(str->wstr[i])) {
+            if ((size_t)i < str->len) {
+                str->len = i + 1;
+            }
+            else if ((size_t)i == str->len) str->len = 0;
+            return;
+        }
+    }
+}
+
 
 typedef struct NodeArray {
     size_t len;
@@ -98,19 +129,16 @@ Node Node_process(FILE *file, Node *parent) {
             if (wc == DLM_DESC.beg) {
                 getting_name = false;
                 getting_desc = true;
-                wstring_append(&this_node.name, '\0');
                 continue;
             }
             else if (wc == DLM_DATE.beg) {
                 getting_name = false;
                 getting_date = true;
-                wstring_append(&this_node.desc, '\0');
                 continue;
             }
             else if (wc == DLM_TEXT.beg) {
                 getting_name = false;
                 getting_text = true;
-                wstring_append(&this_node.desc, '\0');
                 continue;
             }
             else wstring_append(&this_node.name, wc);
@@ -118,24 +146,21 @@ Node Node_process(FILE *file, Node *parent) {
         else if (getting_desc == true) {
             if (wc == DLM_DESC.end) {
                 getting_desc = false;
-                wstring_append(&this_node.desc, '\0');
             }
             else wstring_append(&this_node.desc, wc);
         }
         else if (getting_date == true) {
             if (wc == DLM_DATE.end) {
                 getting_date = false;
-                wstring_append(&this_node.date, '\0');
             }
             else wstring_append(&this_node.date, wc);
         }
         else if (getting_text == true) {
             if (wc == DLM_TEXT.end) {
                 getting_text = false;
-                wstring_append(&this_node.text, '\0');
                 break;
             }
-            else wstring_append(&this_node.text, wc);
+            else if (wc != NODE_MARKER) wstring_append(&this_node.text, wc);
         }
 
         if (wc == NODE_MARKER) {
@@ -147,16 +172,29 @@ Node Node_process(FILE *file, Node *parent) {
 
     }
 
+    wstring_removeSurroundingWhitespace(&this_node.text);
     return this_node;
 }
 
 
 void Node_print(Node node) {
     printf("\n\n----------- NODE -------\n\n");
-    if (node.name.len > 0) printf("Name: %ls\n", node.name.wstr);
-    if (node.desc.len > 0) printf("Desc: %ls\n", node.desc.wstr);
-    if (node.date.len > 0) printf("Date: %ls\n", node.date.wstr);
-    if (node.text.len > 0) printf("Text: %ls\n", node.text.wstr);
+    if (node.name.len > 0) {
+        printf("Name: ");
+        wstring_println(node.name);
+    }
+    if (node.desc.len > 0) {
+        printf("Desc: ");
+        wstring_println(node.desc);
+    }
+    if (node.date.len > 0) {
+        printf("Date: ");
+        wstring_println(node.date);
+    }
+    if (node.text.len > 0) {
+        printf("Text: ");
+        wstring_println(node.text);
+    }
     for (size_t i = 0; i < node.children.len; i++) {
         printf("\n\n //// CHILD OF NODE %ls (%ls): /////", node.name.wstr, node.desc.wstr);
         Node_print(node.children.nodes[i]);
