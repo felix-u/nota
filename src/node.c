@@ -178,7 +178,7 @@ Node Node_process(FILE *file, Node *parent) {
 
 
 void Node_print(Node node) {
-    printf("\n\n----------- NODE -------\n\n");
+    printf("----------- NODE -------\n");
     if (node.name.len > 0) {
         printf("Name: ");
         wstring_println(node.name);
@@ -195,8 +195,9 @@ void Node_print(Node node) {
         printf("Text: ");
         wstring_println(node.text);
     }
+    printf("\n\n");
     for (size_t i = 0; i < node.children.len; i++) {
-        printf("\n\n //// CHILD OF NODE %ls (%ls): /////", node.name.wstr, node.desc.wstr);
+        printf("~~~ CHILD OF NODE: %ls (%ls) ~~~\n\n", node.name.wstr, node.desc.wstr);
         Node_print(node.children.nodes[i]);
     }
 }
