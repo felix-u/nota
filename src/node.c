@@ -125,7 +125,7 @@ Node Node_process(FILE *file, Node *parent) {
 
         wc = (wchar_t)c;
 
-        if (getting_name == true) {
+        if (getting_name) {
             if (wc == DLM_DESC.beg) {
                 getting_name = false;
                 getting_desc = true;
@@ -143,19 +143,19 @@ Node Node_process(FILE *file, Node *parent) {
             }
             else wstring_append(&this_node.name, wc);
         }
-        else if (getting_desc == true) {
+        else if (getting_desc) {
             if (wc == DLM_DESC.end) {
                 getting_desc = false;
             }
             else wstring_append(&this_node.desc, wc);
         }
-        else if (getting_date == true) {
+        else if (getting_date) {
             if (wc == DLM_DATE.end) {
                 getting_date = false;
             }
             else wstring_append(&this_node.date, wc);
         }
-        else if (getting_text == true) {
+        else if (getting_text) {
             if (wc == DLM_TEXT.end) {
                 getting_text = false;
                 break;
@@ -166,9 +166,11 @@ Node Node_process(FILE *file, Node *parent) {
         if (wc == NODE_MARKER) {
             NodeArray_append(&this_node.children, Node_process(file, &this_node));
         }
-        else if (wc == DLM_DESC.beg) getting_desc = true;
-        else if (wc == DLM_DATE.beg) getting_date = true;
-        else if (wc == DLM_TEXT.beg) getting_text = true;
+        if (!getting_name && !getting_desc && !getting_date && !getting_text) {
+            if (wc == DLM_DESC.beg) getting_desc = true;
+            else if (wc == DLM_DATE.beg) getting_date = true;
+            else if (wc == DLM_TEXT.beg) getting_text = true;
+        }
 
     }
 
