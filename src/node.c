@@ -30,6 +30,7 @@ typedef struct Node {
     wstring name;
     wstring desc;
     wstring date;
+    unsigned int date_uint;
     wstring text;
     struct NodeArray children;
 } Node;
@@ -56,6 +57,7 @@ Node Node_process(FILE *file, Node *parent) {
     wstring_init(&this_node.name, 1);
     wstring_init(&this_node.desc, 1);
     wstring_init(&this_node.date, 1);
+    this_node.date_uint = 0;
     wstring_init(&this_node.text, 1);
     NodeArray_init(&this_node.children, 1);
 
@@ -150,9 +152,12 @@ Node Node_process(FILE *file, Node *parent) {
     }
 
     wstring_removeSurroundingWhitespace(&this_node.desc);
+
     wstring_removeSurroundingWhitespace(&this_node.date);
+    this_node.date_uint = wstring_toUint(this_node.date);
+
     wstring_removeSurroundingWhitespace(&this_node.text);
-    // If the text consists only of whitespace, treat the text as empty.
+    // If the text consists only of whitespace, treat it as empty.
     if (!found_text_not_whitespace) this_node.text.len = 0;
     free(text_whitespace_buf.wstr);
 
@@ -162,22 +167,29 @@ Node Node_process(FILE *file, Node *parent) {
 
 void Node_print(Node node) {
     printf("----------- NODE -------\n");
+
     if (node.name.len > 0) {
         printf("Name: ");
         wstring_println(node.name);
     }
+
     if (node.desc.len > 0) {
         printf("Desc: ");
         wstring_println(node.desc);
     }
+
+    printf("Date:");
     if (node.date.len > 0) {
-        printf("Date: ");
-        wstring_println(node.date);
+        putchar(' ');
+        wstring_print(node.date);
     }
+    printf(" (%d)\n", node.date_uint);
+
     if (node.text.len > 0) {
         printf("Text: ");
         wstring_println(node.text);
     }
+
     printf("\n\n");
     for (size_t i = 0; i < node.children.len; i++) {
         printf("~~~ CHILD OF NODE: %ls (%ls) ~~~\n\n", node.name.wstr, node.desc.wstr);

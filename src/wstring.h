@@ -27,6 +27,7 @@ bool wstring_containsNewline(wstring *arr);
 void wstring_print(wstring str);
 void wstring_println(wstring str);
 void wstring_removeSurroundingWhitespace(wstring *str);
+unsigned int wstring_toUint(wstring str);
 
 
 #ifdef WSTRING_IMPLEMENTATION
@@ -108,6 +109,23 @@ void wstring_removeSurroundingWhitespace(wstring *str) {
         }
     }
 
+}
+
+
+unsigned int wstring_toUint(wstring str) {
+    unsigned int num = 0;
+    size_t magnitude = 0;
+
+    for (int i = str.len; i >= 0; i--) {
+        if (str.wstr[i] >= '0' && str.wstr[i] <= '9') {
+            unsigned int digit = str.wstr[i] - 48;
+            for (size_t j = 0; j < magnitude; j++) digit *= 10;
+            num += digit;
+            magnitude++;
+        }
+    }
+
+    return num;
 }
 
 #endif // WSTRING_IMPLEMENTATION
