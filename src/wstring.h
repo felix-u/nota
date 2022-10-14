@@ -21,6 +21,9 @@ bool whitespaceNotNewline(wchar_t c);
 bool whitespace(wchar_t c);
 void wstring_init(wstring *arr, size_t init_size);
 void wstring_append(wstring *arr, wchar_t c);
+void wstring_appendNewlinesFromWstring(wstring *target, wstring *from);
+void wstring_appendWstring(wstring *target, wstring *from);
+bool wstring_containsNewline(wstring *arr);
 void wstring_print(wstring str);
 void wstring_println(wstring str);
 void wstring_removeSurroundingWhitespace(wstring *str);
@@ -56,6 +59,26 @@ void wstring_append(wstring *arr, wchar_t c) {
 }
 
 
+void wstring_appendNewlinesFromWstring(wstring *target, wstring *from) {
+    for (size_t i = 0; i < from->len; i++) {
+        if (from->wstr[i] == '\n') wstring_append(target, '\n');
+    }
+}
+
+
+void wstring_appendWstring(wstring *target, wstring *from) {
+    for (size_t i = 0; i < from->len; i++) wstring_append(target, from->wstr[i]);
+}
+
+
+bool wstring_containsNewline(wstring *arr) {
+    for (size_t i = 0; i < arr->len; i++) {
+        if (arr->wstr[i] == '\n') return true;
+    }
+    return false;
+}
+
+
 void wstring_print(wstring str) {
     for (size_t i = 0; i < str.len; i++) printf("%lc", str.wstr[i]);
 }
@@ -80,13 +103,11 @@ void wstring_removeSurroundingWhitespace(wstring *str) {
 
     for (int i = str->len; i >= 0; i--) {
         if (!whitespace(str->wstr[i])) {
-            if ((size_t)i < str->len) {
-                str->len = i + 1;
-            }
-            else if ((size_t)i == str->len) str->len = 0;
+            if ((size_t)i < str->len) str->len = i + 1;
             return;
         }
     }
+
 }
 
 #endif // WSTRING_IMPLEMENTATION

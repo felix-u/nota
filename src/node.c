@@ -70,6 +70,7 @@ Node Node_process(FILE *file, Node *parent) {
     wstring text_whitespace_buf;
     wstring_init(&text_whitespace_buf, 1);
     bool text_getting_whitespace = false;
+    bool found_text_not_whitespace = false;
 
     while ((c = fgetwc(file)) != WEOF) {
 
@@ -110,13 +111,31 @@ Node Node_process(FILE *file, Node *parent) {
                 getting_text = false;
                 break;
             }
-            // @Broken{}
-            else if (!text_getting_whitespace && whitespaceNotNewline(wc)) text_getting_whitespace = true;
-            else if (text_getting_whitespace) {
-                if (!whitespaceNotNewline(wc)) text_getting_whitespace = false;
-                else if (wc != NODE_MARKER) wstring_append(&text_whitespace_buf, wc);
+
+            if (!text_getting_whitespace) {
+                if (whitespace(wc)) {
+                    text_getting_whitespace = true;
+                    text_whitespace_buf.len = 0;
+                }
+                else if (wc != NODE_MARKER) {
+                    wstring_append(&this_node.text, wc);
+                    found_text_not_whitespace = true;
+                }
             }
-            else if (wc != NODE_MARKER) wstring_append(&this_node.text, wc);
+            if (text_getting_whitespace) {
+                if (whitespace(wc)) wstring_append(&text_whitespace_buf, wc);
+                else {
+                    text_getting_whitespace = false;
+
+                    if (wstring_containsNewline(&text_whitespace_buf)) {
+                        wstring_appendNewlinesFromWstring(&this_node.text, &text_whitespace_buf);
+                    }
+                    else wstring_appendWstring(&this_node.text, &text_whitespace_buf);
+
+                    if (wc != NODE_MARKER) wstring_append(&this_node.text, wc);
+                }
+            }
+
         }
 
         if (wc == NODE_MARKER) {
@@ -130,7 +149,11 @@ Node Node_process(FILE *file, Node *parent) {
 
     }
 
+    wstring_removeSurroundingWhitespace(&this_node.desc);
+    wstring_removeSurroundingWhitespace(&this_node.date);
     wstring_removeSurroundingWhitespace(&this_node.text);
+    // If the text consists only of whitespace, treat the text as empty.
+    if (!found_text_not_whitespace) this_node.text.len = 0;
     free(text_whitespace_buf.wstr);
 
     return this_node;

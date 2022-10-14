@@ -52,7 +52,6 @@ int main(int argc, char **argv) {
         Node_print(root.children.nodes[i]);
     }
 
-
     Node_free(root);
     fclose(input_file);
 

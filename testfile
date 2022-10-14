@@ -5,13 +5,17 @@ This is a sentence qaml should know absolutely nothing about.
     Another line.
 }
 
-@Section (Ñame 2) [2020-01-01]{ This is the Section, with different whitespace. }
+@Section (Ñame 2 ) [
+                    2020-01-01
+                    ]{
+    This is the Section, with terrible whitespace. }
 
 @Section(Name 3) {
     @Subsection { wow, a subsection! }
     @Subsection(A Name 大)[1990-01-01] {
         OOh, another!
         More filler.
+        Filler     again.
         @Subsubsection { A subsection of a subsection. Stunning. }
     }
 }
