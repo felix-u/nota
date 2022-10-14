@@ -5,6 +5,7 @@
 #include <wchar.h>
 #include <wctype.h>
 
+#define WSTRING_IMPLEMENTATION
 #include "wstring.h"
 
 typedef struct {
@@ -16,12 +17,6 @@ const wchar_t NODE_MARKER = '@';
 const DelimiterSet DLM_DESC = {'(', ')'};
 const DelimiterSet DLM_DATE = {'[', ']'};
 const DelimiterSet DLM_TEXT = {'{', '}'};
-
-
-bool charIsWhiteSpace(wchar_t c) {
-    if (c == ' ' || c == '\t' || c == '\n') return true;
-    return false;
-}
 
 
 typedef struct NodeArray {

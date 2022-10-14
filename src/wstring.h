@@ -1,6 +1,8 @@
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <wchar.h>
+// #include <wctype.h>
 
 #ifndef WSTRING_STRUCT_IMPLEMENTATION
     #define WSTRING_STRUCT_IMPLEMENTATION
@@ -11,6 +13,7 @@
     } wstring;
 #endif
 
+bool charIsWhiteSpace(wchar_t c);
 void wstring_init(wstring *arr, size_t init_size);
 void wstring_append(wstring *arr, wchar_t c);
 void wstring_print(wstring str);
@@ -22,6 +25,12 @@ void wstring_removeSurroundingWhitespace(wstring *str);
 #endif
 
 #ifdef WSTRING_IMPLEMENTATION
+
+bool charIsWhiteSpace(wchar_t c) {
+    if (c == ' ' || c == '\t' || c == '\n') return true;
+    return false;
+}
+
 
 void wstring_init(wstring *arr, size_t init_size) {
     arr->wstr = malloc(init_size * sizeof(wchar_t));
