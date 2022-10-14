@@ -16,7 +16,6 @@
 int main(int argc, char **argv) {
 
     char *input_path = args_singleValueOf(argc, argv, (char *[]){"-i", "-input", "--input"});
-
     if (input_path == NULL) {
         printf("ERROR: Must specify input file.\n");
         exit(EX_NOINPUT);

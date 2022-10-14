@@ -66,6 +66,11 @@ Node Node_process(FILE *file, Node *parent) {
 
     wint_t c;
     wchar_t wc;
+
+    wstring text_whitespace_buf;
+    wstring_init(&text_whitespace_buf, 1);
+    bool text_getting_whitespace = false;
+
     while ((c = fgetwc(file)) != WEOF) {
 
         wc = (wchar_t)c;
@@ -105,6 +110,12 @@ Node Node_process(FILE *file, Node *parent) {
                 getting_text = false;
                 break;
             }
+            // @Broken{}
+            else if (!text_getting_whitespace && whitespaceNotNewline(wc)) text_getting_whitespace = true;
+            else if (text_getting_whitespace) {
+                if (!whitespaceNotNewline(wc)) text_getting_whitespace = false;
+                else if (wc != NODE_MARKER) wstring_append(&text_whitespace_buf, wc);
+            }
             else if (wc != NODE_MARKER) wstring_append(&this_node.text, wc);
         }
 
@@ -120,6 +131,8 @@ Node Node_process(FILE *file, Node *parent) {
     }
 
     wstring_removeSurroundingWhitespace(&this_node.text);
+    free(text_whitespace_buf.wstr);
+
     return this_node;
 }
 

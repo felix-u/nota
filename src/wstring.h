@@ -17,7 +17,8 @@ typedef struct wstring {
 #endif // WSTRING_TYPE
 
 
-bool charIsWhiteSpace(wchar_t c);
+bool whitespaceNotNewline(wchar_t c);
+bool whitespace(wchar_t c);
 void wstring_init(wstring *arr, size_t init_size);
 void wstring_append(wstring *arr, wchar_t c);
 void wstring_print(wstring str);
@@ -27,8 +28,14 @@ void wstring_removeSurroundingWhitespace(wstring *str);
 
 #ifdef WSTRING_IMPLEMENTATION
 
-bool charIsWhiteSpace(wchar_t c) {
-    if (c == ' ' || c == '\t' || c == '\n') return true;
+bool whitespaceNotNewline(wchar_t c) {
+    if (c == ' ' || c == '\t') return true;
+    return false;
+}
+
+
+bool whitespace(wchar_t c) {
+    if (whitespaceNotNewline(c) || c == '\n') return true;
     return false;
 }
 
@@ -62,7 +69,7 @@ void wstring_println(wstring str) {
 
 void wstring_removeSurroundingWhitespace(wstring *str) {
     for (size_t i = 0; i < str->len; i++) {
-        if (!charIsWhiteSpace(str->wstr[i])) {
+        if (!whitespace(str->wstr[i])) {
             if (i > 0) {
                 str->len -= i;
                 wmemmove(str->wstr, (str->wstr + i), str->len);
@@ -72,7 +79,7 @@ void wstring_removeSurroundingWhitespace(wstring *str) {
     }
 
     for (int i = str->len; i >= 0; i--) {
-        if (!charIsWhiteSpace(str->wstr[i])) {
+        if (!whitespace(str->wstr[i])) {
             if ((size_t)i < str->len) {
                 str->len = i + 1;
             }
