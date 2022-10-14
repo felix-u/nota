@@ -1,5 +1,5 @@
 CFLAGS=-std=c99 -Wall -pedantic -Werror -Wshadow \
-	   -Wstrict-overflow -Wextra -Wall -Wno-unused-but-set-variable -Wno-unused-variable
+	   -Wstrict-overflow -Wextra -Wall -Wno-unused-variable
 DEBUGFLAGS=-g -Og
 RELEASEFLAGS=-O3 -s
 

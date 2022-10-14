@@ -1,17 +1,21 @@
 #include <stdbool.h>
-#include <stdlib.h>
 #include <stddef.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include <wchar.h>
-// #include <wctype.h>
 
-#ifndef WSTRING_STRUCT_IMPLEMENTATION
-    #define WSTRING_STRUCT_IMPLEMENTATION
-    typedef struct wstring {
-        size_t len;
-        size_t cap;
-        wchar_t *wstr;
-    } wstring;
-#endif
+
+#ifndef WSTRING_TYPE
+#define WSTRING_TYPE
+
+typedef struct wstring {
+    size_t len;
+    size_t cap;
+    wchar_t *wstr;
+} wstring;
+
+#endif // WSTRING_TYPE
+
 
 bool charIsWhiteSpace(wchar_t c);
 void wstring_init(wstring *arr, size_t init_size);
@@ -20,9 +24,6 @@ void wstring_print(wstring str);
 void wstring_println(wstring str);
 void wstring_removeSurroundingWhitespace(wstring *str);
 
-#ifndef WSTRING_IMPLEMENTATION
-    #define WSTRING_IMPLEMENTATION
-#endif
 
 #ifdef WSTRING_IMPLEMENTATION
 
@@ -33,27 +34,31 @@ bool charIsWhiteSpace(wchar_t c) {
 
 
 void wstring_init(wstring *arr, size_t init_size) {
-    arr->wstr = malloc(init_size * sizeof(wchar_t));
+    arr->wstr = (wchar_t *)malloc(init_size * sizeof(wchar_t));
     arr->len = 0;
     arr->cap = init_size;
 }
 
+
 void wstring_append(wstring *arr, wchar_t c) {
     if (arr->len == arr->cap) {
         arr->cap *= 2;
-        arr->wstr = realloc(arr->wstr, arr->cap * sizeof(wchar_t));
+        arr->wstr = (wchar_t *)realloc(arr->wstr, arr->cap * sizeof(wchar_t));
     }
     arr->wstr[arr->len++] = c;
 }
+
 
 void wstring_print(wstring str) {
     for (size_t i = 0; i < str.len; i++) printf("%lc", str.wstr[i]);
 }
 
+
 void wstring_println(wstring str) {
     wstring_print(str);
     putchar('\n');
 }
+
 
 void wstring_removeSurroundingWhitespace(wstring *str) {
     for (size_t i = 0; i < str->len; i++) {
@@ -77,4 +82,4 @@ void wstring_removeSurroundingWhitespace(wstring *str) {
     }
 }
 
-#endif
+#endif // WSTRING_IMPLEMENTATION

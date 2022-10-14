@@ -5,8 +5,8 @@
 #include <wchar.h>
 #include <wctype.h>
 
-#define WSTRING_IMPLEMENTATION
 #include "wstring.h"
+
 
 typedef struct {
     wchar_t beg;
