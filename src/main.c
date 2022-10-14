@@ -12,6 +12,9 @@
 
 #include "node.c"
 
+#define WSTRING_IMPLEMENTATION
+#include "wstring.h"
+
 
 int main(int argc, char **argv) {
 

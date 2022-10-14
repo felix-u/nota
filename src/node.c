@@ -5,6 +5,8 @@
 #include <wchar.h>
 #include <wctype.h>
 
+#include "wstring.h"
+
 typedef struct {
     wchar_t beg;
     wchar_t end;
@@ -19,58 +21,6 @@ const DelimiterSet DLM_TEXT = {'{', '}'};
 bool charIsWhiteSpace(wchar_t c) {
     if (c == ' ' || c == '\t' || c == '\n') return true;
     return false;
-}
-
-
-typedef struct {
-    size_t len;
-    size_t cap;
-    wchar_t *wstr;
-} wstring;
-
-void wstring_init(wstring *arr, size_t init_size) {
-    arr->wstr = malloc(init_size * sizeof(wchar_t));
-    arr->len = 0;
-    arr->cap = init_size;
-}
-
-void wstring_append(wstring *arr, wchar_t c) {
-    if (arr->len == arr->cap) {
-        arr->cap *= 2;
-        arr->wstr = realloc(arr->wstr, arr->cap * sizeof(wchar_t));
-    }
-    arr->wstr[arr->len++] = c;
-}
-
-void wstring_print(wstring str) {
-    for (size_t i = 0; i < str.len; i++) printf("%lc", str.wstr[i]);
-}
-
-void wstring_println(wstring str) {
-    wstring_print(str);
-    putchar('\n');
-}
-
-void wstring_removeSurroundingWhitespace(wstring *str) {
-    for (size_t i = 0; i < str->len; i++) {
-        if (!charIsWhiteSpace(str->wstr[i])) {
-            if (i > 0) {
-                str->len -= i;
-                wmemmove(str->wstr, (str->wstr + i), str->len);
-            }
-            break;
-        }
-    }
-
-    for (int i = str->len; i >= 0; i--) {
-        if (!charIsWhiteSpace(str->wstr[i])) {
-            if ((size_t)i < str->len) {
-                str->len = i + 1;
-            }
-            else if ((size_t)i == str->len) str->len = 0;
-            return;
-        }
-    }
 }
 
 
