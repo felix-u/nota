@@ -19,14 +19,18 @@ typedef struct wstring {
 
 bool whitespaceNotNewline(wchar_t c);
 bool whitespace(wchar_t c);
+
 void wstring_init(wstring *arr, size_t init_size);
 void wstring_append(wstring *arr, wchar_t c);
 void wstring_appendNewlinesFromWstring(wstring *target, wstring *from);
 void wstring_appendWstring(wstring *target, wstring *from);
+void wstring_removeSurroundingWhitespace(wstring *str);
+
 bool wstring_containsNewline(wstring *arr);
+
 void wstring_print(wstring str);
 void wstring_println(wstring str);
-void wstring_removeSurroundingWhitespace(wstring *str);
+
 unsigned int wstring_toUint(wstring str);
 
 
@@ -127,5 +131,6 @@ unsigned int wstring_toUint(wstring str) {
 
     return num;
 }
+
 
 #endif // WSTRING_IMPLEMENTATION
