@@ -30,7 +30,7 @@ typedef struct Node {
     wstring name;
     wstring desc;
     wstring date;
-    unsigned int date_uint;
+    int date_int;
     wstring text;
     struct NodeArray children;
 } Node;
@@ -57,7 +57,7 @@ Node Node_process(FILE *file, Node *parent) {
     wstring_init(&this_node.name, 1);
     wstring_init(&this_node.desc, 1);
     wstring_init(&this_node.date, 1);
-    this_node.date_uint = 0;
+    this_node.date_int = 0;
     wstring_init(&this_node.text, 1);
     NodeArray_init(&this_node.children, 1);
 
@@ -154,7 +154,7 @@ Node Node_process(FILE *file, Node *parent) {
     wstring_removeSurroundingWhitespace(&this_node.desc);
 
     wstring_removeSurroundingWhitespace(&this_node.date);
-    this_node.date_uint = wstring_toUint(this_node.date);
+    this_node.date_int = wstring_toUint(this_node.date);
 
     wstring_removeSurroundingWhitespace(&this_node.text);
     // If the text consists only of whitespace, treat it as empty.
@@ -183,7 +183,7 @@ void Node_print(Node node) {
         putchar(' ');
         wstring_print(node.date);
     }
-    printf(" (%d)\n", node.date_uint);
+    printf(" (%d)\n", node.date_int);
 
     if (node.text.len > 0) {
         printf("Text: ");

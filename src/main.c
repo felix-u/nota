@@ -34,6 +34,7 @@ int main(int argc, char **argv) {
     wstring_init(&root.name, 1);
     wstring_init(&root.desc, 1);
     wstring_init(&root.date, 1);
+    root.date_int = -1;
     wstring_init(&root.text, 1);
     NodeArray_init(&root.children, 1);
 
