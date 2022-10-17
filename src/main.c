@@ -28,6 +28,22 @@ int main(int argc, char **argv) {
         exit(EX_IOERR);
     }
 
+    args_SingleValReturn date_flag = args_singleValueOf(argc, argv, (char *[]){"-d", "-date", "--date"});
+    if (date_flag.is_present) {
+        if (!strcasecmp(date_flag.val, "isonow")) {
+            time_t t = time(NULL);
+            struct tm date = *localtime(&t);
+            date.tm_year += 1900;
+            date.tm_mon += 1;
+            printf("%d-%d-%d %d:%d\n", date.tm_year, date.tm_mon, date.tm_mday, date.tm_hour, date.tm_min); // DEBUG
+        }
+        else {
+            // @Missing { Handle custom numeric date }
+            printf("ERROR: Must provide numeric date, or specify 'isonow' to use the current date.\n");
+            exit(EX_USAGE);
+        }
+    }
+
 
     setlocale(LC_ALL, "");
 
@@ -53,17 +69,6 @@ int main(int argc, char **argv) {
     // DEBUG
     for (size_t i = 0; i < root.children.len; i++) {
         Node_print(root.children.nodes[i]);
-    }
-
-
-    char *date_flag = args_singleValueOf(argc, argv, (char *[]){"-d", "-date", "--date"}).val;
-    if (date_flag != NULL && !strcasecmp(date_flag, "isonow")) {
-        time_t t = time(NULL);
-        struct tm date = *localtime(&t);
-        date.tm_year += 1900;
-        date.tm_mon += 1;
-
-        printf("%d-%d-%d %d:%d\n", date.tm_year, date.tm_mon, date.tm_mday, date.tm_hour, date.tm_min);
     }
 
 
