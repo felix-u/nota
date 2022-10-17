@@ -9,19 +9,24 @@
 typedef struct {
     bool is_present;
     int index;
-} BoolFlagReturn;
+} args_BoolFlagReturn;
+
+typedef struct {
+    bool is_present;
+    char *val;
+} args_SingleValReturn;
 
 typedef struct {
     int offset;
     int end;
-} MultipleValReturn;
+} args_MultipleValReturn;
 
 #endif // ARGS_TYPE
 
 
-BoolFlagReturn args_isPresent(int argc, char** argv, char** flag);
-char* args_singleValueOf(int argc, char** argv, char** flag);
-MultipleValReturn args_multipleValuesOf(int argc, char** argv, char** flag);
+args_BoolFlagReturn args_isPresent(int argc, char** argv, char** flag);
+args_SingleValReturn args_singleValueOf(int argc, char** argv, char** flag);
+args_MultipleValReturn args_multipleValuesOf(int argc, char** argv, char** flag);
 
 
 #ifdef ARGS_IMPLEMENTATION
@@ -32,39 +37,43 @@ MultipleValReturn args_multipleValuesOf(int argc, char** argv, char** flag);
 
 
 // Checks if a boolean flag exists
-BoolFlagReturn args_isPresent(int argc, char** argv, char** flag) {
+args_BoolFlagReturn args_isPresent(int argc, char** argv, char** flag) {
     for (int i = 1; i < argc; i++) {
         for (int j = 0; j < ARGS_EQUIVALENT_FLAGS; j++) {
-            if (!strcasecmp(argv[i], flag[j])) return (BoolFlagReturn){true, i};
+            if (!strcasecmp(argv[i], flag[j])) return (args_BoolFlagReturn){true, i};
         }
     }
     // Flag missing
-    return (BoolFlagReturn){false, 0};
+    return (args_BoolFlagReturn){false, 0};
 }
 
 
 // Returns single value of flag
-char* args_singleValueOf(int argc, char** argv, char** flag) {
+args_SingleValReturn args_singleValueOf(int argc, char** argv, char** flag) {
 
-    BoolFlagReturn flag_check = args_isPresent(argc, argv, flag);
+    args_BoolFlagReturn flag_check = args_isPresent(argc, argv, flag);
+
     if (flag_check.is_present) {
-
         // If the arg after the flag doesn't start with '-', we return it as the supplied option.
-        if (argc > flag_check.index + 1 && argv[flag_check.index + 1][0] != '-') return argv[flag_check.index + 1];
-
+        if (argc > flag_check.index + 1 && argv[flag_check.index + 1][0] != '-') {
+            return (args_SingleValReturn) {
+                flag_check.is_present,
+                argv[flag_check.index + 1]
+            };
+        }
         // Otherwise, flag is present but no value supplied
-        return NULL;
+        return (args_SingleValReturn){flag_check.is_present, NULL};
     }
 
     // Flag not present
-    return NULL;
+    return (args_SingleValReturn){flag_check.is_present, NULL};
 }
 
 
 // Returns multiple values of flag
-MultipleValReturn args_multipleValuesOf(int argc, char** argv, char** flag) {
+args_MultipleValReturn args_multipleValuesOf(int argc, char** argv, char** flag) {
 
-    BoolFlagReturn flag_check = args_isPresent(argc, argv, flag);
+    args_BoolFlagReturn flag_check = args_isPresent(argc, argv, flag);
     if (flag_check.is_present) {
 
         // If the arg after the flag doesn't start with '-', at least one option was supplied and so there are things
@@ -79,15 +88,15 @@ MultipleValReturn args_multipleValuesOf(int argc, char** argv, char** flag) {
             // If end_index is still 0 by now, the values go to the end of argv.
             if (end_index == 0) end_index = argc;
 
-            return (MultipleValReturn){flag_check.index + 1, end_index};
+            return (args_MultipleValReturn){flag_check.index + 1, end_index};
         }
 
         // Otherwise, flag is present but no value supplied.
-        return (MultipleValReturn){flag_check.index + 1, 0};
+        return (args_MultipleValReturn){flag_check.index + 1, 0};
     }
 
     // Flag not present
-    return (MultipleValReturn){0, 0};
+    return (args_MultipleValReturn){0, 0};
 }
 
 #endif // ARGS_IMPLEMENTATION
