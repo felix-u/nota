@@ -17,8 +17,9 @@ typedef struct {
 } args_SingleValReturn;
 
 typedef struct {
-    int offset;
-    int end;
+    bool is_present;
+    char **vals;
+    int len;
 } args_MultipleValReturn;
 
 #endif // ARGS_TYPE
@@ -88,15 +89,19 @@ args_MultipleValReturn args_multipleValuesOf(int argc, char** argv, char** flag)
             // If end_index is still 0 by now, the values go to the end of argv.
             if (end_index == 0) end_index = argc;
 
-            return (args_MultipleValReturn){flag_check.index + 1, end_index};
+            return (args_MultipleValReturn) {
+                flag_check.is_present,
+                argv + flag_check.index + 1,
+                end_index - flag_check.index - 1
+            };
         }
 
         // Otherwise, flag is present but no value supplied.
-        return (args_MultipleValReturn){flag_check.index + 1, 0};
+        return (args_MultipleValReturn){flag_check.is_present, argv + flag_check.index + 1, 0};
     }
 
     // Flag not present
-    return (args_MultipleValReturn){0, 0};
+    return (args_MultipleValReturn){flag_check.is_present, NULL, 0};
 }
 
 #endif // ARGS_IMPLEMENTATION

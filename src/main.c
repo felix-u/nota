@@ -17,14 +17,14 @@
 
 int main(int argc, char **argv) {
 
-    char *input_path = args_singleValueOf(argc, argv, (char *[]){"-i", "-input", "--input"}).val;
-    if (input_path == NULL) {
+    args_SingleValReturn input_flag = args_singleValueOf(argc, argv, (char *[]){"-i", "-input", "--input"});
+    if (!input_flag.is_present) {
         printf("ERROR: Must specify input file.\n");
         exit(EX_NOINPUT);
     }
-    FILE *input_file = fopen(input_path, "r");
+    FILE *input_file = fopen(input_flag.val, "r");
     if (input_file == NULL) {
-        printf("ERROR: Could not read file at \"%s\".\n", input_path);
+        printf("ERROR: Could not read file at \"%s\".\n", input_flag.val);
         exit(EX_IOERR);
     }
 
