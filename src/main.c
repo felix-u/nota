@@ -17,9 +17,12 @@
 
 
 double cstrToDouble(char *cstr);
+void nodeptrsInBuf(Node **ptrbuf, Node *node, size_t *idx);
 
 
 int main(int argc, char **argv) {
+
+    setlocale(LC_ALL, "");
 
     args_SingleValReturn input_flag = args_singleValueOf(argc, argv, (char *[]){"-i", "-input", "--input"});
     if (!input_flag.is_present) {
@@ -32,15 +35,37 @@ int main(int argc, char **argv) {
         exit(EX_IOERR);
     }
 
+
+    Node root;
+    root.parent = NULL;
+    wstring_init(&root.name, 1);
+    wstring_init(&root.desc, 1);
+    wstring_init(&root.date, 1);
+    root.date_num = -1;
+    wstring_init(&root.text, 1);
+    NodeArray_init(&root.children, 1);
+
+    size_t node_count = 0;
+
+
+    double user_date = 0;
     args_SingleValReturn date_flag = args_singleValueOf(argc, argv, (char *[]){"-d", "-date", "--date"});
-    if (date_flag.is_present) {
-        double user_date = 0;
+    args_SingleValReturn sort_flag = args_singleValueOf(argc, argv, (char *[]){"-s", "-sort", "--sort"});
+
+    if ((date_flag.is_present && !sort_flag.is_present) || (!date_flag.is_present && sort_flag.is_present)) {
+        printf("ERROR: Must use 'sort' flag in conjuction with 'date' flag.\n");
+        fclose(input_file);
+        Node_free(root);
+        exit(EX_USAGE);
+    }
+    else if (date_flag.is_present) {
         if (date_flag.val == NULL) {
-            printf("ERROR: Must provide numeric date, or specify 'isonow' to use the current date.\n");
+            printf("ERROR: Must provide numeric date, or specify 'now' to use the current date.\n");
             fclose(input_file);
+            Node_free(root);
             exit(EX_USAGE);
         }
-        else if (!strcasecmp(date_flag.val, "isonow")) {
+        else if (!strcasecmp(date_flag.val, "now")) {
             time_t t = time(NULL);
             struct tm date = *localtime(&t);
             date.tm_year += 1900;
@@ -62,36 +87,41 @@ int main(int argc, char **argv) {
             if (user_date == 0) {
                 printf("ERROR: Please provide valid non-zero date in ISO format.\n");
                 fclose(input_file);
+                Node_free(root);
                 exit(EX_USAGE);
             }
         }
     }
 
+    // @Missing { More sorting options, and polish }
 
-    setlocale(LC_ALL, "");
+    if (sort_flag.is_present) {
+        if (!strcasecmp(sort_flag.val, "upcoming")) {
+            // -d [date] -s upcoming
 
-    Node root;
-    root.parent = NULL;
-    wstring_init(&root.name, 1);
-    wstring_init(&root.desc, 1);
-    wstring_init(&root.date, 1);
-    root.date_num = -1;
-    wstring_init(&root.text, 1);
-    NodeArray_init(&root.children, 1);
+            // FIXME: Something not werk here :(
+            Node *root_nodes[node_count];
+            size_t idx = 0;
+            nodeptrsInBuf(root_nodes, &root, &idx);
 
-    wint_t c;
-    wchar_t wc;
-    while ((c = fgetwc(input_file)) != WEOF) {
-        wc = (wchar_t)c;
-        if (wc == NODE_MARKER) {
-            NodeArray_append(&root.children, Node_process(input_file, &root));
+            for (size_t i = 0; i < node_count; i++) printf("%p\n", (void *)root_nodes[i]);
+            // for (size_t i = 0; i < node_count; i++) {
+            //     if (root)
+            // }
+        }
+        else {
+            printf("ERROR: Please provide a valid option to the 'sort' flag (currently only 'upcoming').\n");
+            fclose(input_file);
+            Node_free(root);
+            exit(EX_USAGE);
         }
     }
-
-
-    // DEBUG
-    for (size_t i = 0; i < root.children.len; i++) {
-        Node_print(root.children.nodes[i]);
+    else {
+        // Debug print if input file is specified with no other arguments
+        Node_processChildren(&root, input_file, &node_count);
+        for (size_t i = 0; i < root.children.len; i++) {
+            Node_print(root.children.nodes[i]);
+        }
     }
 
 
@@ -142,5 +172,13 @@ double cstrToDouble(char *cstr) {
     }
 
     return ret;
+}
 
+
+void nodeptrsInBuf(Node **ptrbuf, Node *node, size_t *idx) {
+    for (size_t i = 0; i < node->children.len; i++) {
+        ptrbuf[*idx] = &node->children.nodes[i];
+        nodeptrsInBuf(ptrbuf, &node->children.nodes[i], idx);
+        (*idx)++;
+    }
 }

@@ -50,7 +50,7 @@ void NodeArray_append(NodeArray *arr, Node node) {
 }
 
 
-Node Node_process(FILE *file, Node *parent) {
+Node Node_process(FILE *file, Node *parent, size_t *node_count) {
 
     Node this_node;
     this_node.parent = parent;
@@ -141,7 +141,8 @@ Node Node_process(FILE *file, Node *parent) {
         }
 
         if (wc == NODE_MARKER) {
-            NodeArray_append(&this_node.children, Node_process(file, &this_node));
+            NodeArray_append(&this_node.children, Node_process(file, &this_node, node_count));
+            (*node_count)++;
         }
         if (!getting_name && !getting_desc && !getting_date && !getting_text) {
             if (wc == DLM_DESC.beg) getting_desc = true;
@@ -162,6 +163,19 @@ Node Node_process(FILE *file, Node *parent) {
     free(text_whitespace_buf.wstr);
 
     return this_node;
+}
+
+
+void Node_processChildren(Node *node, FILE *file, size_t *node_count) {
+    wint_t c;
+    wchar_t wc;
+    while ((c = fgetwc(file)) != WEOF) {
+        wc = (wchar_t)c;
+        if (wc == NODE_MARKER) {
+            NodeArray_append(&node->children, Node_process(file, node, node_count));
+            (*node_count)++;
+        }
+    }
 }
 
 
