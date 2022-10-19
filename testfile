@@ -1,6 +1,6 @@
 This is a sentence qaml should know absolutely nothing about.
 
-@Section(Nâme 1)[2000-01-01.20:00] {}
+@Section(Nâme 1)[2000-01-01 20:00] {}
 
 @Section (Ñame 2 ) [
                     2020-01-01
@@ -9,7 +9,7 @@ This is a sentence qaml should know absolutely nothing about.
 
 @Section(Name 3) {
     @Subsection { wow, a subsection! }
-    @Subsection(A Name 大)[1990-01-01] {
+    @Subsection(A Name 大)[1990-01-01.12:00] {
         OOh, another!
         More filler.
         Filler     again.

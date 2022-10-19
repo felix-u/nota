@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <wchar.h>
 
 
@@ -24,6 +25,7 @@ void wstring_init(wstring *arr, size_t init_size);
 void wstring_append(wstring *arr, wchar_t c);
 void wstring_appendNewlinesFromWstring(wstring *target, wstring *from);
 void wstring_appendWstring(wstring *target, wstring *from);
+wstring wstring_fromCstr(char *cstr);
 void wstring_removeSurroundingWhitespace(wstring *str);
 
 bool wstring_containsNewline(wstring *arr);
@@ -73,6 +75,19 @@ void wstring_appendNewlinesFromWstring(wstring *target, wstring *from) {
 
 void wstring_appendWstring(wstring *target, wstring *from) {
     for (size_t i = 0; i < from->len; i++) wstring_append(target, from->wstr[i]);
+}
+
+
+wstring wstring_fromCstr(char *cstr) {
+    size_t cstr_len = strlen(cstr);
+    wchar_t wstr[cstr_len + 1];
+    for (size_t i = 0; i < cstr_len; i++) wstr[i] = (wchar_t)cstr[i];
+    wstr[cstr_len] = '\0';
+    return (wstring){
+        cstr_len,
+        cstr_len,
+        wstr
+    };
 }
 
 
@@ -131,7 +146,7 @@ double wstring_toDouble(wstring str) {
             cbuf_int[int_idx] = (char)str.wstr[int_cstr_idx];
             int_idx++;
         }
-        else if (c == '.' || c == ',') {
+        else if (c == '.' || c == ',' || c == ' ') {
             found_decimal = true;
             break;
         }
