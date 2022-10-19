@@ -31,7 +31,7 @@ bool wstring_containsNewline(wstring *arr);
 void wstring_print(wstring str);
 void wstring_println(wstring str);
 
-unsigned int wstring_toUint(wstring str);
+double wstring_toDouble(wstring str);
 
 
 #ifdef WSTRING_IMPLEMENTATION
@@ -116,20 +116,46 @@ void wstring_removeSurroundingWhitespace(wstring *str) {
 }
 
 
-unsigned int wstring_toUint(wstring str) {
-    unsigned int num = 0;
-    size_t magnitude = 0;
+double wstring_toDouble(wstring str) {
 
-    for (int i = str.len; i >= 0; i--) {
-        if (str.wstr[i] >= '0' && str.wstr[i] <= '9') {
-            unsigned int digit = str.wstr[i] - 48;
-            for (size_t j = 0; j < magnitude; j++) digit *= 10;
-            num += digit;
-            magnitude++;
+    double ret = 0;
+
+    char cbuf_int[str.len];
+    bool found_decimal = false;
+    size_t int_idx = 0;
+    size_t int_cstr_idx = 0;
+
+    for (; int_cstr_idx < str.len; int_cstr_idx++) {
+        char c = (char)str.wstr[int_cstr_idx];
+        if (c >= '0' && c <= '9') {
+            cbuf_int[int_idx] = (char)str.wstr[int_cstr_idx];
+            int_idx++;
+        }
+        else if (c == '.' || c == ',') {
+            found_decimal = true;
+            break;
         }
     }
+    ret += atof(cbuf_int);
 
-    return num;
+    if (found_decimal) {
+        char cbuf_dec[str.len - int_cstr_idx];
+        size_t dec_idx = 0;
+        for (size_t dec_cstr_idx = int_cstr_idx + 1; dec_cstr_idx < str.len; dec_cstr_idx++) {
+            char c = (char)str.wstr[dec_cstr_idx];
+            if (c >= '0' && c <= '9') {
+                cbuf_dec[dec_idx] = (char)str.wstr[dec_cstr_idx];
+                dec_idx++;
+            }
+        }
+        float dec_add = atof(cbuf_dec);
+        for (size_t i = 0; i < dec_idx; i++) {
+            dec_add /= 10;
+        }
+        ret += dec_add;
+    }
+
+    return ret;
 }
 
 

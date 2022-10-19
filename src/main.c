@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <strings.h>
 #include <sysexits.h>
 #include <time.h>
@@ -35,7 +36,16 @@ int main(int argc, char **argv) {
             struct tm date = *localtime(&t);
             date.tm_year += 1900;
             date.tm_mon += 1;
-            printf("%d-%d-%d %d:%d\n", date.tm_year, date.tm_mon, date.tm_mday, date.tm_hour, date.tm_min); // DEBUG
+            const size_t date_cstr_size_cap = 33; // This value graciously donated by the compiler :)
+            char date_cstr[date_cstr_size_cap];
+
+            snprintf(date_cstr, date_cstr_size_cap, "%04d%02d%02d.%02d%02d\n",
+                    (int16_t)date.tm_year,
+                    (int16_t)date.tm_mon,
+                    (int16_t)date.tm_mday,
+                    (int16_t)date.tm_hour,
+                    (int16_t)date.tm_min);
+            double date_double = atof(date_cstr);
         }
         else {
             // @Missing { Handle custom numeric date }
@@ -52,7 +62,7 @@ int main(int argc, char **argv) {
     wstring_init(&root.name, 1);
     wstring_init(&root.desc, 1);
     wstring_init(&root.date, 1);
-    root.date_int = -1;
+    root.date_num = -1;
     wstring_init(&root.text, 1);
     NodeArray_init(&root.children, 1);
 
