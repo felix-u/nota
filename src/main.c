@@ -20,6 +20,10 @@ double cstrToDouble(char *cstr);
 void nodeptrsInBuf(Node **ptrbuf, Node *node, size_t *idx);
 
 
+bool must_sort_nodes = false;
+bool must_print_tree = false;
+
+
 int main(int argc, char **argv) {
 
     setlocale(LC_ALL, "");
@@ -35,34 +39,26 @@ int main(int argc, char **argv) {
         exit(EX_IOERR);
     }
 
-
-    Node root;
-    root.parent = NULL;
-    wstring_init(&root.name, 1);
-    wstring_init(&root.desc, 1);
-    wstring_init(&root.date, 1);
-    root.date_num = -1;
-    wstring_init(&root.text, 1);
-    NodeArray_init(&root.children, 1);
-
-    size_t node_count = 0;
-
-
     double user_date = 0;
     args_SingleValReturn date_flag = args_singleValueOf(argc, argv, (char *[]){"-d", "-date", "--date"});
     args_SingleValReturn sort_flag = args_singleValueOf(argc, argv, (char *[]){"-s", "-sort", "--sort"});
 
-    if ((date_flag.is_present && !sort_flag.is_present) || (!date_flag.is_present && sort_flag.is_present)) {
+    if (!date_flag.is_present && !sort_flag.is_present) {
+        // Debug print if input file is specified with no other arguments
+        must_print_tree = true;
+    }
+    else if ((date_flag.is_present && !sort_flag.is_present) || (!date_flag.is_present && sort_flag.is_present)) {
         printf("ERROR: Must use 'sort' flag in conjuction with 'date' flag.\n");
         fclose(input_file);
-        Node_free(root);
         exit(EX_USAGE);
     }
-    else if (date_flag.is_present) {
+    else if (date_flag.is_present && sort_flag.is_present) {
+
+        must_sort_nodes = true;
+
         if (date_flag.val == NULL) {
             printf("ERROR: Must provide numeric date, or specify 'now' to use the current date.\n");
             fclose(input_file);
-            Node_free(root);
             exit(EX_USAGE);
         }
         else if (!strcasecmp(date_flag.val, "now")) {
@@ -70,7 +66,7 @@ int main(int argc, char **argv) {
             struct tm date = *localtime(&t);
             date.tm_year += 1900;
             date.tm_mon += 1;
-            // The max char length of the formatted string below, courtesy of the compiler
+            // 33 is the max char length of the formatted string below, courtesy of the compiler
             const size_t date_cstr_size_cap = 33;
             char date_cstr[date_cstr_size_cap];
 
@@ -87,44 +83,51 @@ int main(int argc, char **argv) {
             if (user_date == 0) {
                 printf("ERROR: Please provide valid non-zero date in ISO format.\n");
                 fclose(input_file);
-                Node_free(root);
                 exit(EX_USAGE);
             }
         }
-    }
 
-    // @Missing { More sorting options, and polish }
+        // @Missing { More sorting options, and polish }
 
-    if (sort_flag.is_present) {
         if (!strcasecmp(sort_flag.val, "upcoming")) {
             // -d [date] -s upcoming
-
-            // FIXME: Something not werk here :(
-            Node *root_nodes[node_count];
-            size_t idx = 0;
-            nodeptrsInBuf(root_nodes, &root, &idx);
-
-            for (size_t i = 0; i < node_count; i++) printf("%p\n", (void *)root_nodes[i]);
-            // for (size_t i = 0; i < node_count; i++) {
-            //     if (root)
-            // }
+            // @Missing {}
+            printf("NOT IMPLEMENTED\n");
         }
         else {
             printf("ERROR: Please provide a valid option to the 'sort' flag (currently only 'upcoming').\n");
             fclose(input_file);
-            Node_free(root);
             exit(EX_USAGE);
         }
     }
-    else {
-        // Debug print if input file is specified with no other arguments
-        Node_processChildren(&root, input_file, &node_count);
-        for (size_t i = 0; i < root.children.len; i++) {
-            Node_print(root.children.nodes[i]);
-        }
+
+
+
+    NodeArray all_nodes;
+    NodeArray_init(&all_nodes, 1);
+    Node root;
+    root.parent = NULL;
+    wstring_init(&root.name, 1);
+    wstring_init(&root.desc, 1);
+    wstring_init(&root.date, 1);
+    root.date_num = -1;
+    wstring_init(&root.text, 1);
+    NodeArray_init(&root.children, 1);
+    size_t node_count = 0;
+    Node_processChildren(&root, input_file, &node_count, &all_nodes);
+
+    if (must_sort_nodes) {
+        // @Missing {}
+        printf("SORTING NOT IMPLEMENTED\n");
+    }
+
+    if (must_print_tree) for (size_t i = 0; i < root.children.len; i++) {
+        printf("DEBUG PRINT\n");
+        Node_print(root.children.nodes[i]);
     }
 
 
+    free(all_nodes.nodes);
     Node_free(root);
     fclose(input_file);
 
