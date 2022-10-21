@@ -118,7 +118,7 @@ int main(int argc, char **argv) {
     Node_processChildren(&root, input_file, &node_count, &all_nodes);
 
     if (must_sort_nodes) {
-        // @Feature { Polish, print nicely }
+        // @Feature { Polish, print nicely, handle date }
         qsort(all_nodes.nodes, all_nodes.len, sizeof(Node), Node_compareDate);
         printf("SORTING NOT IMPLEMENTED\n");
         for (size_t i = 0; i < all_nodes.len; i++) {
