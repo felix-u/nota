@@ -213,6 +213,11 @@ void Node_print(Node node) {
 }
 
 
+int Node_compareDate(const void *a, const void *b) {
+    return ((Node *)a)->date_num - ((Node *)b)->date_num;
+}
+
+
 void Node_free(Node node) {
     if (node.name.wstr != NULL) free(node.name.wstr);
     if (node.desc.wstr != NULL) free(node.desc.wstr);

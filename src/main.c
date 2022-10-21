@@ -118,8 +118,13 @@ int main(int argc, char **argv) {
     Node_processChildren(&root, input_file, &node_count, &all_nodes);
 
     if (must_sort_nodes) {
-        // @Missing {}
+        // @Feature { Polish, print nicely }
+        qsort(all_nodes.nodes, all_nodes.len, sizeof(Node), Node_compareDate);
         printf("SORTING NOT IMPLEMENTED\n");
+        for (size_t i = 0; i < all_nodes.len; i++) {
+            printf("SORTED NODE\n");
+            Node_print(all_nodes.nodes[i]);
+        }
     }
 
     if (must_print_tree) for (size_t i = 0; i < root.children.len; i++) {
