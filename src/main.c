@@ -28,6 +28,7 @@ int main(int argc, char **argv) {
 
     setlocale(LC_ALL, "");
 
+
     args_SingleValReturn input_flag = args_singleValueOf(argc, argv, (char *[]){"-i", "-input", "--input"});
     if (!input_flag.is_present) {
         printf("ERROR: Must specify input file.\n");
@@ -38,6 +39,7 @@ int main(int argc, char **argv) {
         printf("ERROR: Could not read file at \"%s\".\n", input_flag.val);
         exit(EX_IOERR);
     }
+
 
     double user_date = 0;
     args_SingleValReturn date_flag = args_singleValueOf(argc, argv, (char *[]){"-d", "-date", "--date"});
@@ -100,7 +102,6 @@ int main(int argc, char **argv) {
             exit(EX_USAGE);
         }
     }
-
 
 
     NodeArray all_nodes;
