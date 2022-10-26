@@ -50,7 +50,7 @@ void NodeArray_append(NodeArray *arr, Node node) {
 }
 
 
-Node Node_process(FILE *file, Node *parent, size_t *node_count, NodeArray *linear_node_arr) {
+Node Node_process(FILE *file, Node *parent, NodeArray *linear_node_arr) {
 
     Node this_node;
     this_node.parent = parent;
@@ -141,8 +141,7 @@ Node Node_process(FILE *file, Node *parent, size_t *node_count, NodeArray *linea
         }
 
         if (wc == NODE_MARKER) {
-            NodeArray_append(&this_node.children, Node_process(file, &this_node, node_count, linear_node_arr));
-            (*node_count)++;
+            NodeArray_append(&this_node.children, Node_process(file, &this_node, linear_node_arr));
         }
         if (!getting_name && !getting_desc && !getting_date && !getting_text) {
             if (wc == DLM_DESC.beg) getting_desc = true;
@@ -167,14 +166,13 @@ Node Node_process(FILE *file, Node *parent, size_t *node_count, NodeArray *linea
 }
 
 
-void Node_processChildren(Node *node, FILE *file, size_t *node_count, NodeArray *linear_node_arr) {
+void Node_processChildren(Node *node, FILE *file, NodeArray *linear_node_arr) {
     wint_t c;
     wchar_t wc;
     while ((c = fgetwc(file)) != WEOF) {
         wc = (wchar_t)c;
         if (wc == NODE_MARKER) {
-            NodeArray_append(&node->children, Node_process(file, node, node_count, linear_node_arr));
-            (*node_count)++;
+            NodeArray_append(&node->children, Node_process(file, node, linear_node_arr));
         }
     }
 }

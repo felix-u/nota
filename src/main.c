@@ -114,8 +114,7 @@ int main(int argc, char **argv) {
     root.date_num = -1;
     wstring_init(&root.text, 1);
     NodeArray_init(&root.children, 1);
-    size_t node_count = 0;
-    Node_processChildren(&root, input_file, &node_count, &all_nodes);
+    Node_processChildren(&root, input_file, &all_nodes);
 
     if (must_sort_nodes) {
         // @Feature { Polish, print nicely, handle date }
