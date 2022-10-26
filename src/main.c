@@ -99,7 +99,7 @@ int main(int argc, char **argv) {
         else if (!strcasecmp(sort_flag.val, "upcoming")) {
             // -d [date] -s upcoming
             // @Missing {}
-            printf("NOT IMPLEMENTED: sort --upcoming\n");
+            printf("NOT IMPLEMENTED: --sort upcoming\n");
         }
         else {
             printf("ERROR: Please provide a valid option to the 'sort' flag.\n");
