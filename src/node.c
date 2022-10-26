@@ -178,19 +178,20 @@ void Node_processChildren(Node *node, FILE *file, NodeArray *linear_node_arr) {
 }
 
 
-void Node_print(Node node) {
-    printf("----------- NODE -------\n");
-
+void Node_print(Node node, size_t indent_level) {
     if (node.name.len > 0) {
+        for (size_t i = 0; i < indent_level; i++) putchar('\t');
         printf("Name: ");
         wstring_println(node.name);
     }
 
     if (node.desc.len > 0) {
+        for (size_t i = 0; i < indent_level; i++) putchar('\t');
         printf("Desc: ");
         wstring_println(node.desc);
     }
 
+    for (size_t i = 0; i < indent_level; i++) putchar('\t');
     printf("Date:");
     if (node.date.len > 0) {
         putchar(' ');
@@ -198,16 +199,17 @@ void Node_print(Node node) {
     }
     printf(" (%0.6f)\n", node.date_num);
 
-    if (node.text.len > 0) {
-        printf("Text: ");
-        wstring_println(node.text);
-    }
+    // if (node.text.len > 0) {
+    //     for (size_t i = 0; i < indent_level; i++) putchar('\t');
+    //     printf("Text: ");
+    //     wstring_println(node.text);
+    // }
 
-    printf("\n\n");
     for (size_t i = 0; i < node.children.len; i++) {
-        printf("~~~ CHILD OF NODE: %ls (%ls) ~~~\n\n", node.name.wstr, node.desc.wstr);
-        Node_print(node.children.nodes[i]);
+        // printf("~~~ CHILD OF NODE: %ls (%ls) ~~~\n\n", node.name.wstr, node.desc.wstr);
+        Node_print(node.children.nodes[i], indent_level + 1);
     }
+    printf("\n");
 }
 
 

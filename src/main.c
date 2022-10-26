@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
             struct tm date = *localtime(&t);
             date.tm_year += 1900;
             date.tm_mon += 1;
-            // 33 is the max char length of the formatted string below, courtesy of the compiler
+            // 33 is the max possible char length of the formatted string below, courtesy of the compiler
             const size_t date_cstr_size_cap = 33;
             char date_cstr[date_cstr_size_cap];
 
@@ -91,13 +91,18 @@ int main(int argc, char **argv) {
 
         // @Missing { More sorting options, and polish }
 
-        if (!strcasecmp(sort_flag.val, "upcoming")) {
+        if (sort_flag.val == NULL) {
+            printf("ERROR: Must provide sort option (run qaml with the --help flag for usage details).\n");
+            fclose(input_file);
+            exit(EX_USAGE);
+        }
+        else if (!strcasecmp(sort_flag.val, "upcoming")) {
             // -d [date] -s upcoming
             // @Missing {}
-            printf("NOT IMPLEMENTED\n");
+            printf("NOT IMPLEMENTED: sort --upcoming\n");
         }
         else {
-            printf("ERROR: Please provide a valid option to the 'sort' flag (currently only 'upcoming').\n");
+            printf("ERROR: Please provide a valid option to the 'sort' flag.\n");
             fclose(input_file);
             exit(EX_USAGE);
         }
@@ -119,16 +124,13 @@ int main(int argc, char **argv) {
     if (must_sort_nodes) {
         // @Feature { Polish, print nicely, handle date }
         qsort(all_nodes.nodes, all_nodes.len, sizeof(Node), Node_compareDate);
-        printf("SORTING NOT IMPLEMENTED\n");
         for (size_t i = 0; i < all_nodes.len; i++) {
-            printf("SORTED NODE\n");
-            Node_print(all_nodes.nodes[i]);
+            Node_print(all_nodes.nodes[i], 0);
         }
     }
 
     if (must_print_tree) for (size_t i = 0; i < root.children.len; i++) {
-        printf("DEBUG PRINT\n");
-        Node_print(root.children.nodes[i]);
+        Node_print(root.children.nodes[i], 0);
     }
 
 
