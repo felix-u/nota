@@ -199,14 +199,19 @@ void Node_print(Node node, size_t indent_level) {
     }
     printf(" (%0.6f)\n", node.date_num);
 
-    // if (node.text.len > 0) {
-    //     for (size_t i = 0; i < indent_level; i++) putchar('\t');
-    //     printf("Text: ");
-    //     wstring_println(node.text);
-    // }
+    if (node.text.len > 0) {
+        for (size_t i = 0; i < indent_level; i++) putchar('\t');
+        printf("Text: ");
+        for (size_t i = 0; i < node.text.len; i++) {
+            printf("%lc", node.text.wstr[i]);
+            if (node.text.wstr[i] == '\n') {
+                for (size_t j = 0; j < indent_level; j++) putchar('\t');
+            }
+        }
+        putchar('\n');
+    }
 
     for (size_t i = 0; i < node.children.len; i++) {
-        // printf("~~~ CHILD OF NODE: %ls (%ls) ~~~\n\n", node.name.wstr, node.desc.wstr);
         Node_print(node.children.nodes[i], indent_level + 1);
     }
     printf("\n");
