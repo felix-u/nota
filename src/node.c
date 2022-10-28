@@ -2,10 +2,17 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <unistd.h>
 #include <wchar.h>
 #include <wctype.h>
 
 #include "wstring.h"
+
+
+bool outputIsRedirected() {
+    if (!isatty(STDOUT_FILENO)) return true;
+    return false;
+}
 
 
 typedef struct {
@@ -178,7 +185,7 @@ void Node_processChildren(Node *node, FILE *file, NodeArray *linear_node_arr) {
 }
 
 
-void Node_print(Node node, size_t indent_level) {
+void Node_printDebug(Node node, size_t indent_level) {
     if (node.name.len > 0) {
         for (size_t i = 0; i < indent_level; i++) putchar('\t');
         printf("Name: ");
@@ -212,7 +219,47 @@ void Node_print(Node node, size_t indent_level) {
     }
 
     for (size_t i = 0; i < node.children.len; i++) {
-        Node_print(node.children.nodes[i], indent_level + 1);
+        Node_printDebug(node.children.nodes[i], indent_level + 1);
+    }
+    printf("\n");
+}
+
+
+void Node_printFmt(Node node, size_t indent_level) {
+    if (node.name.len > 0) {
+        for (size_t i = 0; i < indent_level; i++) putchar('\t');
+        printf("Name: ");
+        wstring_println(node.name);
+    }
+
+    if (node.desc.len > 0) {
+        for (size_t i = 0; i < indent_level; i++) putchar('\t');
+        printf("Desc: ");
+        wstring_println(node.desc);
+    }
+
+    for (size_t i = 0; i < indent_level; i++) putchar('\t');
+    printf("Date:");
+    if (node.date.len > 0) {
+        putchar(' ');
+        wstring_print(node.date);
+    }
+    printf(" (%0.6f)\n", node.date_num);
+
+    if (node.text.len > 0) {
+        for (size_t i = 0; i < indent_level; i++) putchar('\t');
+        printf("Text: ");
+        for (size_t i = 0; i < node.text.len; i++) {
+            printf("%lc", node.text.wstr[i]);
+            if (node.text.wstr[i] == '\n') {
+                for (size_t j = 0; j < indent_level; j++) putchar('\t');
+            }
+        }
+        putchar('\n');
+    }
+
+    for (size_t i = 0; i < node.children.len; i++) {
+        Node_printFmt(node.children.nodes[i], indent_level + 1);
     }
     printf("\n");
 }

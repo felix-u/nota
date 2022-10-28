@@ -99,7 +99,7 @@ int main(int argc, char **argv) {
         else if (!strcasecmp(sort_flag.val, "upcoming")) {
             // -d [date] -s upcoming
             // @Missing {}
-            printf("NOT IMPLEMENTED: --sort upcoming\n");
+            printf("NOT IMPLEMENTED: --sort upcoming\n\n");
         }
         else {
             printf("ERROR: Please provide a valid option to the 'sort' flag.\n");
@@ -125,12 +125,12 @@ int main(int argc, char **argv) {
         // @Feature { Polish, print nicely, handle date }
         qsort(all_nodes.nodes, all_nodes.len, sizeof(Node), Node_compareDate);
         for (size_t i = 0; i < all_nodes.len; i++) {
-            Node_print(all_nodes.nodes[i], 0);
+            Node_printFmt(all_nodes.nodes[i], 0);
         }
     }
 
     if (must_print_tree) for (size_t i = 0; i < root.children.len; i++) {
-        Node_print(root.children.nodes[i], 0);
+        Node_printFmt(root.children.nodes[i], 0);
     }
 
 
