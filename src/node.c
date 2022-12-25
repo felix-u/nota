@@ -225,7 +225,7 @@ void Node_printDebug(Node node, size_t indent_level) {
 }
 
 
-void Node_printFmt(Node node, size_t indent_level) {
+void Node_printFmt(Node node, size_t indent_level, size_t num_current, size_t num_max) {
     if (node.name.len > 0) {
         for (size_t i = 0; i < indent_level; i++) putchar('\t');
         printf("Name: ");
@@ -259,9 +259,10 @@ void Node_printFmt(Node node, size_t indent_level) {
     }
 
     for (size_t i = 0; i < node.children.len; i++) {
-        Node_printFmt(node.children.nodes[i], indent_level + 1);
+        Node_printFmt(node.children.nodes[i], indent_level + 1, i, node.children.len);
     }
-    printf("\n");
+
+    if (num_current != num_max - 1) printf("\n");
 }
 
 

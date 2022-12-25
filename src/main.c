@@ -125,12 +125,12 @@ int main(int argc, char **argv) {
         // @Feature { Polish, print nicely, handle date }
         qsort(all_nodes.nodes, all_nodes.len, sizeof(Node), Node_compareDate);
         for (size_t i = 0; i < all_nodes.len; i++) {
-            Node_printFmt(all_nodes.nodes[i], 0);
+            Node_printFmt(all_nodes.nodes[i], 0, i, all_nodes.len);
         }
     }
 
     if (must_print_tree) for (size_t i = 0; i < root.children.len; i++) {
-        Node_printFmt(root.children.nodes[i], 0);
+        Node_printFmt(root.children.nodes[i], 0, i, root.children.len);
     }
 
 
