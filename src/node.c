@@ -6,6 +6,8 @@
 #include <wchar.h>
 #include <wctype.h>
 
+#define ANSI_IMPLEMENTATION
+#include "ansi.h"
 #include "wstring.h"
 
 
@@ -228,29 +230,36 @@ void Node_printDebug(Node node, size_t indent_level, size_t num_current, size_t 
 
 
 void Node_printFmt(Node node, size_t indent_level, size_t num_current, size_t num_max) {
+
     if (node.name.len > 0) {
         for (size_t i = 0; i < indent_level; i++) putchar('\t');
-        printf("Name: ");
-        wstring_println(node.name);
+        ansi_set("%s", ANSI_FMT_BOLD);
+        wstring_print(node.name);
+        ansi_reset();
+    }
+    else {
+        ansi_set("%s", ANSI_BG_BLACK);
+        printf("Anonymous");
+        ansi_reset();
     }
 
     if (node.desc.len > 0) {
-        for (size_t i = 0; i < indent_level; i++) putchar('\t');
-        printf("Desc: ");
-        wstring_println(node.desc);
+        printf(": ");
+        ansi_set("%s", ANSI_FG_BLUE);
+        wstring_print(node.desc);
+        ansi_reset();
     }
 
-    for (size_t i = 0; i < indent_level; i++) putchar('\t');
-    printf("Date:");
     if (node.date.len > 0) {
-        putchar(' ');
+        printf(" | ");
+        ansi_set("%s", ANSI_FG_GREEN);
         wstring_print(node.date);
+        ansi_reset();
     }
-    printf(" (%0.6f)\n", node.date_num);
 
     if (node.text.len > 0) {
+        putchar('\n');
         for (size_t i = 0; i < indent_level; i++) putchar('\t');
-        printf("Text: ");
         for (size_t i = 0; i < node.text.len; i++) {
             printf("%lc", node.text.wstr[i]);
             if (node.text.wstr[i] == '\n') {

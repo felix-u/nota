@@ -16,3 +16,7 @@ This is a sentence qaml should know absolutely nothing about.
         @Subsubsection { A subsection of a subsection. Stunning. }
     }
 }
+
+@(Some anonymous node)[2024-01-01] {
+    :P
+}
