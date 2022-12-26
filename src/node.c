@@ -262,6 +262,7 @@ void Node_printFmt(Node node, size_t indent_level, size_t num_current, size_t nu
         Node_printFmt(node.children.nodes[i], indent_level + 1, i, node.children.len);
     }
 
+    // Don't print excessive newlines if end reached
     if (num_current != num_max - 1) printf("\n");
 }
 
