@@ -160,6 +160,8 @@ Node Node_process(FILE *file, Node *parent, NodeArray *linear_node_arr) {
 
     }
 
+    wstring_removeSurroundingWhitespace(&this_node.name);
+
     wstring_removeSurroundingWhitespace(&this_node.desc);
 
     wstring_removeSurroundingWhitespace(&this_node.date);
@@ -257,8 +259,9 @@ void Node_printFmt(Node node, size_t indent_level, size_t num_current, size_t nu
         ansi_reset();
     }
 
+    putchar('\n');
+
     if (node.text.len > 0) {
-        putchar('\n');
         for (size_t i = 0; i < indent_level; i++) putchar('\t');
         for (size_t i = 0; i < node.text.len; i++) {
             printf("%lc", node.text.wstr[i]);

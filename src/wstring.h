@@ -107,13 +107,12 @@ void wstring_removeSurroundingWhitespace(wstring *str) {
         }
     }
 
-    for (int i = str->len; i >= 0; i--) {
+    for (int i = str->len - 1; i >= 0; i--) {
         if (!whitespace(str->wstr[i])) {
             if ((size_t)i < str->len) str->len = i + 1;
             return;
         }
     }
-
 }
 
 
