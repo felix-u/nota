@@ -246,7 +246,7 @@ void Node_printFmt(Node node, size_t indent_level, size_t num_current, size_t nu
     }
 
     if (node.desc.len > 0) {
-        printf(": ");
+        printf(" | ");
         ansi_set("%s", ANSI_FG_BLUE);
         wstring_print(node.desc);
         ansi_reset();
