@@ -3,8 +3,8 @@ CFLAGS=-std=c99 -Wall -pedantic -Werror -Wshadow \
 DEBUGFLAGS=-g -Og
 RELEASEFLAGS=-O3 -s
 
-qaml: src/*
-	$(CC) $(CFLAGS) $(DEBUGFLAGS) $(LIBS) -o qaml src/main.c
+nota: src/*
+	$(CC) $(CFLAGS) $(DEBUGFLAGS) $(LIBS) -o nota src/main.c
 
 release: src/*
-	$(CC) $(CFLAGS) $(RELEASEFLAGS) $(LIBS) -o qaml src/main.c
+	$(CC) $(CFLAGS) $(RELEASEFLAGS) $(LIBS) -o nota src/main.c

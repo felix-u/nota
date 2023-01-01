@@ -10,6 +10,8 @@
 #include <wctype.h>
 
 #define ARGS_IMPLEMENTATION
+#define ARGS_BINARY_NAME "nota"
+#define ARGS_BINARY_VERSION "0.1-dev"
 #include "args.h"
 #include "node.c"
 #define WSTRING_IMPLEMENTATION
@@ -28,25 +30,46 @@ int main(int argc, char **argv) {
 
     setlocale(LC_ALL, "");
 
+    // @Missing { Unicode support in args.h }
+    args_Flag date_flag = {
+        'd', "date",
+        "specified date (uses current date if not given)",
+        ARGS_OPTIONAL,
+        false, NULL, 0,
+        ARGS_SINGLE_OPT, ARGS_EXPECTS_STRING
+    };
+    args_Flag sort_flag = {
+        's', "sort",
+        "sorting options",
+        ARGS_OPTIONAL,
+        false, NULL, 0,
+        ARGS_MULTI_OPT, ARGS_EXPECTS_STRING
+    };
+    args_Flag flags[] = {
+        date_flag,
+        sort_flag,
+        ARGS_HELP_FLAG,
+        ARGS_VERSION_FLAG,
+    };
+    const size_t flags_count = (sizeof flags) / (sizeof flags[0]);
+    size_t positional_num = 0;
+    const size_t positional_cap = 256;
+    char *positional_args[positional_cap];
+    int args_return = args_process(argc, argv, "a parser for a simple node notation", flags_count, flags,
+                                   &positional_num, positional_args, ARGS_EXPECTS_FILE, ARGS_POSITIONAL_SINGLE,
+                                   positional_cap);
+    if (args_return != ARGS_RETURN_CONTINUE) return args_return;
 
-    args_SingleValReturn input_flag = args_singleValueOf(argc, argv, (char *[]){"-i", "-input", "--input"});
-    if (!input_flag.is_present) {
-        printf("ERROR: Must specify input file.\n");
-        exit(EX_NOINPUT);
-    }
-    FILE *input_file = fopen(input_flag.val, "r");
+    FILE *input_file = fopen(positional_args[0], "r");
     if (input_file == NULL) {
-        printf("ERROR: Could not read file at \"%s\".\n", input_flag.val);
+        printf("ERROR: Could not read file at \"%s\".\n", positional_args[0]);
         exit(EX_IOERR);
     }
 
-
     double user_date = 0;
-    args_SingleValReturn date_flag = args_singleValueOf(argc, argv, (char *[]){"-d", "-date", "--date"});
-    args_SingleValReturn sort_flag = args_singleValueOf(argc, argv, (char *[]){"-s", "-sort", "--sort"});
 
     if (!date_flag.is_present && !sort_flag.is_present) {
-        // Debug print if input file is specified with no other arguments
+        // Print nodes without altering order if a file is given with no flags
         must_print_tree = true;
     }
     else if ((date_flag.is_present && !sort_flag.is_present) || (!date_flag.is_present && sort_flag.is_present)) {
@@ -58,12 +81,7 @@ int main(int argc, char **argv) {
 
         must_sort_nodes = true;
 
-        if (date_flag.val == NULL) {
-            printf("ERROR: Must provide numeric date, or specify 'now' to use the current date.\n");
-            fclose(input_file);
-            exit(EX_USAGE);
-        }
-        else if (!strcasecmp(date_flag.val, "now")) {
+        if (!strcasecmp(date_flag.opts[0], "now")) {
             time_t t = time(NULL);
             struct tm date = *localtime(&t);
             date.tm_year += 1900;
@@ -81,7 +99,7 @@ int main(int argc, char **argv) {
             user_date = atof(date_cstr);
         }
         else {
-            user_date = cstrToDouble(date_flag.val);
+            user_date = cstrToDouble(date_flag.opts[0]);
             if (user_date == 0) {
                 printf("ERROR: Please provide valid non-zero date in ISO format.\n");
                 fclose(input_file);
@@ -91,12 +109,12 @@ int main(int argc, char **argv) {
 
         // @Missing { More sorting options, and polish }
 
-        if (sort_flag.val == NULL) {
+        if (sort_flag.opts_num == 0) {
             printf("ERROR: Must provide sort option (run qaml with the --help flag for usage details).\n");
             fclose(input_file);
             exit(EX_USAGE);
         }
-        else if (!strcasecmp(sort_flag.val, "upcoming")) {
+        else if (!strcasecmp(sort_flag.opts[0], "upcoming")) {
             // -d [date] -s upcoming
             // @Missing {}
             printf("NOT IMPLEMENTED: --sort upcoming\n\n");
