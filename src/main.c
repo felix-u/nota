@@ -13,7 +13,9 @@
 #define ARGS_BINARY_NAME "nota"
 #define ARGS_BINARY_VERSION "0.1-dev"
 #include "args.h"
+
 #include "node.c"
+
 #define WSTRING_IMPLEMENTATION
 #include "wstring.h"
 
