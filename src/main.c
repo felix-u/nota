@@ -32,10 +32,16 @@ int main(int argc, char **argv) {
 
     setlocale(LC_ALL, "");
 
-    // @Missing { Unicode support in args.h }
     args_Flag date_flag = {
         'd', "date",
         "specified date (uses current date if not given)",
+        ARGS_OPTIONAL,
+        false, NULL, 0,
+        ARGS_SINGLE_OPT, ARGS_EXPECTS_STRING
+    };
+    args_Flag node_flag = {
+        'n', "node",
+        "narrows selection by given node name(s)",
         ARGS_OPTIONAL,
         false, NULL, 0,
         ARGS_SINGLE_OPT, ARGS_EXPECTS_STRING
@@ -49,6 +55,7 @@ int main(int argc, char **argv) {
     };
     args_Flag flags[] = {
         date_flag,
+        node_flag,
         sort_flag,
         ARGS_HELP_FLAG,
         ARGS_VERSION_FLAG,
@@ -57,21 +64,21 @@ int main(int argc, char **argv) {
     size_t positional_num = 0;
     const size_t positional_cap = 256;
     char *positional_args[positional_cap];
-    int args_return = args_process(argc, argv, "a parser for a simple node notation", flags_count, flags,
+    int args_return = args_process(argc, argv, "parser for a simple node notation", flags_count, flags,
                                    &positional_num, positional_args, ARGS_EXPECTS_FILE, ARGS_POSITIONAL_SINGLE,
                                    positional_cap);
     if (args_return != ARGS_RETURN_CONTINUE) return args_return;
 
     FILE *input_file = fopen(positional_args[0], "r");
     if (input_file == NULL) {
-        printf("ERROR: Could not read file at \"%s\".\n", positional_args[0]);
+        printf("%s: no such file or directory '%s'\n", ARGS_BINARY_NAME, positional_args[0]);
         exit(EX_IOERR);
     }
 
     double user_date = 0;
 
+    // Print nodes without altering order if a file is given with no flags
     if (!date_flag.is_present && !sort_flag.is_present) {
-        // Print nodes without altering order if a file is given with no flags
         must_print_tree = true;
     }
     else if ((date_flag.is_present && !sort_flag.is_present) || (!date_flag.is_present && sort_flag.is_present)) {
@@ -116,8 +123,8 @@ int main(int argc, char **argv) {
             fclose(input_file);
             exit(EX_USAGE);
         }
+        // -d [date] -s upcoming
         else if (!strcasecmp(sort_flag.opts[0], "upcoming")) {
-            // -d [date] -s upcoming
             // @Missing {}
             printf("NOT IMPLEMENTED: --sort upcoming\n\n");
         }

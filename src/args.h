@@ -467,7 +467,6 @@ const ARGS_BINARY_POSITIONAL_TYPE positional_type, const size_t positional_cap)
     // Help text
     #ifndef ARGS_HELP_FLAG_DISABLED
     if (help_flag != NULL && help_flag->is_present == true) {
-        // @Missing { Flag help text }
         printf(ARGS_BINARY_NAME);
         if (usage_description != NULL) printf(" - %s", usage_description);
         #ifndef ARGS_VERSION_FLAG_DISABLED
