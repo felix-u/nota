@@ -44,6 +44,7 @@ typedef struct Node {
     wstring date;
     double date_num;
     wstring text;
+    bool hidden;
     struct NodeArray children;
 } Node;
 
@@ -185,6 +186,8 @@ Node Node_process(FILE *file, Node *parent, size_t *nodes_num) {
     if (!found_text_not_whitespace) this_node.text.len = 0;
     free(text_whitespace_buf.wstr);
 
+    this_node.hidden = false;
+
     return this_node;
 }
 
@@ -246,6 +249,8 @@ void Node_printDebug(Node node, size_t indent_level, size_t num_current, size_t 
 
 void Node_printFmt(Node node, size_t indent_level, size_t num_current, size_t num_max) {
 
+    if (node.hidden) return;
+
     if (node.name.len > 0) {
         for (size_t i = 0; i < indent_level; i++) putchar('\t');
         ansi_set("%s", ANSI_FMT_BOLD);
@@ -289,13 +294,18 @@ void Node_printFmt(Node node, size_t indent_level, size_t num_current, size_t nu
         Node_printFmt(node.children.nodes[i], indent_level + 1, i, node.children.len);
     }
 
-    // Don't print excessive newlines if end reached
+    // Don't print newline if end reached
     if (num_current != num_max - 1) printf("\n");
 }
 
 
-int Node_compareDate(const void *a, const void *b) {
+int Node_compareDateAscending(const void *a, const void *b) {
     return ((Node *)a)->date_num - ((Node *)b)->date_num;
+}
+
+
+int Node_compareDateDescending(const void *a, const void *b) {
+    return ((Node *)b)->date_num - ((Node *)a)->date_num;
 }
 
 

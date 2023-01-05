@@ -1,4 +1,5 @@
 #include <locale.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -24,72 +25,75 @@
 
 
 typedef enum SortOption {
-    NONE,
-    ASCENDING,
-    DESCENDING,
+    SORT_NONE,
+    SORT_ASCENDING,
+    SORT_DESCENDING,
 } SortOption;
+
+typedef enum Cutoff {
+    CUT_AFTER,
+    CUT_BEFORE,
+    CUT_NONE,
+} Cutoff;
 
 
 double cstrToDouble(char *cstr);
+double currentTimeToDouble(void);
 
 
-SortOption sort_mode = NONE;
+SortOption sort_mode = SORT_NONE;
+double user_date = 0;
+Cutoff cutoff_mode = CUT_NONE;
 
 
 int main(int argc, char **argv) {
 
     setlocale(LC_ALL, "");
 
-    args_Flag after_flag = {
-        'a', "after",
-        "narrows selection to nodes after given date(s), or after 'now' if none are specified",
-        ARGS_OPTIONAL,
-        false, NULL, 0,
-        ARGS_BOOLEAN, ARGS_EXPECTS_NONE
-    };
-    args_Flag before_flag = {
-        'b', "before",
-        "narrows selection to nodes before given date(s), or before 'now' if none are specified",
-        ARGS_OPTIONAL,
-        false, NULL, 0,
-        ARGS_BOOLEAN, ARGS_EXPECTS_NONE
-    };
-    args_Flag date_flag = {
-        'd', "date",
-        "narrows selection by given date: <ISO 8601>, <NUM>, 'now'/'n'.\n"
-        "Flags that rely on a date use 'now' if the user does not specify one",
-        ARGS_OPTIONAL,
-        false, NULL, 0,
-        ARGS_SINGLE_OPT, ARGS_EXPECTS_STRING
-    };
-    args_Flag node_flag = {
-        'n', "node",
-        "narrows selection by given node name(s)",
-        ARGS_OPTIONAL,
-        false, NULL, 0,
-        ARGS_SINGLE_OPT, ARGS_EXPECTS_STRING
-    };
-    args_Flag sort_flag = {
-        's', "sort",
-        "sorts by: 'descending'/'d', 'ascending'/'a'",
-        ARGS_OPTIONAL,
-        false, NULL, 0,
-        ARGS_SINGLE_OPT, ARGS_EXPECTS_STRING
-    };
-    args_Flag upcoming_flag = {
-        'u', "upcoming",
-        "equivalent to '--after --sort ascending'",
-        ARGS_OPTIONAL,
-        false, NULL, 0,
-        ARGS_BOOLEAN, ARGS_EXPECTS_NONE
-    };
     args_Flag flags[] = {
-        after_flag,
-        before_flag,
-        date_flag,
-        node_flag,
-        sort_flag,
-        upcoming_flag,
+        {
+            'a', "after",
+            "narrows selection to nodes after given date(s), or after 'now' if none are specified",
+            ARGS_OPTIONAL,
+            false, NULL, 0,
+            ARGS_BOOLEAN, ARGS_EXPECTS_NONE
+        },
+        {
+            'b', "before",
+            "narrows selection to nodes before given date(s), or before 'now' if none are specified",
+            ARGS_OPTIONAL,
+            false, NULL, 0,
+            ARGS_BOOLEAN, ARGS_EXPECTS_NONE
+        },
+        {
+            'd', "date",
+            "narrows selection by given date: <ISO 8601>, <NUM>, 'now'/'n'.\n"
+            "Flags that rely on a date use 'now' if the user does not specify one",
+            ARGS_OPTIONAL,
+            false, NULL, 0,
+            ARGS_SINGLE_OPT, ARGS_EXPECTS_STRING
+        },
+        {
+            'n', "node",
+            "narrows selection by given node name(s)",
+            ARGS_OPTIONAL,
+            false, NULL, 0,
+            ARGS_SINGLE_OPT, ARGS_EXPECTS_STRING
+        },
+        {
+            's', "sort",
+            "sorts by: 'descending'/'d', 'ascending'/'a'",
+            ARGS_OPTIONAL,
+            false, NULL, 0,
+            ARGS_SINGLE_OPT, ARGS_EXPECTS_STRING
+        },
+        {
+            'u', "upcoming",
+            "equivalent to '--after --sort ascending'",
+            ARGS_OPTIONAL,
+            false, NULL, 0,
+            ARGS_BOOLEAN, ARGS_EXPECTS_NONE
+        },
         ARGS_HELP_FLAG,
         ARGS_VERSION_FLAG,
     };
@@ -102,92 +106,51 @@ int main(int argc, char **argv) {
                                    positional_cap);
     if (args_return != ARGS_RETURN_CONTINUE) return args_return;
 
-    double user_date = 0;
+    args_Flag after_flag    = *args_byNameShort('a', flags_count, flags);
+    args_Flag before_flag   = *args_byNameShort('b', flags_count, flags);
+    args_Flag date_flag     = *args_byNameShort('d', flags_count, flags);
+    args_Flag node_flag     = *args_byNameShort('n', flags_count, flags);
+    args_Flag sort_flag     = *args_byNameShort('s', flags_count, flags);
+    args_Flag upcoming_flag = *args_byNameShort('u', flags_count, flags);
+
+    if (upcoming_flag.is_present) {
+        cutoff_mode = CUT_AFTER;
+        sort_mode = SORT_ASCENDING;
+    }
+
     if (date_flag.is_present) {
-        user_date = cstrToDouble(date_flag.opts[0]);
-        if (user_date == 0) {
-            printf("%s: provide valid date in ISO format or as number\n", ARGS_BINARY_NAME);
+        if (!strncasecmp(date_flag.opts[0], "n", 1) || !strncasecmp(date_flag.opts[0], "now", 3)) {
+            user_date = currentTimeToDouble();
+        }
+        else {
+            user_date = cstrToDouble(date_flag.opts[0]);
+            if (user_date == 0) {
+                printf("%s: provide valid date in ISO format or as number\n", ARGS_BINARY_NAME);
+                args_helpHint();
+                exit(EX_USAGE);
+            }
+        }
+    }
+
+    if (sort_flag.is_present) {
+        if (user_date == 0) user_date = currentTimeToDouble();
+
+        if (!strncasecmp(sort_flag.opts[0], "a", 1) || !strncasecmp(sort_flag.opts[0], "ascending", 9)) {
+            sort_mode = SORT_ASCENDING;
+        }
+        else if (!strncasecmp(sort_flag.opts[0], "d", 1) || !strncasecmp(sort_flag.opts[0], "descending", 9)) {
+            sort_mode = SORT_DESCENDING;
+        }
+        else {
+            printf("%s: '%s' is not a valid sorting option\n", ARGS_BINARY_NAME, sort_flag.opts[0]);
             args_helpHint();
             exit(EX_USAGE);
         }
     }
-    if (args_optionalFlagsPresent(flags_count, flags)) {
-        // double user_date = 0;
-        // if (sort_flag.is_present) {
-        //     if (!date_flag.is_present) {
-        //         time_t t = time(NULL);
-        //         struct tm date = *localtime(&t);
-        //         date.tm_year += 1900;
-        //         date.tm_mon += 1;
-        //         // 33 is the max possible length of the formatted string below, courtesy of the compiler
-        //         const size_t date_cstr_size_cap = 33;
-        //         char date_cstr[date_cstr_size_cap];
-        //
-        //         snprintf(date_cstr, date_cstr_size_cap, "%04d%02d%02d.%02d%02d\n",
-        //                 (int16_t)date.tm_year,
-        //                 (int16_t)date.tm_mon,
-        //                 (int16_t)date.tm_mday,
-        //                 (int16_t)date.tm_hour,
-        //                 (int16_t)date.tm_min);
-        //         user_date = atof(date_cstr);
-        //     }
-        //     else {
-        //         user_date = cstrToDouble(date_flag.opts[0]);
-        //         if (user_date == 0) {
-        //             printf("%s: provide valid date in ISO format or as arbitrary decimal.\n", ARGS_BINARY_NAME);
-        //             exit(EX_USAGE);
-        //         }
-        //     }
-        // }
-        // if (date_flag.is_present && sort_flag.is_present) {
-        //
-        //     must_sort_nodes = true;
-        //
-        //     if (!strcasecmp(date_flag.opts[0], "now")) {
-        //         time_t t = time(NULL);
-        //         struct tm date = *localtime(&t);
-        //         date.tm_year += 1900;
-        //         date.tm_mon += 1;
-        //         // 33 is the max possible char length of the formatted string below, courtesy of the compiler
-        //         const size_t date_cstr_size_cap = 33;
-        //         char date_cstr[date_cstr_size_cap];
-        //
-        //         snprintf(date_cstr, date_cstr_size_cap, "%04d%02d%02d.%02d%02d\n",
-        //                 (int16_t)date.tm_year,
-        //                 (int16_t)date.tm_mon,
-        //                 (int16_t)date.tm_mday,
-        //                 (int16_t)date.tm_hour,
-        //                 (int16_t)date.tm_min);
-        //         user_date = atof(date_cstr);
-        //     }
-        //     else {
-        //         user_date = cstrToDouble(date_flag.opts[0]);
-        //         if (user_date == 0) {
-        //             printf("ERROR: Please provide valid non-zero date in ISO format.\n");
-        //             fclose(input_file);
-        //             exit(EX_USAGE);
-        //         }
-        //     }
-        //
-        //     // @Missing { Various sorting options }
-        //
-        //     if (sort_flag.opts_num == 0) {
-        //         printf("ERROR: Must provide sort option (run qaml with the --help flag for usage details).\n");
-        //         fclose(input_file);
-        //         exit(EX_USAGE);
-        //     }
-        //     // -d [date] -s upcoming
-        //     else if (!strcasecmp(sort_flag.opts[0], "upcoming")) {
-        //         // @Missing {}
-        //         printf("NOT IMPLEMENTED: --sort upcoming\n\n");
-        //     }
-        //     else {
-        //         printf("ERROR: Please provide a valid option to the 'sort' flag.\n");
-        //         fclose(input_file);
-        //         exit(EX_USAGE);
-        //     }
-        // }
-    }
+
+    if (after_flag.is_present) cutoff_mode = CUT_AFTER;
+    else if (before_flag.is_present) cutoff_mode = CUT_BEFORE;
+    if (cutoff_mode != CUT_NONE && user_date == 0) user_date = currentTimeToDouble();
 
     FILE *input_file = fopen(positional_args[0], "r");
     if (input_file == NULL) {
@@ -202,6 +165,7 @@ int main(int argc, char **argv) {
     wstring_init(&root.desc, 1);
     wstring_init(&root.date, 1);
     root.date_num = -1;
+    root.hidden = false;
     wstring_init(&root.text, 1);
     NodeArray_init(&root.children, 1);
     Node_processChildren(&root, input_file, &nodes_num);
@@ -210,18 +174,88 @@ int main(int argc, char **argv) {
     size_t idx = 0;
     NodeArray_toBuf(&root.children, node_buf, &idx);
 
-    if (sort_mode == ASCENDING) {
-        // @Feature { Polish, print nicely, handle date }
-        qsort(node_buf, nodes_num, sizeof(Node), Node_compareDate);
+    int64_t selection_len = nodes_num;
+
+    // Sorting
+    if (sort_mode == SORT_ASCENDING) qsort(node_buf, nodes_num, sizeof(Node), Node_compareDateAscending);
+    else if (sort_mode == SORT_DESCENDING) qsort(node_buf, nodes_num, sizeof(Node), Node_compareDateDescending);
+
+    // Limit by date
+    if (cutoff_mode != CUT_NONE) {
+        for (size_t i = 0; i < nodes_num; i++) {
+            if (!node_buf[i].hidden && node_buf[i].date_num == 0) {
+                node_buf[i].hidden = true;
+                selection_len--;
+            }
+        }
+    }
+
+    if (cutoff_mode == CUT_AFTER) {
+        for (size_t i = 0; i < nodes_num; i++) {
+            if (!node_buf[i].hidden && node_buf[i].date_num < user_date) {
+                node_buf[i].hidden = true;
+                selection_len--;
+            }
+        }
+    }
+    else if (cutoff_mode == CUT_BEFORE) {
+        for (size_t i = 0; i < nodes_num; i++) {
+            if (!node_buf[i].hidden && node_buf[i].date_num > user_date) {
+                node_buf[i].hidden = true;
+                selection_len--;
+            }
+        }
+    }
+
+    // If date is the only flag used, only provide nodes on that date.
+    if (user_date != 0 && sort_mode == SORT_NONE && cutoff_mode == CUT_NONE) {
+        for (size_t i = 0; i < nodes_num; i++) {
+            if (!node_buf[i].hidden &&
+                (node_buf[i].date_num < floor(user_date) || node_buf[i].date_num > ceil(user_date)))
+            {
+                node_buf[i].hidden = true;
+                selection_len--;
+            }
+        }
+    }
+
+    // Limit by node name
+    if (node_flag.is_present) {
+        char *user_name = node_flag.opts[0];
+        size_t user_name_len = strlen(user_name);
+        wstring w_user_name = {
+            user_name_len,
+            user_name_len,
+            malloc(user_name_len * sizeof(wchar_t))
+        };
+        for (size_t i = 0; i < user_name_len; i++) {
+            mbtowc(w_user_name.wstr + i, user_name + i, user_name_len);
+        }
+        for (size_t i = 0; i < nodes_num; i++) if (!node_buf[i].hidden) {
+            for (size_t j = 0; j < w_user_name.len; j++) {
+                if (w_user_name.wstr[j] != node_buf[i].name.wstr[j]) {
+                    node_buf[i].hidden = true;
+                    selection_len--;
+                    break;
+                }
+            }
+        }
+    }
+
+    // Print from node_buf if flags used, else print from root.children.nodes.
+    if (args_optionalFlagsPresent(flags_count, flags)) {
         for (size_t i = 0; i < nodes_num; i++) {
             Node_printFmt(node_buf[i], 0, i, nodes_num);
         }
     }
+    else {
+        for (size_t i = 0; i < root.children.len; i++) {
+            Node_printFmt(root.children.nodes[i], 0, i, root.children.len);
+        }
+    }
 
-    // if (must_print_tree) for (size_t i = 0; i < root.children.len; i++) {
-    //     Node_printFmt(root.children.nodes[i], 0, i, root.children.len);
-    // }
 
+    if (selection_len <= 0) printf("%s: no nodes matched your selection\n", ARGS_BINARY_NAME);
 
     Node_free(root);
     fclose(input_file);
@@ -241,6 +275,7 @@ double cstrToDouble(char *cstr) {
 
     for (; int_cstr_idx < str_len; int_cstr_idx++) {
         char c = cstr[int_cstr_idx];
+        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) return 0;
         if (c >= '0' && c <= '9') {
             cbuf_int[int_idx] = cstr[int_cstr_idx];
             int_idx++;
@@ -270,4 +305,23 @@ double cstrToDouble(char *cstr) {
     }
 
     return ret;
+}
+
+
+double currentTimeToDouble(void) {
+    time_t t = time(NULL);
+    struct tm date = *localtime(&t);
+    date.tm_year += 1900;
+    date.tm_mon += 1;
+    // 33 is the max possible length of the formatted string below, courtesy of the compiler
+    const size_t date_cstr_size_cap = 33;
+    char date_cstr[date_cstr_size_cap];
+
+    snprintf(date_cstr, date_cstr_size_cap, "%04d%02d%02d.%02d%02d\n",
+            (int16_t)date.tm_year,
+            (int16_t)date.tm_mon,
+            (int16_t)date.tm_mday,
+            (int16_t)date.tm_hour,
+            (int16_t)date.tm_min);
+    return atof(date_cstr);
 }
