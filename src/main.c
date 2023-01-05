@@ -240,6 +240,7 @@ int main(int argc, char **argv) {
                 }
             }
         }
+        free(w_user_name.wstr);
     }
 
     // Print from node_buf if flags used, else print from root.children.nodes.
