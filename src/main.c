@@ -102,35 +102,43 @@ int main(int argc, char **argv) {
                                    positional_cap);
     if (args_return != ARGS_RETURN_CONTINUE) return args_return;
 
-    // Print nodes without altering order if a file is given with no flags
-    if (args_optionalFlagsPresent(flags_count, flags)) {
-        double user_date = 0;
-        if (sort_flag.is_present) {
-            if (!date_flag.is_present) {
-                time_t t = time(NULL);
-                struct tm date = *localtime(&t);
-                date.tm_year += 1900;
-                date.tm_mon += 1;
-                // 33 is the max possible length of the formatted string below, courtesy of the compiler
-                const size_t date_cstr_size_cap = 33;
-                char date_cstr[date_cstr_size_cap];
-
-                snprintf(date_cstr, date_cstr_size_cap, "%04d%02d%02d.%02d%02d\n",
-                        (int16_t)date.tm_year,
-                        (int16_t)date.tm_mon,
-                        (int16_t)date.tm_mday,
-                        (int16_t)date.tm_hour,
-                        (int16_t)date.tm_min);
-                user_date = atof(date_cstr);
-            }
-            else {
-                user_date = cstrToDouble(date_flag.opts[0]);
-                if (user_date == 0) {
-                    printf("%s: provide valid date in ISO format or as arbitrary decimal.\n", ARGS_BINARY_NAME);
-                    exit(EX_USAGE);
-                }
-            }
+    double user_date = 0;
+    if (date_flag.is_present) {
+        user_date = cstrToDouble(date_flag.opts[0]);
+        if (user_date == 0) {
+            printf("%s: provide valid date in ISO format or as number\n", ARGS_BINARY_NAME);
+            args_helpHint();
+            exit(EX_USAGE);
         }
+    }
+    if (args_optionalFlagsPresent(flags_count, flags)) {
+        // double user_date = 0;
+        // if (sort_flag.is_present) {
+        //     if (!date_flag.is_present) {
+        //         time_t t = time(NULL);
+        //         struct tm date = *localtime(&t);
+        //         date.tm_year += 1900;
+        //         date.tm_mon += 1;
+        //         // 33 is the max possible length of the formatted string below, courtesy of the compiler
+        //         const size_t date_cstr_size_cap = 33;
+        //         char date_cstr[date_cstr_size_cap];
+        //
+        //         snprintf(date_cstr, date_cstr_size_cap, "%04d%02d%02d.%02d%02d\n",
+        //                 (int16_t)date.tm_year,
+        //                 (int16_t)date.tm_mon,
+        //                 (int16_t)date.tm_mday,
+        //                 (int16_t)date.tm_hour,
+        //                 (int16_t)date.tm_min);
+        //         user_date = atof(date_cstr);
+        //     }
+        //     else {
+        //         user_date = cstrToDouble(date_flag.opts[0]);
+        //         if (user_date == 0) {
+        //             printf("%s: provide valid date in ISO format or as arbitrary decimal.\n", ARGS_BINARY_NAME);
+        //             exit(EX_USAGE);
+        //         }
+        //     }
+        // }
         // if (date_flag.is_present && sort_flag.is_present) {
         //
         //     must_sort_nodes = true;

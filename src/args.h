@@ -172,6 +172,8 @@ args_Flag *args_byNameShort(char name_short, const size_t flags_count, args_Flag
 
 args_Flag *args_byNameLong(char *name_long, const size_t flags_count, args_Flag flags[]);
 
+void args_helpHint(void);
+
 bool args_optionalFlagsPresent(const size_t flags_count, args_Flag flags[]);
 
 int args_process
@@ -278,6 +280,14 @@ args_Flag *args_byNameLong(char *name_long, const size_t flags_count, args_Flag 
         if (!strncasecmp(name_long, flags[i].name_long, strlen(name_long))) return &flags[i];
     }
     return NULL;
+}
+
+
+void args_helpHint(void) {
+    #ifndef ARGS_HELP_FLAG_DISABLED
+    printf(ARGS_USAGE_ERR_HELP_TEXT, ARGS_BINARY_NAME, ARGS_HELP_FLAG_NAME_LONG);
+    putchar('\n');
+    #endif // ARGS_HELP_FLAG_DISABLED
 }
 
 

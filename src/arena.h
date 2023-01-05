@@ -13,7 +13,6 @@ typedef struct arena {
 #endif // ARENA_TYPE
 
 
-arena *arena_new(size_t init_size);
 void arena_init(arena *a, size_t init_size);
 void arena_append(arena *a, void *ptr);
 void arena_free(arena *a);
@@ -24,16 +23,6 @@ void arena_emptyFreeCustom(arena *a, void (*free_custom)(void *));
 
 
 #ifdef ARENA_IMPLEMENTATION
-
-arena *arena_new(size_t init_size) {
-    arena *a = &(arena){
-        0,
-        init_size,
-        malloc(init_size * sizeof(void *))
-    };
-    return a;
-}
-
 
 void arena_init(arena *a, size_t init_size) {
     a->len = 0;
