@@ -8,6 +8,9 @@
 
 #define ANSI_IMPLEMENTATION
 #include "ansi.h"
+
+#include "arena.h"
+
 #include "wstring.h"
 
 
@@ -59,7 +62,16 @@ void NodeArray_append(NodeArray *arr, Node node) {
 }
 
 
-Node Node_process(FILE *file, Node *parent, NodeArray *linear_node_arr) {
+void NodeArray_toBuf(NodeArray *arr, Node *buf, size_t *idx) {
+    for (size_t i = 0; i < arr->len; i++) {
+        buf[*idx] = arr->nodes[i];
+        (*idx)++;
+        NodeArray_toBuf(&arr->nodes[i].children, buf, idx);
+    }
+}
+
+
+Node Node_process(FILE *file, Node *parent, size_t *nodes_num) {
 
     Node this_node;
     this_node.parent = parent;
@@ -150,7 +162,8 @@ Node Node_process(FILE *file, Node *parent, NodeArray *linear_node_arr) {
         }
 
         if (wc == NODE_MARKER) {
-            NodeArray_append(&this_node.children, Node_process(file, &this_node, linear_node_arr));
+            NodeArray_append(&this_node.children, Node_process(file, &this_node, nodes_num));
+            (*nodes_num)++;
         }
         if (!getting_name && !getting_desc && !getting_date && !getting_text) {
             if (wc == DLM_DESC.beg) getting_desc = true;
@@ -172,18 +185,18 @@ Node Node_process(FILE *file, Node *parent, NodeArray *linear_node_arr) {
     if (!found_text_not_whitespace) this_node.text.len = 0;
     free(text_whitespace_buf.wstr);
 
-    NodeArray_append(linear_node_arr, this_node);
     return this_node;
 }
 
 
-void Node_processChildren(Node *node, FILE *file, NodeArray *linear_node_arr) {
+void Node_processChildren(Node *node, FILE *file, size_t *nodes_num) {
     wint_t c;
     wchar_t wc;
     while ((c = fgetwc(file)) != WEOF) {
         wc = (wchar_t)c;
         if (wc == NODE_MARKER) {
-            NodeArray_append(&node->children, Node_process(file, node, linear_node_arr));
+            NodeArray_append(&node->children, Node_process(file, node, nodes_num));
+            (*nodes_num)++;
         }
     }
 }

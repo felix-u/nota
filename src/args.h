@@ -172,6 +172,8 @@ args_Flag *args_byNameShort(char name_short, const size_t flags_count, args_Flag
 
 args_Flag *args_byNameLong(char *name_long, const size_t flags_count, args_Flag flags[]);
 
+bool args_optionalFlagsPresent(const size_t flags_count, args_Flag flags[]);
+
 int args_process
 (int argc, char **argv, const char *usage_description, const size_t flags_count, args_Flag flags[],
 size_t *positional_num, char **positional_args, const ARGS_FLAG_EXPECTS positional_expects,
@@ -276,6 +278,14 @@ args_Flag *args_byNameLong(char *name_long, const size_t flags_count, args_Flag 
         if (!strncasecmp(name_long, flags[i].name_long, strlen(name_long))) return &flags[i];
     }
     return NULL;
+}
+
+
+bool args_optionalFlagsPresent(const size_t flags_count, args_Flag flags[]) {
+    for (size_t i = 0; i < flags_count; i++) {
+        if (!flags[i].required && flags[i].is_present) return true;
+    }
+    return false;
 }
 
 
@@ -524,8 +534,17 @@ const ARGS_BINARY_POSITIONAL_TYPE positional_type, const size_t positional_cap)
 
             putchar('\n');
 
-            if (flags[i].help_text != NULL) printf("\t%s\n", flags[i].help_text);
+            if (flags[i].help_text != NULL) {
+                putchar('\t');
+                size_t help_len = strlen(flags[i].help_text);
+                for (size_t j = 0; j < help_len; j++) {
+                    putchar(flags[i].help_text[j]);
+                    if (flags[i].help_text[j] == '\n') putchar('\t');
+                }
+                putchar('\n');
+            }
         }
+
         if (help_implied) return EX_USAGE;
         return EXIT_SUCCESS;
     }
