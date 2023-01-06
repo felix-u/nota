@@ -563,7 +563,7 @@ const ARGS_BINARY_POSITIONAL_TYPE positional_type, const size_t positional_cap)
 
     // Version number
     #ifndef ARGS_VERSION_FLAG_DISABLED
-    args_Flag *version_flag = args_byNameShort(ARGS_VERSION_FLAG_NAME_SHORT, flags_count, flags);
+    args_Flag *version_flag = args_byNameLong(ARGS_VERSION_FLAG_NAME_LONG, flags_count, flags);
     if (version_flag != NULL && version_flag->is_present) {
         printf("%s %s\n", ARGS_BINARY_NAME, ARGS_BINARY_VERSION);
         return EXIT_SUCCESS;

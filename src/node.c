@@ -14,12 +14,6 @@
 #include "wstring.h"
 
 
-bool outputIsRedirected() {
-    if (!isatty(STDOUT_FILENO)) return true;
-    return false;
-}
-
-
 typedef struct {
     wchar_t beg;
     wchar_t end;

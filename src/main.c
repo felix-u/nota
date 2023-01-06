@@ -52,6 +52,10 @@ int main(int argc, char **argv) {
 
     setlocale(LC_ALL, "");
 
+    if (getenv("NOTA_NO_COLOR") == NULL && getenv("NOTA_NO_COLOUR") == NULL) {
+        ansi_stateSet();
+    }
+
     args_Flag flags[] = {
         {
             'a', "after",
@@ -96,6 +100,21 @@ int main(int argc, char **argv) {
             false, NULL, 0,
             ARGS_BOOLEAN, ARGS_EXPECTS_NONE
         },
+        {
+            false, "no-colour",
+            "disables colour in output. This will also occur if TERM=dumb, NO_COLO(U)R or NOTA_NO_COLO(U)R is set, or\n"
+            "the output is piped to a file",
+            ARGS_OPTIONAL,
+            false, NULL, 0,
+            ARGS_BOOLEAN, ARGS_EXPECTS_NONE
+        },
+        {
+            false, "no-color",
+            "equivalent to the above",
+            ARGS_OPTIONAL,
+            false, NULL, 0,
+            ARGS_BOOLEAN, ARGS_EXPECTS_NONE
+        },
         ARGS_HELP_FLAG,
         ARGS_VERSION_FLAG,
     };
@@ -114,6 +133,10 @@ int main(int argc, char **argv) {
     args_Flag node_flag     = *args_byNameShort('n', flags_count, flags);
     args_Flag sort_flag     = *args_byNameShort('s', flags_count, flags);
     args_Flag upcoming_flag = *args_byNameShort('u', flags_count, flags);
+
+    args_Flag nocolour_flag = *args_byNameLong("no-colour", flags_count, flags);
+    args_Flag nocolor_flag  = *args_byNameLong("no-color", flags_count, flags);
+    if (nocolour_flag.is_present || nocolor_flag.is_present) ansi_enabled = false;
 
     if (upcoming_flag.is_present) {
         cutoff_mode = CUT_AFTER;

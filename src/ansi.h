@@ -1,6 +1,12 @@
 #include <stdarg.h>
 #include <stdbool.h>
+#include <strings.h>
 #include <stdio.h>
+#include <unistd.h>
+
+
+#ifndef ANSI_CODES
+#define ANSI_CODES
 
 const char ANSI_BEG[] = "\x1b[";
 const char ANSI_END[] = "m";
@@ -45,43 +51,50 @@ const char ANSI_FMT_ITALIC[]    =  "3";
 const char ANSI_FMT_UNDERLINE[] =  "4";
 const char ANSI_FMT_NORMAL[]    = "22";
 
+#endif // ANSI_CODES
 
+
+#ifndef ANSI_STATE
+#define ANSI_STATE
+
+bool ansi_enabled = false;
+
+#endif // ANSI_STATE
+
+
+void ansi_reset(void);
 void ansi_set(const char *str, ...);
-void ansi_reset();
-void
-ansi_printf(const bool reset, const char *ansi_fg, const char *ansi_bg, const char *ansi_fmt, const char *str, ...);
+void ansi_stateSet(void);
 
 
 #ifdef ANSI_IMPLEMENTATION
 
+void ansi_reset(void) {
+    if (ansi_enabled) printf("%s%s%s", ANSI_BEG, ANSI_FMT_RESET, ANSI_END);
+}
+
+
 void ansi_set(const char *str, ...) {
-    // printf("%s%s%s%s%s", ANSI_BEG, ansi_fg, ansi_bg, ansi_fmt, ANSI_END);
     va_list args;
     va_start(args, str);
 
-    printf(ANSI_BEG);
-    vprintf(str, args);
-    printf(ANSI_END);
+    if (ansi_enabled) {
+        printf(ANSI_BEG);
+        vprintf(str, args);
+        printf(ANSI_END);
+    }
 
     va_end(args);
 }
 
-void ansi_reset() {
-    printf("%s%s%s", ANSI_BEG, ANSI_FMT_RESET, ANSI_END);
-}
 
-void
-ansi_printf(const bool reset, const char *ansi_fg, const char *ansi_bg, const char *ansi_fmt, const char *str, ...) {
-    printf("%s%s%s%s%s", ANSI_BEG, ansi_fg, ansi_bg, ansi_fmt, ANSI_END);
-
-    va_list args;
-    va_start(args, str);
-
-    vprintf(str, args);
-
-    va_end(args);
-
-    if (reset) ansi_reset();
+void ansi_stateSet(void) {
+    if (isatty(STDOUT_FILENO)
+     && getenv("NO_COLOR") == NULL && getenv("NO_COLOUR") == NULL
+     && strncasecmp(getenv("TERM"), "dumb", 4))
+    {
+        ansi_enabled = true;
+    }
 }
 
 #endif // ANSI_IMPLEMENTATION
