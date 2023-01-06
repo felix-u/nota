@@ -123,7 +123,6 @@
 #include <strings.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sysexits.h>
 
 
 #ifndef ARGS_TYPE
@@ -183,6 +182,8 @@ const ARGS_BINARY_POSITIONAL_TYPE positional_type, const size_t positional_cap);
 
 
 #ifdef ARGS_IMPLEMENTATION
+
+#define EX_USAGE 64
 
 #ifndef ARGS_RETURN_CONTINUE
 #define ARGS_RETURN_CONTINUE -1

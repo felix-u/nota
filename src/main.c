@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <strings.h>
-#include <sysexits.h>
 #include <time.h>
 #include <wchar.h>
 #include <wctype.h>
@@ -22,6 +21,9 @@
 
 #define ARENA_IMPLEMENTATION
 #include "arena.h"
+
+#define EX_USAGE 64
+#define EX_IOERR 74
 
 
 typedef enum SortOption {
@@ -127,7 +129,7 @@ int main(int argc, char **argv) {
             if (user_date == 0) {
                 printf("%s: provide valid date in ISO format or as number\n", ARGS_BINARY_NAME);
                 args_helpHint();
-                exit(EX_USAGE);
+                return EX_USAGE;
             }
         }
     }
@@ -144,7 +146,7 @@ int main(int argc, char **argv) {
         else {
             printf("%s: '%s' is not a valid sorting option\n", ARGS_BINARY_NAME, sort_flag.opts[0]);
             args_helpHint();
-            exit(EX_USAGE);
+            return EX_USAGE;
         }
     }
 
@@ -155,7 +157,7 @@ int main(int argc, char **argv) {
     FILE *input_file = fopen(positional_args[0], "r");
     if (input_file == NULL) {
         printf("%s: no such file or directory '%s'\n", ARGS_BINARY_NAME, positional_args[0]);
-        exit(EX_IOERR);
+        return EX_IOERR;
     }
 
     size_t nodes_num = 0;
