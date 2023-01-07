@@ -75,16 +75,16 @@ void ansi_reset(void) {
 
 
 void ansi_set(const char *str, ...) {
-    va_list args;
-    va_start(args, str);
-
     if (ansi_enabled) {
+        va_list args;
+        va_start(args, str);
+
         printf(ANSI_BEG);
         vprintf(str, args);
         printf(ANSI_END);
-    }
 
-    va_end(args);
+        va_end(args);
+    }
 }
 
 
