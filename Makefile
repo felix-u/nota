@@ -9,3 +9,8 @@ nota: src/*
 
 release: src/*
 	$(CC) $(CFLAGS) $(RELEASEFLAGS) $(LIBS) -o nota src/main.c
+
+copy:
+	cp nota ~/.local/bin/
+
+install: release copy
