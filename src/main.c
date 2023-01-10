@@ -80,6 +80,13 @@ int main(int argc, char **argv) {
             ARGS_SINGLE_OPT, ARGS_EXPECTS_STRING
         },
         {
+            false, "desc",
+            "narrows selection by given description",
+            ARGS_OPTIONAL,
+            false, NULL, 0,
+            ARGS_SINGLE_OPT, ARGS_EXPECTS_STRING
+        },
+        {
             'n', "node",
             "narrows selection by given node name(s)",
             ARGS_OPTIONAL,
@@ -130,6 +137,7 @@ int main(int argc, char **argv) {
     args_Flag after_flag    = *args_byNameShort('a', flags_count, flags);
     args_Flag before_flag   = *args_byNameShort('b', flags_count, flags);
     args_Flag date_flag     = *args_byNameShort('d', flags_count, flags);
+    args_Flag desc_flag     = *args_byNameLong("desc", flags_count, flags);
     args_Flag node_flag     = *args_byNameShort('n', flags_count, flags);
     args_Flag sort_flag     = *args_byNameShort('s', flags_count, flags);
     args_Flag upcoming_flag = *args_byNameShort('u', flags_count, flags);
@@ -230,6 +238,30 @@ int main(int argc, char **argv) {
                 selection_len--;
             }
         }
+    }
+
+    // Limit by description
+    if (desc_flag.is_present) {
+        char *user_desc = desc_flag.opts[0];
+        size_t user_desc_len = strlen(user_desc);
+        wstring w_user_desc = {
+            user_desc_len,
+            user_desc_len,
+            malloc(user_desc_len * sizeof(wchar_t))
+        };
+        for (size_t i = 0; i < user_desc_len; i++) {
+            mbtowc(w_user_desc.wstr + i, user_desc + i, user_desc_len);
+        }
+        for (size_t i = 0; i < nodes_num; i++) if (!node_buf[i].hidden) {
+            for (size_t j = 0; j < w_user_desc.len; j++) {
+                if (w_user_desc.wstr[j] != node_buf[i].desc.wstr[j]) {
+                    node_buf[i].hidden = true;
+                    selection_len--;
+                    break;
+                }
+            }
+        }
+        free(w_user_desc.wstr);
     }
 
     // If date is the only flag used, only provide nodes on that date.
