@@ -401,15 +401,11 @@ const ARGS_BINARY_POSITIONAL_TYPE positional_type, const size_t positional_cap)
                                 found_match= true;
                                 break;
                             }
-                            else {
-                                invalid_short_arg = arg[j];
-                                break;
-                            }
                         }
                         // Flag invalid
                         if (!found_match) {
                             printf("%s: %s '%c' in '%s'\n", ARGS_BINARY_NAME, ARGS_INVALID_FLAG_TEXT,
-                                                            invalid_short_arg, arg);
+                                                            arg[j], arg);
                             #ifndef ARGS_HELP_FLAG_DISABLED
                             printf(ARGS_USAGE_ERR_HELP_TEXT, ARGS_BINARY_NAME, ARGS_HELP_FLAG_NAME_LONG);
                             putchar('\n');
