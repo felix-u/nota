@@ -51,81 +51,89 @@ Cutoff cutoff_mode = CUT_NONE;
 int main(int argc, char **argv) {
 
     setlocale(LC_ALL, "");
+    if (getenv("NOTA_NO_COLOR") == NULL && getenv("NOTA_NO_COLOUR") == NULL) ansi_stateSet();
 
-    if (getenv("NOTA_NO_COLOR") == NULL && getenv("NOTA_NO_COLOUR") == NULL) {
-        ansi_stateSet();
-    }
-
-    args_Flag flags[] = {
-        {
-            'a', "after",
-            "narrows selection to nodes after given date(s), or after 'now' if none are specified",
-            ARGS_OPTIONAL,
-            false, NULL, 0,
-            ARGS_BOOLEAN, ARGS_EXPECTS_NONE
-        },
-        {
-            'b', "before",
-            "narrows selection to nodes before given date(s), or before 'now' if none are specified",
-            ARGS_OPTIONAL,
-            false, NULL, 0,
-            ARGS_BOOLEAN, ARGS_EXPECTS_NONE
-        },
-        {
-            'd', "date",
-            "narrows selection by given date: <ISO 8601>, <NUM>, 'now'/'n'.\n"
-            "Flags that rely on a date use 'now' if the user does not specify one",
-            ARGS_OPTIONAL,
-            false, NULL, 0,
-            ARGS_SINGLE_OPT, ARGS_EXPECTS_STRING
-        },
-        {
-            false, "desc",
-            "narrows selection by given description",
-            ARGS_OPTIONAL,
-            false, NULL, 0,
-            ARGS_SINGLE_OPT, ARGS_EXPECTS_STRING
-        },
-        {
-            'n', "node",
-            "narrows selection by given node name(s)",
-            ARGS_OPTIONAL,
-            false, NULL, 0,
-            ARGS_SINGLE_OPT, ARGS_EXPECTS_STRING
-        },
-        {
-            's', "sort",
-            "sorts by: 'descending'/'d', 'ascending'/'a'",
-            ARGS_OPTIONAL,
-            false, NULL, 0,
-            ARGS_SINGLE_OPT, ARGS_EXPECTS_STRING
-        },
-        {
-            'u', "upcoming",
-            "equivalent to '--after --sort ascending'",
-            ARGS_OPTIONAL,
-            false, NULL, 0,
-            ARGS_BOOLEAN, ARGS_EXPECTS_NONE
-        },
-        {
-            false, "no-colour",
-            "disables colour in output. This will also occur if TERM=dumb, NO_COLO(U)R or NOTA_NO_COLO(U)R is set, or\n"
-            "the output is piped to a file",
-            ARGS_OPTIONAL,
-            false, NULL, 0,
-            ARGS_BOOLEAN, ARGS_EXPECTS_NONE
-        },
-        {
-            false, "no-color",
-            "equivalent to the above",
-            ARGS_OPTIONAL,
-            false, NULL, 0,
-            ARGS_BOOLEAN, ARGS_EXPECTS_NONE
-        },
-        ARGS_HELP_FLAG,
-        ARGS_VERSION_FLAG,
+    args_Flag after_flag = {
+        'a', "after",
+        "narrows selection to nodes after given date(s), or after 'now' if none are specified",
+        ARGS_OPTIONAL,
+        false, NULL, 0,
+        ARGS_BOOLEAN, ARGS_EXPECTS_NONE
     };
-    const size_t flags_count = (sizeof flags) / (sizeof flags[0]);
+    args_Flag before_flag = {
+        'b', "before",
+        "narrows selection to nodes before given date(s), or before 'now' if none are specified",
+        ARGS_OPTIONAL,
+        false, NULL, 0,
+        ARGS_BOOLEAN, ARGS_EXPECTS_NONE
+    };
+    args_Flag date_flag = {
+        'd', "date",
+        "narrows selection by given date: <ISO 8601>, <NUM>, 'now'/'n'.\n"
+        "Flags that rely on a date use 'now' if the user does not specify one",
+        ARGS_OPTIONAL,
+        false, NULL, 0,
+        ARGS_SINGLE_OPT, ARGS_EXPECTS_STRING
+    };
+    args_Flag desc_flag = {
+        false, "desc",
+        "narrows selection by given description",
+        ARGS_OPTIONAL,
+        false, NULL, 0,
+        ARGS_SINGLE_OPT, ARGS_EXPECTS_STRING
+    };
+    args_Flag node_flag = {
+        'n', "node",
+        "narrows selection by given node name(s)",
+        ARGS_OPTIONAL,
+        false, NULL, 0,
+        ARGS_SINGLE_OPT, ARGS_EXPECTS_STRING
+    };
+    args_Flag sort_flag = {
+        's', "sort",
+        "sorts by: 'descending'/'d', 'ascending'/'a'",
+        ARGS_OPTIONAL,
+        false, NULL, 0,
+        ARGS_SINGLE_OPT, ARGS_EXPECTS_STRING
+    };
+    args_Flag upcoming_flag = {
+        'u', "upcoming",
+        "equivalent to '--after --sort ascending'",
+        ARGS_OPTIONAL,
+        false, NULL, 0,
+        ARGS_BOOLEAN, ARGS_EXPECTS_NONE
+    };
+    args_Flag nocolour_flag = {
+        false, "no-colour",
+        "disables colour in output. This will also occur if TERM=dumb, NO_COLO(U)R or NOTA_NO_COLO(U)R is set, or\n"
+        "the output is piped to a file",
+        ARGS_OPTIONAL,
+        false, NULL, 0,
+        ARGS_BOOLEAN, ARGS_EXPECTS_NONE
+    };
+    args_Flag nocolor_flag = {
+        false, "no-color",
+        "equivalent to the above",
+        ARGS_OPTIONAL,
+        false, NULL, 0,
+        ARGS_BOOLEAN, ARGS_EXPECTS_NONE
+    };
+
+    args_Flag *flags[] = {
+        &after_flag,
+        &before_flag,
+        &date_flag,
+        &desc_flag,
+        &node_flag,
+        &sort_flag,
+        &upcoming_flag,
+        &nocolour_flag,
+        &nocolor_flag,
+        &ARGS_HELP_FLAG,
+        &ARGS_VERSION_FLAG,
+    };
+
+    const size_t flags_count = sizeof(flags) / sizeof(flags[0]);
     size_t positional_num = 0;
     const size_t positional_cap = 256;
     char *positional_args[positional_cap];
@@ -134,16 +142,6 @@ int main(int argc, char **argv) {
                                    positional_cap);
     if (args_return != ARGS_RETURN_CONTINUE) return args_return;
 
-    args_Flag after_flag    = *args_byNameShort('a', flags_count, flags);
-    args_Flag before_flag   = *args_byNameShort('b', flags_count, flags);
-    args_Flag date_flag     = *args_byNameShort('d', flags_count, flags);
-    args_Flag desc_flag     = *args_byNameLong("desc", flags_count, flags);
-    args_Flag node_flag     = *args_byNameShort('n', flags_count, flags);
-    args_Flag sort_flag     = *args_byNameShort('s', flags_count, flags);
-    args_Flag upcoming_flag = *args_byNameShort('u', flags_count, flags);
-
-    args_Flag nocolour_flag = *args_byNameLong("no-colour", flags_count, flags);
-    args_Flag nocolor_flag  = *args_byNameLong("no-color", flags_count, flags);
     if (nocolour_flag.is_present || nocolor_flag.is_present) ansi_enabled = false;
 
     if (upcoming_flag.is_present) {
