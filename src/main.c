@@ -89,6 +89,27 @@ int main(int argc, char **argv) {
         false, NULL, 0,
         ARGS_SINGLE_OPT, ARGS_EXPECTS_STRING
     };
+    args_Flag tagchar_flag = {
+        false, "tagchar",
+        "provides tag character",
+        ARGS_OPTIONAL,
+        false, NULL, 0,
+        ARGS_SINGLE_OPT, ARGS_EXPECTS_STRING
+    };
+    args_Flag tagged_flag = {
+        't', "tagged",
+        "limits selection to tagged nodes (default tag character: 'x')",
+        ARGS_OPTIONAL,
+        false, NULL, 0,
+        ARGS_BOOLEAN, ARGS_EXPECTS_NONE
+    };
+    args_Flag not_tagged_flag = {
+        false, "not-tagged",
+        "limits selection to nodes NOT tagged (default tag character: 'x')",
+        ARGS_OPTIONAL,
+        false, NULL, 0,
+        ARGS_BOOLEAN, ARGS_EXPECTS_NONE
+    };
     args_Flag sort_flag = {
         's', "sort",
         "sorts by: 'descending'/'d', 'ascending'/'a'",
@@ -125,6 +146,9 @@ int main(int argc, char **argv) {
         &date_flag,
         &desc_flag,
         &node_flag,
+        &tagchar_flag,
+        &tagged_flag,
+        &not_tagged_flag,
         &sort_flag,
         &upcoming_flag,
         &nocolour_flag,
@@ -177,6 +201,11 @@ int main(int argc, char **argv) {
             args_helpHint();
             return EX_USAGE;
         }
+    }
+
+    if (tagchar_flag.is_present) {
+        TAG = tagchar_flag.opts[0][0];
+        mbtowc(&TAG, tagchar_flag.opts[0], 4);
     }
 
     if (after_flag.is_present) cutoff_mode = CUT_AFTER;
@@ -248,7 +277,7 @@ int main(int argc, char **argv) {
             malloc(user_desc_len * sizeof(wchar_t))
         };
         for (size_t i = 0; i < user_desc_len; i++) {
-            mbtowc(w_user_desc.wstr + i, user_desc + i, user_desc_len);
+            mbtowc(w_user_desc.wstr + i, user_desc + i, 4);
         }
         for (size_t i = 0; i < nodes_num; i++) if (!node_buf[i].hidden) {
             for (size_t j = 0; j < w_user_desc.len; j++) {
@@ -268,6 +297,24 @@ int main(int argc, char **argv) {
             if (!node_buf[i].hidden &&
                 (node_buf[i].date_num < floor(user_date) || node_buf[i].date_num > ceil(user_date)))
             {
+                node_buf[i].hidden = true;
+                selection_len--;
+            }
+        }
+    }
+
+    // Limit by tag
+    if (tagged_flag.is_present) {
+        for (size_t i = 0; i < nodes_num; i++) {
+            if (!node_buf[i].hidden && !node_buf[i].tag) {
+                node_buf[i].hidden = true;
+                selection_len--;
+            }
+        }
+    }
+    else if (not_tagged_flag.is_present) {
+        for (size_t i = 0; i < nodes_num; i++) {
+            if (!node_buf[i].hidden && node_buf[i].tag) {
                 node_buf[i].hidden = true;
                 selection_len--;
             }

@@ -20,9 +20,12 @@ typedef struct {
 } DelimiterSet;
 
 const wchar_t NODE_MARKER = '@';
-const DelimiterSet DLM_DESC = {'(', ')'};
-const DelimiterSet DLM_DATE = {'[', ']'};
-const DelimiterSet DLM_TEXT = {'{', '}'};
+      wchar_t TAG         = 'x';
+
+const DelimiterSet DLM_DESC = { '(', ')' };
+const DelimiterSet DLM_DATE = { '[', ']' };
+const DelimiterSet DLM_TAG  = { '<', '>' };
+const DelimiterSet DLM_TEXT = { '{', '}' };
 
 
 typedef struct NodeArray {
@@ -37,6 +40,7 @@ typedef struct Node {
     wstring desc;
     wstring date;
     double date_num;
+    bool tag;
     wstring text;
     bool hidden;
     struct NodeArray children;
@@ -74,12 +78,14 @@ Node Node_process(FILE *file, Node *parent, size_t *nodes_num) {
     wstring_init(&this_node.desc, 1);
     wstring_init(&this_node.date, 1);
     this_node.date_num = 0;
+    this_node.tag = false;
     wstring_init(&this_node.text, 1);
     NodeArray_init(&this_node.children, 1);
 
     bool getting_name = true;
     bool getting_desc = false;
     bool getting_date = false;
+    bool getting_tag = false;
     bool getting_text = false;
 
     wint_t c;
@@ -110,6 +116,11 @@ Node Node_process(FILE *file, Node *parent, size_t *nodes_num) {
                 getting_text = true;
                 continue;
             }
+            else if (wc == DLM_TAG.beg) {
+                getting_name = false;
+                getting_tag = true;
+                continue;
+            }
             else wstring_append(&this_node.name, wc);
         }
         else if (getting_desc) {
@@ -123,6 +134,12 @@ Node Node_process(FILE *file, Node *parent, size_t *nodes_num) {
                 getting_date = false;
             }
             else wstring_append(&this_node.date, wc);
+        }
+        else if (getting_tag) {
+            if (wc == DLM_TAG.end) {
+                getting_tag = false;
+            }
+            else if (wc == TAG) this_node.tag = true;
         }
         else if (getting_text) {
             if (wc == DLM_TEXT.end) {
@@ -160,9 +177,10 @@ Node Node_process(FILE *file, Node *parent, size_t *nodes_num) {
             NodeArray_append(&this_node.children, Node_process(file, &this_node, nodes_num));
             (*nodes_num)++;
         }
-        if (!getting_name && !getting_desc && !getting_date && !getting_text) {
+        if (!getting_name && !getting_desc && !getting_date && !getting_tag && !getting_text) {
             if (wc == DLM_DESC.beg) getting_desc = true;
             else if (wc == DLM_DATE.beg) getting_date = true;
+            else if (wc == DLM_TAG.beg)  getting_tag = true;
             else if (wc == DLM_TEXT.beg) getting_text = true;
         }
 
@@ -199,54 +217,20 @@ void Node_processChildren(Node *node, FILE *file, size_t *nodes_num) {
 }
 
 
-void Node_printDebug(Node node, size_t indent_level, size_t num_current, size_t num_max) {
-    if (node.name.len > 0) {
-        for (size_t i = 0; i < indent_level; i++) putchar('\t');
-        printf("Name: ");
-        wstring_println(node.name);
-    }
-
-    if (node.desc.len > 0) {
-        for (size_t i = 0; i < indent_level; i++) putchar('\t');
-        printf("Desc: ");
-        wstring_println(node.desc);
-    }
-
-    for (size_t i = 0; i < indent_level; i++) putchar('\t');
-    printf("Date:");
-    if (node.date.len > 0) {
-        putchar(' ');
-        wstring_print(node.date);
-    }
-    printf(" (%0.6f)\n", node.date_num);
-
-    if (node.text.len > 0) {
-        for (size_t i = 0; i < indent_level; i++) putchar('\t');
-        printf("Text: ");
-        for (size_t i = 0; i < node.text.len; i++) {
-            printf("%lc", node.text.wstr[i]);
-            if (node.text.wstr[i] == '\n') {
-                for (size_t j = 0; j < indent_level; j++) putchar('\t');
-            }
-        }
-        putchar('\n');
-    }
-
-    for (size_t i = 0; i < node.children.len; i++) {
-        Node_printDebug(node.children.nodes[i], indent_level + 1, i, node.children.len);
-    }
-
-    // Don't print excessive newlines if end reached
-    if (num_current != num_max - 1) printf("\n");
-}
-
-
 void Node_printFmt(Node node, size_t indent_level, size_t num_current, size_t num_max) {
 
     if (node.hidden) return;
 
+    for (size_t i = 0; i < indent_level; i++) putchar('\t');
+
+    if (node.tag) {
+        ansi_set("%s;%s", ANSI_BG_CYAN, ANSI_FG_BLACK);
+        printf(" %lc ", TAG);
+        ansi_reset();
+        putchar(' ');
+    }
+
     if (node.name.len > 0) {
-        for (size_t i = 0; i < indent_level; i++) putchar('\t');
         ansi_set("%s", ANSI_FMT_BOLD);
         wstring_print(node.name);
         ansi_reset();
