@@ -11,7 +11,7 @@
 
 #define ARGS_IMPLEMENTATION
 #define ARGS_BINARY_NAME "nota"
-#define ARGS_BINARY_VERSION "0.1-dev"
+#define ARGS_BINARY_VERSION "0.1"
 #include "args.h"
 
 #include "node.c"
