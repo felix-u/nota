@@ -2,7 +2,7 @@
 
 `nota` parses a custom syntax for expressing *nodes.*
 
-*GIF should go here*
+![GIF](./nota.gif)
 
 Licensed under [GPL-3.0](./LICENCE).
 
