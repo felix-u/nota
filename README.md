@@ -4,7 +4,9 @@
 
 ![GIF](./nota.gif)
 
-Licensed under [GPL-3.0](./LICENCE).
+Licensed under [GPL-3.0](./LICENCE). To get `nota`,
+[download the latest release](https://github.com/felix-u/nota/releases/tag/v0.1) or follow the
+[compilation instructions](###building).
 
 ### Summary
 
@@ -148,4 +150,29 @@ OPTIONS:
 	display this help and exit
       --version
 	output version information and exit
+```
+
+### Building
+
+These dependencies are likely already present on any UNIX-like OS:
+
+- `git`
+- a C99 compiler, such as `gcc` or `clang`
+- a `make` implementation, such as `gnumake`
+
+Using `git`, clone the source code and navigate to the desired release, where `X.X` is the version number. Building
+from the `master` branch is highly discouraged.
+```sh
+$ git clone https://github.com/felix-u/nota
+$ git checkout vX.X
+```
+
+To compile an optimised binary at `./nota` relative to this repository's root directory, run:
+```sh
+$ make release
+```
+
+To compile this binary *and* copy it to `~/.local/bin`, run:
+```sh
+$ make install
 ```
