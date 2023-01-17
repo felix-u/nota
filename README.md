@@ -6,7 +6,7 @@
 
 Licensed under [GPL-3.0](./LICENCE). To get `nota`,
 [download the latest release](https://github.com/felix-u/nota/releases/tag/v0.1) or follow the
-[compilation instructions](###building).
+[compilation instructions](#building).
 
 ### Summary
 
