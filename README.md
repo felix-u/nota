@@ -8,6 +8,8 @@ Licensed under [GPL-3.0](./LICENCE). To get `nota`,
 [download the latest release](https://github.com/felix-u/nota/releases/tag/v0.1) or follow the
 [compilation instructions](#building).
 
+*Disclaimer: the syntax and features of `nota` are not yet stable, and are subject to change in upcoming versions.*
+
 ### Summary
 
 Nodes are declared using the `@` character and can contain a number of information fields. Syntax is not
