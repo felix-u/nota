@@ -91,21 +91,21 @@ in short form, is exactly equivalent. Running `nota ~/Desktop/notafile -u --node
 
 I've already done my first task, and tagged it with `<x>` - the default tag character. I only want to see what I've not
 done yet, so I'll add the `--not-tagged` option. Also, I'll limit my search to tasks with the description `URGENT` by
-adding the `--desc URGENT` option:
+adding the `--desc URGENT` option. The final command, using short-form flags where applicable, is
+```
+nota ~/Desktop/notafile -un Task --not-tagged --desc URGENT
+```
 ```
 Task | URGENT | 2023-02-01
 Soul-crushing drudgery
 ```
-
-Perfect. The final command, using short-form flags where applicable, is
-```
-nota ~/Desktop/notafile -un Task --not-tagged --desc URGENT
-```
+Perfect.
 
 I can apply much the same workflow to my `@Booklist`. The default `tagchar` is `x`, which I used to mark books I
-finished, but I also used `p` to denote in-progress readings.
-`nota ~/Desktop/notafile --node Book --tagged --tagchar p`, or `nota ~/Desktop/notafile -tn Book --tagchar p` in short
-form, gets me what I'm looking for:
+finished, but I also used `p` to denote in-progress readings. I can get what I'm looking for using
+```
+nota ~/Desktop/notafile --node Book --tagged --tagchar p
+```
 ```
  p  Book | David Copperfield
 ```
