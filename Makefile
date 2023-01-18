@@ -1,4 +1,4 @@
-VERSION=0.1
+VERSION=0.2-dev
 
 CFLAGS=-std=c99 -Wall -pedantic -Werror -Wshadow -Wstrict-overflow -Wextra \
 	   -Wall -Wno-unused-variable
@@ -10,7 +10,7 @@ nota: src/*
 	$(CC) $(CFLAGS) $(DEBUGFLAGS) $(LIBS) -o nota src/main.c
 
 release: src/*
-	$(CC) $(CFLAGS) $(RELEASEFLAGS) $(LIBS) -o nota src/main.c
+	$(CC) $(CFLAGS) $(RELEASEFLAGS) $(LIBS) -o nota src/main.c -march=native
 
 cross: src/*
 	mkdir -p release

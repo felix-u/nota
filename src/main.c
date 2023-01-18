@@ -11,7 +11,7 @@
 
 #define ARGS_IMPLEMENTATION
 #define ARGS_BINARY_NAME "nota"
-#define ARGS_BINARY_VERSION "0.1"
+#define ARGS_BINARY_VERSION "0.2-dev"
 #include "args.h"
 
 #include "node.c"
@@ -55,14 +55,16 @@ int main(int argc, char **argv) {
 
     args_Flag after_flag = {
         'a', "after",
-        "narrows selection to nodes after given date(s), or after 'now' if none are specified",
+        "narrows selection to nodes after given date(s), or after 'now' if none \n"
+        "are specified",
         ARGS_OPTIONAL,
         false, NULL, 0,
         ARGS_BOOLEAN, ARGS_EXPECTS_NONE
     };
     args_Flag before_flag = {
         'b', "before",
-        "narrows selection to nodes before given date(s), or before 'now' if none are specified",
+        "narrows selection to nodes before given date(s), or before 'now' if none \n"
+        "are specified",
         ARGS_OPTIONAL,
         false, NULL, 0,
         ARGS_BOOLEAN, ARGS_EXPECTS_NONE
@@ -126,8 +128,8 @@ int main(int argc, char **argv) {
     };
     args_Flag nocolour_flag = {
         false, "no-colour",
-        "disables colour in output. This will also occur if TERM=dumb, NO_COLO(U)R or NOTA_NO_COLO(U)R is set, or\n"
-        "the output is piped to a file",
+        "disables colour in output. This will also occur if TERM=dumb, \n"
+        "NO_COLO(U)R or NOTA_NO_COLO(U)R is set, or the output is piped to a file",
         ARGS_OPTIONAL,
         false, NULL, 0,
         ARGS_BOOLEAN, ARGS_EXPECTS_NONE
