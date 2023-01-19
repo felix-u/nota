@@ -335,7 +335,8 @@ int main(int argc, char **argv) {
         for (size_t i = 0; i < user_name_len; i++) {
             mbtowc(w_user_name.wstr + i, user_name + i, user_name_len);
         }
-        for (size_t i = 0; i < nodes_num; i++) if (!node_buf[i].hidden) {
+        for (size_t i = 0; i < nodes_num; i++) {
+            if (node_buf[i].hidden) continue;
             for (size_t j = 0; j < w_user_name.len; j++) {
                 if (w_user_name.wstr[j] != node_buf[i].name.wstr[j]) {
                     node_buf[i].hidden = true;

@@ -347,131 +347,122 @@ const ARGS_BINARY_POSITIONAL_TYPE positional_type, const size_t positional_cap)
         char *arg = argv[i];
         size_t arg_len = strlen(arg);
 
-        if (arg[0] == '-' && !no_more_flags) {
-            if (arg_len > 1) {
-                // Arg starts with "--"
-                if (arg[1] == '-') {
-                    // Double dash ("--") means only positionals beyond this point!
-                    if (arg_len == 2) no_more_flags = true;
-                    // Arg is of form "--arg"
-                    else {
-                        bool found_match = false;
-                        for (size_t j = 0; j < flags_count; j++) {
-                            // Found match
-                            if (!strncasecmp(flags[j]->name_long, (arg + 2), (arg_len - 2))) {
-                                flags[j]->is_present = true;
-                                if (flags[j]->type == ARGS_SINGLE_OPT && (i + 1) < argc) {
-                                    if (strlen(argv[i + 1]) >= 1 && argv[i + 1][0] != '-') {
-                                        flags[j]->opts = argv + i + 1;
-                                        flags[j]->opts_num = 1;
-                                        skip = 1;
-                                    }
-                                }
-                                else if (flags[j]->type == ARGS_MULTI_OPT) {
-                                    size_t opts_num = 0;
-                                    for (int k = i + 1; k < argc; k++) {
-                                        if (strlen(argv[k]) > 1 && argv[k][0] == '-') break;
-                                        else opts_num++;
-                                    }
-                                    flags[j]->opts = argv + i + 1;
-                                    flags[j]->opts_num = opts_num;
-                                    skip = opts_num;
-                                }
-                                found_match = true;
-                                break;
-                            }
-                        }
-                        // Flag invalid
-                        if (!found_match) {
-                            printf("%s: %s '%s'\n", ARGS_BINARY_NAME, ARGS_INVALID_FLAG_TEXT, argv[i]);
-                            #ifndef ARGS_HELP_FLAG_DISABLED
-                            printf(ARGS_USAGE_ERR_HELP_TEXT, ARGS_BINARY_NAME, ARGS_HELP_FLAG_NAME_LONG);
-                            putchar('\n');
-                            #endif // ARGS_HELP_FLAG_DISABLED
-                            return EX_USAGE;
-                        }
+        if ((arg[0] != '-' || no_more_flags) && (size_t)i <= positional_cap) {
+            (*positional_num)++;
+            is_positional[i] = true;
+            continue;
+        }
+
+        // @Note { There is no convention for dealing with arg = '-'. I skip it. }
+
+        // Arg starts with "--"
+        if (arg_len > 1 && arg[1] == '-') {
+
+            // Double dash ("--") means only positionals beyond this point!
+            if (arg_len == 2) {
+                no_more_flags = true;
+                continue;
+            }
+
+            // Arg is of form "--arg"
+            bool found_match = false;
+            for (size_t j = 0; j < flags_count; j++) {
+                if (!strncasecmp(flags[j]->name_long, (arg + 2), (arg_len))) {
+                    flags[j]->is_present = true;
+                    if (flags[j]->type == ARGS_SINGLE_OPT && (i + 1) < argc &&
+                       (strlen(argv[i + 1]) >= 1 && argv[i + 1][0] != '-'))
+                    {
+                        flags[j]->opts = argv + i + 1;
+                        flags[j]->opts_num = 1;
+                        skip = 1;
                     }
-                }
-                // Arg is of form "-arg"
-                else {
-                    // Go up to last character
-                    for (size_t j = 1; j < arg_len - 1; j++) {
-                        bool found_match = false;
-                        char invalid_short_arg = 0;
-                        for (size_t k = 0; k < flags_count; k++) {
-                            if (arg[j] == flags[k]->name_short) {
-                                flags[k]->is_present = true;
-                                found_match= true;
-                                break;
-                            }
+                    else if (flags[j]->type == ARGS_MULTI_OPT) {
+                        size_t opts_num = 0;
+                        for (int k = i + 1; k < argc; k++) {
+                            if (strlen(argv[k]) > 1 && argv[k][0] == '-') break;
+                            opts_num++;
                         }
-                        // Flag invalid
-                        if (!found_match) {
-                            printf("%s: %s '%c' in '%s'\n", ARGS_BINARY_NAME, ARGS_INVALID_FLAG_TEXT,
-                                                            arg[j], arg);
-                            #ifndef ARGS_HELP_FLAG_DISABLED
-                            printf(ARGS_USAGE_ERR_HELP_TEXT, ARGS_BINARY_NAME, ARGS_HELP_FLAG_NAME_LONG);
-                            putchar('\n');
-                            #endif // ARGS_HELP_FLAG_DISABLED
-                            return EX_USAGE;
-                        }
+                        flags[j]->opts = argv + i + 1;
+                        flags[j]->opts_num = opts_num;
+                        skip = opts_num;
                     }
-                    // Last character could have options supplied to it ("-arg opt opt" == "-a -r -g opt opt").
-                    bool found_match = false;
-                    for (size_t k = 0; k < flags_count; k++) {
-                        if (arg[arg_len - 1] == flags[k]->name_short) {
-                            flags[k]->is_present = true;
-                            found_match = true;
-                            if (flags[k]->type == ARGS_SINGLE_OPT && (i + 1) < argc) {
-                                if (strlen(argv[i + 1]) >= 1 && argv[i + 1][0] != '-') {
-                                    flags[k]->opts = argv + i + 1;
-                                    flags[k]->opts_num = 1;
-                                    skip = 1;
-                                }
-                            }
-                            else if (flags[k]->type == ARGS_MULTI_OPT) {
-                                size_t opts_num = 0;
-                                for (int l = i + 1; l < argc; l++) {
-                                    if (strlen(argv[l]) > 1 && argv[l][0] == '-') break;
-                                    else opts_num++;
-                                }
-                                flags[k]->opts = argv + i + 1;
-                                flags[k]->opts_num = opts_num;
-                                skip = opts_num;
-                            }
-                        }
-                    }
-                    // Flag invalid
-                    if (!found_match) {
-                        if (arg_len > 2) {
-                            printf("%s: %s '%c' in '%s'\n", ARGS_BINARY_NAME, ARGS_INVALID_FLAG_TEXT,
-                                                            arg[arg_len - 1], arg);
-                        }
-                        else {
-                            printf("%s: %s '%s'\n", ARGS_BINARY_NAME, ARGS_INVALID_FLAG_TEXT, arg);
-                        }
-                        #ifndef ARGS_HELP_FLAG_DISABLED
-                        printf(ARGS_USAGE_ERR_HELP_TEXT, ARGS_BINARY_NAME, ARGS_HELP_FLAG_NAME_LONG);
-                        putchar('\n');
-                        #endif // ARGS_HELP_FLAG_DISABLED
-                        return EX_USAGE;
-                    }
+                    found_match = true;
+                    break;
                 }
             }
-            // There is no convention for dealing with arg = '-'. I consider it a positional argument.
-            else {
-                if ((size_t)i < positional_cap + 1) {
-                    (*positional_num)++;
-                    is_positional[i] = true;
+            // Flag invalid
+            if (!found_match) {
+                printf("%s: %s '%s'\n", ARGS_BINARY_NAME, ARGS_INVALID_FLAG_TEXT, argv[i]);
+                #ifndef ARGS_HELP_FLAG_DISABLED
+                printf(ARGS_USAGE_ERR_HELP_TEXT, ARGS_BINARY_NAME, ARGS_HELP_FLAG_NAME_LONG);
+                putchar('\n');
+                #endif // ARGS_HELP_FLAG_DISABLED
+                return EX_USAGE;
+            }
+
+            continue;
+        }
+
+        // Arg is of form "-arg"
+
+        // Go up to last character
+        for (size_t j = 1; j < arg_len - 1; j++) {
+            bool found_match = false;
+            char invalid_short_arg = 0;
+            for (size_t k = 0; k < flags_count; k++) {
+                if (arg[j] == flags[k]->name_short) {
+                    flags[k]->is_present = true;
+                    found_match= true;
+                    break;
+                }
+            }
+            // Flag invalid
+            if (!found_match) {
+                printf("%s: %s '%c' in '%s'\n", ARGS_BINARY_NAME, ARGS_INVALID_FLAG_TEXT, arg[j], arg);
+                #ifndef ARGS_HELP_FLAG_DISABLED
+                printf(ARGS_USAGE_ERR_HELP_TEXT, ARGS_BINARY_NAME, ARGS_HELP_FLAG_NAME_LONG);
+                putchar('\n');
+                #endif // ARGS_HELP_FLAG_DISABLED
+                return EX_USAGE;
+            }
+        }
+        // Last character could have options supplied to it ("-arg opt opt" == "-a -r -g opt opt").
+        bool found_match = false;
+        for (size_t k = 0; k < flags_count; k++) {
+            if (arg[arg_len - 1] == flags[k]->name_short) {
+                flags[k]->is_present = true;
+                found_match = true;
+                if (flags[k]->type == ARGS_SINGLE_OPT && (i + 1) < argc &&
+                   (strlen(argv[i + 1]) >= 1 && argv[i + 1][0] != '-'))
+                {
+                    flags[k]->opts = argv + i + 1;
+                    flags[k]->opts_num = 1;
+                    skip = 1;
+                }
+                else if (flags[k]->type == ARGS_MULTI_OPT) {
+                    size_t opts_num = 0;
+                    for (int l = i + 1; l < argc; l++) {
+                        if (strlen(argv[l]) > 1 && argv[l][0] == '-') break;
+                        opts_num++;
+                    }
+                    flags[k]->opts = argv + i + 1;
+                    flags[k]->opts_num = opts_num;
+                    skip = opts_num;
                 }
             }
         }
-        // Positional arguments
-        else {
-            if ((size_t)i < positional_cap + 1) {
-                (*positional_num)++;
-                is_positional[i] = true;
+        // Flag invalid
+        if (!found_match) {
+            if (arg_len > 2) {
+                printf("%s: %s '%c' in '%s'\n", ARGS_BINARY_NAME, ARGS_INVALID_FLAG_TEXT, arg[arg_len - 1], arg);
             }
+            else printf("%s: %s '%s'\n", ARGS_BINARY_NAME, ARGS_INVALID_FLAG_TEXT, arg);
+
+            #ifndef ARGS_HELP_FLAG_DISABLED
+            printf(ARGS_USAGE_ERR_HELP_TEXT, ARGS_BINARY_NAME, ARGS_HELP_FLAG_NAME_LONG);
+            putchar('\n');
+            #endif // ARGS_HELP_FLAG_DISABLED
+            return EX_USAGE;
         }
     }
 
