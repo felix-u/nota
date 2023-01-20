@@ -218,7 +218,6 @@ int main(int argc, char **argv) {
         return EX_IOERR;
     }
 
-    usize nodes_num = 0;
 
     Node root = {
         NULL,             // parent
@@ -229,9 +228,10 @@ int main(int argc, char **argv) {
         false,            // tag
         wstring_init(1),  // text
         false,            // hidden
-        NodeArray_give(1) // children
+        NodeArray_init(1) // children
     };
 
+    usize nodes_num = 0;
     Node_processChildren(&root, input_file, &nodes_num);
 
     Node node_buf[nodes_num];
@@ -273,26 +273,16 @@ int main(int argc, char **argv) {
 
     // Limit by description
     if (desc_flag.is_present) {
-        char *user_desc = desc_flag.opts[0];
-        usize user_desc_len = strlen(user_desc);
-        wstring w_user_desc = {
-            user_desc_len,
-            user_desc_len,
-            malloc(user_desc_len * sizeof(wchar_t))
-        };
-        for (usize i = 0; i < user_desc_len; i++) {
-            mbtowc(w_user_desc.wstr + i, user_desc + i, 4);
-        }
-        for (usize i = 0; i < nodes_num; i++) if (!node_buf[i].hidden) {
-            for (usize j = 0; j < w_user_desc.len; j++) {
-                if (w_user_desc.wstr[j] != node_buf[i].desc.wstr[j]) {
-                    node_buf[i].hidden = true;
-                    selection_len--;
-                    break;
-                }
+        wstring desc_user = wstring_initFromCstr(desc_flag.opts[0]);
+        for (usize i = 0; i < nodes_num; i++) {
+            if (node_buf[i].hidden) continue;
+            if (wcsncmp(desc_user.wstr, node_buf[i].desc.wstr, desc_user.len)) {
+                node_buf[i].hidden = true;
+                selection_len--;
+                continue;
             }
         }
-        free(w_user_desc.wstr);
+        wstring_free(desc_user);
     }
 
     // If date is the only flag used, only provide nodes on that date.
@@ -327,27 +317,16 @@ int main(int argc, char **argv) {
 
     // Limit by node name
     if (node_flag.is_present) {
-        char *user_name = node_flag.opts[0];
-        usize user_name_len = strlen(user_name);
-        wstring w_user_name = {
-            user_name_len,
-            user_name_len,
-            malloc(user_name_len * sizeof(wchar_t))
-        };
-        for (usize i = 0; i < user_name_len; i++) {
-            mbtowc(w_user_name.wstr + i, user_name + i, user_name_len);
-        }
+        wstring node_user = wstring_initFromCstr(node_flag.opts[0]);
         for (usize i = 0; i < nodes_num; i++) {
             if (node_buf[i].hidden) continue;
-            for (usize j = 0; j < w_user_name.len; j++) {
-                if (w_user_name.wstr[j] != node_buf[i].name.wstr[j]) {
-                    node_buf[i].hidden = true;
-                    selection_len--;
-                    break;
-                }
+            if (wcsncmp(node_user.wstr, node_buf[i].name.wstr, node_user.len)) {
+                node_buf[i].hidden = true;
+                selection_len--;
+                continue;
             }
         }
-        free(w_user_name.wstr);
+        wstring_free(node_user);
     }
 
     // Print from node_buf if flags used, else print from root.children.nodes.

@@ -21,6 +21,10 @@ typedef struct wstring {
 bool iswspaceNotNewline(wchar_t c);
 
 wstring wstring_init(size_t init_size);
+wstring wstring_initFromCstr(const char *cstr);
+wchar_t *wstring_initToWcptr(wstring str);
+void wstring_free(wstring wstr);
+
 void wstring_append(wstring *arr, wchar_t c);
 void wstring_appendNewlinesFromWstring(wstring *target, wstring *from);
 void wstring_appendWstring(wstring *target, wstring *from);
@@ -48,6 +52,25 @@ wstring wstring_init(size_t init_size) {
         init_size,
         (wchar_t *)malloc(init_size * sizeof(wchar_t))
     };
+}
+
+
+wstring wstring_initFromCstr(const char *cstr) {
+    const size_t cstr_len = strlen(cstr) + 1;
+    wstring wstr_return = {
+        cstr_len,
+        cstr_len,
+        malloc(cstr_len * sizeof(wchar_t))
+    };
+    for (size_t i = 0; i < cstr_len; i++) {
+        mbtowc(wstr_return.wstr + i, cstr + i, 4);
+    }
+    return wstr_return;
+}
+
+
+void wstring_free(wstring wstr) {
+    if (wstr.wstr != NULL) free(wstr.wstr);
 }
 
 
@@ -151,6 +174,16 @@ double wstring_toDouble(wstring str) {
     }
 
     return ret;
+}
+
+
+wchar_t *wstring_initToWcptr(wstring str) {
+    wchar_t *wcptr = malloc(sizeof(wchar_t) * str.len + 1);
+    for (size_t i = 0; i < str.len; i++) {
+        wcptr[i] = str.wstr[i];
+    }
+    wcptr[str.len] = '\0';
+    return wcptr;
 }
 
 

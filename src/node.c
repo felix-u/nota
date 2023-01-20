@@ -44,7 +44,7 @@ typedef struct Node {
     struct NodeArray children;
 } Node;
 
-NodeArray NodeArray_give(usize init_size) {
+NodeArray NodeArray_init(usize init_size) {
     return (NodeArray){
         0,
         init_size,
@@ -81,7 +81,7 @@ Node Node_process(FILE *file, Node *parent, usize *nodes_num) {
         false,            // tag
         wstring_init(1),  // text
         false,            // hidden
-        NodeArray_give(1) // children
+        NodeArray_init(1) // children
     };
 
     bool getting_name = true;
@@ -205,13 +205,16 @@ Node Node_process(FILE *file, Node *parent, usize *nodes_num) {
     }
 
     wstring_removeSurroundingWhitespace(&this_node.name);
+    wstring_append(&this_node.name, '\0');
 
     wstring_removeSurroundingWhitespace(&this_node.desc);
+    wstring_append(&this_node.desc, '\0');
 
     wstring_removeSurroundingWhitespace(&this_node.date);
     this_node.date_num = wstring_toDouble(this_node.date);
 
     wstring_removeSurroundingWhitespace(&this_node.text);
+    wstring_append(&this_node.text, '\0');
     // If the text consists only of whitespace, treat it as empty.
     if (!found_text_not_whitespace) this_node.text.len = 0;
     free(text_whitespace_buf.wstr);
