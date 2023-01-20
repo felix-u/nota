@@ -28,6 +28,7 @@ void wstring_free(wstring wstr);
 void wstring_append(wstring *arr, wchar_t c);
 void wstring_appendNewlinesFromWstring(wstring *target, wstring *from);
 void wstring_appendWstring(wstring *target, wstring *from);
+void wstring_nullTerminate(wstring *arr);
 void wstring_removeSurroundingWhitespace(wstring *str);
 
 bool wstring_containsNewline(wstring *arr);
@@ -92,6 +93,15 @@ void wstring_appendNewlinesFromWstring(wstring *target, wstring *from) {
 
 void wstring_appendWstring(wstring *target, wstring *from) {
     for (size_t i = 0; i < from->len; i++) wstring_append(target, from->wstr[i]);
+}
+
+
+void wstring_nullTerminate(wstring *arr) {
+    if (arr->len == arr->cap) {
+        arr->cap++;
+        arr->wstr = (wchar_t *)realloc(arr->wstr, arr->cap * sizeof(wchar_t));
+    }
+    arr->wstr[arr->len] = '\0';
 }
 
 

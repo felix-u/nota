@@ -205,16 +205,16 @@ Node Node_process(FILE *file, Node *parent, usize *nodes_num) {
     }
 
     wstring_removeSurroundingWhitespace(&this_node.name);
-    wstring_append(&this_node.name, '\0');
+    wstring_nullTerminate(&this_node.name);
 
     wstring_removeSurroundingWhitespace(&this_node.desc);
-    wstring_append(&this_node.desc, '\0');
+    wstring_nullTerminate(&this_node.desc);
 
     wstring_removeSurroundingWhitespace(&this_node.date);
     this_node.date_num = wstring_toDouble(this_node.date);
 
     wstring_removeSurroundingWhitespace(&this_node.text);
-    wstring_append(&this_node.text, '\0');
+    wstring_nullTerminate(&this_node.text);
     // If the text consists only of whitespace, treat it as empty.
     if (!found_text_not_whitespace) this_node.text.len = 0;
     free(text_whitespace_buf.wstr);

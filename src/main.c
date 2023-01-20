@@ -138,6 +138,21 @@ int main(int argc, char **argv) {
         false, NULL, 0,
         ARGS_BOOLEAN, ARGS_EXPECTS_NONE
     };
+    args_Flag forcecolour_flag = {
+        false, "force-colour",
+        "forces colour in output. This will override TERM=dumb, \n"
+        "NO_COLO(U)R, and NOTA_NO_COLO(U)R",
+        ARGS_OPTIONAL,
+        false, NULL, 0,
+        ARGS_BOOLEAN, ARGS_EXPECTS_NONE
+    };
+    args_Flag forcecolor_flag = {
+        false, "force-color",
+        "equivalent to the above",
+        ARGS_OPTIONAL,
+        false, NULL, 0,
+        ARGS_BOOLEAN, ARGS_EXPECTS_NONE
+    };
 
     args_Flag *flags[] = {
         &after_flag,
@@ -152,6 +167,8 @@ int main(int argc, char **argv) {
         &upcoming_flag,
         &nocolour_flag,
         &nocolor_flag,
+        &forcecolour_flag,
+        &forcecolor_flag,
         &ARGS_HELP_FLAG,
         &ARGS_VERSION_FLAG,
     };
@@ -166,6 +183,7 @@ int main(int argc, char **argv) {
     if (args_return != ARGS_RETURN_CONTINUE) return args_return;
 
     if (nocolour_flag.is_present || nocolor_flag.is_present) ansi_enabled = false;
+    else if (forcecolour_flag.is_present || forcecolor_flag.is_present) ansi_enabled = true;
 
     if (upcoming_flag.is_present) {
         cutoff_mode = CUT_AFTER;
