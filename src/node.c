@@ -107,42 +107,50 @@ Node Node_process(FILE *file, Node *parent, usize *nodes_num) {
                 getting_desc = true;
                 continue;
             }
-            else if (wc == DLM_DATE.beg) {
+            if (wc == DLM_DATE.beg) {
                 getting_name = false;
                 getting_date = true;
                 continue;
             }
-            else if (wc == DLM_TEXT.beg) {
+            if (wc == DLM_TEXT.beg) {
                 getting_name = false;
                 getting_text = true;
                 continue;
             }
-            else if (wc == DLM_TAG.beg) {
+            if (wc == DLM_TAG.beg) {
                 getting_name = false;
                 getting_tag = true;
                 continue;
             }
-            else wstring_append(&this_node.name, wc);
+            wstring_append(&this_node.name, wc);
+            continue;
         }
-        else if (getting_desc) {
-            if (wc == DLM_DESC.end) {
-                getting_desc = false;
+
+        if (getting_desc) {
+            if (wc == DLM_DESC.end) getting_desc = false;
+            else {
+                wstring_append(&this_node.desc, wc);
+                continue;
             }
-            else wstring_append(&this_node.desc, wc);
         }
-        else if (getting_date) {
-            if (wc == DLM_DATE.end) {
-                getting_date = false;
+
+        if (getting_date) {
+            if (wc == DLM_DATE.end) getting_date = false;
+            else {
+                wstring_append(&this_node.date, wc);
+                continue;
             }
-            else wstring_append(&this_node.date, wc);
         }
-        else if (getting_tag) {
-            if (wc == DLM_TAG.end) {
-                getting_tag = false;
+
+        if (getting_tag) {
+            if (wc == DLM_TAG.end) getting_tag = false;
+            else if (wc == TAG) {
+                this_node.tag = true;
+                continue;
             }
-            else if (wc == TAG) this_node.tag = true;
         }
-        else if (getting_text) {
+
+        if (getting_text) {
             if (wc == DLM_TEXT.end) {
                 getting_text = false;
                 break;
@@ -156,19 +164,26 @@ Node Node_process(FILE *file, Node *parent, usize *nodes_num) {
                 else if (wc != NODE_MARKER) {
                     wstring_append(&this_node.text, wc);
                     found_text_not_whitespace = true;
+                    continue;
                 }
             }
+
             if (text_getting_whitespace) {
-                if (iswspace(wc)) wstring_append(&text_whitespace_buf, wc);
-                else {
-                    text_getting_whitespace = false;
+                if (iswspace(wc)) {
+                    wstring_append(&text_whitespace_buf, wc);
+                    continue;
+                }
 
-                    if (wstring_containsNewline(&text_whitespace_buf)) {
-                        wstring_appendNewlinesFromWstring(&this_node.text, &text_whitespace_buf);
-                    }
-                    else wstring_appendWstring(&this_node.text, &text_whitespace_buf);
+                text_getting_whitespace = false;
 
-                    if (wc != NODE_MARKER) wstring_append(&this_node.text, wc);
+                if (wstring_containsNewline(&text_whitespace_buf)) {
+                    wstring_appendNewlinesFromWstring(&this_node.text, &text_whitespace_buf);
+                }
+                else wstring_appendWstring(&this_node.text, &text_whitespace_buf);
+
+                if (wc != NODE_MARKER) {
+                    wstring_append(&this_node.text, wc);
+                    continue;
                 }
             }
 
@@ -177,11 +192,13 @@ Node Node_process(FILE *file, Node *parent, usize *nodes_num) {
         if (wc == NODE_MARKER) {
             NodeArray_append(&this_node.children, Node_process(file, &this_node, nodes_num));
             (*nodes_num)++;
+            continue;
         }
+
         if (!getting_name && !getting_desc && !getting_date && !getting_tag && !getting_text) {
-            if (wc == DLM_DESC.beg) getting_desc = true;
+            if      (wc == DLM_DESC.beg) getting_desc = true;
             else if (wc == DLM_DATE.beg) getting_date = true;
-            else if (wc == DLM_TAG.beg)  getting_tag = true;
+            else if (wc == DLM_TAG.beg)  getting_tag  = true;
             else if (wc == DLM_TEXT.beg) getting_text = true;
         }
 
