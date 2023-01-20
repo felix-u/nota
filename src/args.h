@@ -69,7 +69,7 @@
 *
 *       #define ARGS_IMPLEMENTATION
 *       #define ARGS_BINARY_NAME "name"
-*       #define ARGS_BINARY_VERSION "0.1"
+*       #define ARGS_BINARY_VERSION "version"
 *       #include "args.h"
 *
 *       int main(int argc, char **argv) {

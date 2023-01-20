@@ -1,4 +1,4 @@
-VERSION=0.2-dev
+VERSION=0.2
 
 CFLAGS=-std=c99 -Wall -pedantic -Werror -Wshadow -Wstrict-overflow -Wextra \
 	   -Wall -Wno-unused-variable
