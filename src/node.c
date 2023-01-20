@@ -44,10 +44,12 @@ typedef struct Node {
     struct NodeArray children;
 } Node;
 
-void NodeArray_init(NodeArray *arr, usize init_size) {
-    arr->nodes = malloc(init_size * sizeof(Node));
-    arr->len = 0;
-    arr->cap = init_size;
+NodeArray NodeArray_give(usize init_size) {
+    return (NodeArray){
+        0,
+        init_size,
+        malloc(init_size * sizeof(Node))
+    };
 }
 
 void NodeArray_append(NodeArray *arr, Node node) {
@@ -70,15 +72,17 @@ void NodeArray_toBuf(NodeArray *arr, Node *buf, usize *idx) {
 
 Node Node_process(FILE *file, Node *parent, usize *nodes_num) {
 
-    Node this_node;
-    this_node.parent = parent;
-    wstring_init(&this_node.name, 1);
-    wstring_init(&this_node.desc, 1);
-    wstring_init(&this_node.date, 1);
-    this_node.date_num = 0;
-    this_node.tag = false;
-    wstring_init(&this_node.text, 1);
-    NodeArray_init(&this_node.children, 1);
+    Node this_node = {
+        parent,           // parent
+        wstring_init(1),  // name
+        wstring_init(1),  // desc
+        wstring_init(1),  // date
+        0,                // date_num
+        false,            // tag
+        wstring_init(1),  // text
+        false,            // hidden
+        NodeArray_give(1) // children
+    };
 
     bool getting_name = true;
     bool getting_desc = false;
@@ -89,8 +93,7 @@ Node Node_process(FILE *file, Node *parent, usize *nodes_num) {
     wint_t c;
     wchar_t wc;
 
-    wstring text_whitespace_buf;
-    wstring_init(&text_whitespace_buf, 1);
+    wstring text_whitespace_buf = wstring_init(1);
     bool text_getting_whitespace = false;
     bool found_text_not_whitespace = false;
 
@@ -146,7 +149,7 @@ Node Node_process(FILE *file, Node *parent, usize *nodes_num) {
             }
 
             if (!text_getting_whitespace) {
-                if (whitespace(wc)) {
+                if (iswspace(wc)) {
                     text_getting_whitespace = true;
                     text_whitespace_buf.len = 0;
                 }
@@ -156,7 +159,7 @@ Node Node_process(FILE *file, Node *parent, usize *nodes_num) {
                 }
             }
             if (text_getting_whitespace) {
-                if (whitespace(wc)) wstring_append(&text_whitespace_buf, wc);
+                if (iswspace(wc)) wstring_append(&text_whitespace_buf, wc);
                 else {
                     text_getting_whitespace = false;
 

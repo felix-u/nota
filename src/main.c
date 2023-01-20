@@ -209,6 +209,7 @@ int main(int argc, char **argv) {
 
     if (after_flag.is_present) cutoff_mode = CUT_AFTER;
     else if (before_flag.is_present) cutoff_mode = CUT_BEFORE;
+
     if (cutoff_mode != CUT_NONE && user_date == 0) user_date = currentTimeToDouble();
 
     FILE *input_file = fopen(positional_args[0], "r");
@@ -218,15 +219,19 @@ int main(int argc, char **argv) {
     }
 
     usize nodes_num = 0;
-    Node root;
-    root.parent = NULL;
-    wstring_init(&root.name, 1);
-    wstring_init(&root.desc, 1);
-    wstring_init(&root.date, 1);
-    root.date_num = -1;
-    root.hidden = false;
-    wstring_init(&root.text, 1);
-    NodeArray_init(&root.children, 1);
+
+    Node root = {
+        NULL,             // parent
+        wstring_init(1),  // name
+        wstring_init(1),  // desc
+        wstring_init(1),  // date
+        -1,               // date_num
+        false,            // tag
+        wstring_init(1),  // text
+        false,            // hidden
+        NodeArray_give(1) // children
+    };
+
     Node_processChildren(&root, input_file, &nodes_num);
 
     Node node_buf[nodes_num];

@@ -18,10 +18,9 @@ typedef struct wstring {
 #endif // WSTRING_TYPE
 
 
-bool whitespaceNotNewline(wchar_t c);
-bool whitespace(wchar_t c);
+bool iswspaceNotNewline(wchar_t c);
 
-void wstring_init(wstring *arr, size_t init_size);
+wstring wstring_init(size_t init_size);
 void wstring_append(wstring *arr, wchar_t c);
 void wstring_appendNewlinesFromWstring(wstring *target, wstring *from);
 void wstring_appendWstring(wstring *target, wstring *from);
@@ -37,22 +36,18 @@ double wstring_toDouble(wstring str);
 
 #ifdef WSTRING_IMPLEMENTATION
 
-bool whitespaceNotNewline(wchar_t c) {
-    if (c == ' ' || c == '\t') return true;
+bool iswspaceNotNewline(wchar_t c) {
+    if (iswspace(c) && c != '\n') return true;
     return false;
 }
 
 
-bool whitespace(wchar_t c) {
-    if (whitespaceNotNewline(c) || c == '\n') return true;
-    return false;
-}
-
-
-void wstring_init(wstring *arr, size_t init_size) {
-    arr->wstr = (wchar_t *)malloc(init_size * sizeof(wchar_t));
-    arr->len = 0;
-    arr->cap = init_size;
+wstring wstring_init(size_t init_size) {
+    return (wstring){
+        0,
+        init_size,
+        (wchar_t *)malloc(init_size * sizeof(wchar_t))
+    };
 }
 
 
@@ -98,7 +93,7 @@ void wstring_println(wstring str) {
 
 void wstring_removeSurroundingWhitespace(wstring *str) {
     for (size_t i = 0; i < str->len; i++) {
-        if (!whitespace(str->wstr[i])) {
+        if (!iswspace(str->wstr[i])) {
             if (i > 0) {
                 str->len -= i;
                 wmemmove(str->wstr, (str->wstr + i), str->len);
@@ -108,7 +103,7 @@ void wstring_removeSurroundingWhitespace(wstring *str) {
     }
 
     for (int i = str->len - 1; i >= 0; i--) {
-        if (!whitespace(str->wstr[i])) {
+        if (!iswspace(str->wstr[i])) {
             if ((size_t)i < str->len) str->len = i + 1;
             return;
         }
