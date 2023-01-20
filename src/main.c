@@ -3,7 +3,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdint.h>
 #include <strings.h>
 #include <time.h>
 #include <wchar.h>
@@ -13,12 +12,10 @@
 #define ARGS_BINARY_NAME "nota"
 #define ARGS_BINARY_VERSION "0.2-dev"
 #include "args.h"
-
+#include "int_types.h"
 #include "node.c"
-
 #define WSTRING_IMPLEMENTATION
 #include "wstring.h"
-
 #define ARENA_IMPLEMENTATION
 #include "arena.h"
 
@@ -159,9 +156,9 @@ int main(int argc, char **argv) {
         &ARGS_VERSION_FLAG,
     };
 
-    const size_t flags_count = sizeof(flags) / sizeof(flags[0]);
-    size_t positional_num = 0;
-    const size_t positional_cap = 256;
+    const usize flags_count = sizeof(flags) / sizeof(flags[0]);
+    usize positional_num = 0;
+    const usize positional_cap = 256;
     char *positional_args[positional_cap];
     int args_return = args_process(argc, argv, "parser for simple node notation", flags_count, flags,
                                    &positional_num, positional_args, ARGS_EXPECTS_FILE, ARGS_POSITIONAL_SINGLE,
@@ -220,7 +217,7 @@ int main(int argc, char **argv) {
         return EX_IOERR;
     }
 
-    size_t nodes_num = 0;
+    usize nodes_num = 0;
     Node root;
     root.parent = NULL;
     wstring_init(&root.name, 1);
@@ -233,10 +230,10 @@ int main(int argc, char **argv) {
     Node_processChildren(&root, input_file, &nodes_num);
 
     Node node_buf[nodes_num];
-    size_t idx = 0;
+    usize idx = 0;
     NodeArray_toBuf(&root.children, node_buf, &idx);
 
-    int64_t selection_len = nodes_num;
+    isize selection_len = nodes_num;
 
     // Sorting
     if (sort_mode == SORT_ASCENDING) qsort(node_buf, nodes_num, sizeof(Node), Node_compareDateAscending);
@@ -244,7 +241,7 @@ int main(int argc, char **argv) {
 
     // Limit by date
     if (cutoff_mode != CUT_NONE) {
-        for (size_t i = 0; i < nodes_num; i++) {
+        for (usize i = 0; i < nodes_num; i++) {
             if (!node_buf[i].hidden && node_buf[i].date_num == 0) {
                 node_buf[i].hidden = true;
                 selection_len--;
@@ -253,7 +250,7 @@ int main(int argc, char **argv) {
     }
 
     if (cutoff_mode == CUT_AFTER) {
-        for (size_t i = 0; i < nodes_num; i++) {
+        for (usize i = 0; i < nodes_num; i++) {
             if (!node_buf[i].hidden && node_buf[i].date_num < user_date) {
                 node_buf[i].hidden = true;
                 selection_len--;
@@ -261,7 +258,7 @@ int main(int argc, char **argv) {
         }
     }
     else if (cutoff_mode == CUT_BEFORE) {
-        for (size_t i = 0; i < nodes_num; i++) {
+        for (usize i = 0; i < nodes_num; i++) {
             if (!node_buf[i].hidden && node_buf[i].date_num > user_date) {
                 node_buf[i].hidden = true;
                 selection_len--;
@@ -272,17 +269,17 @@ int main(int argc, char **argv) {
     // Limit by description
     if (desc_flag.is_present) {
         char *user_desc = desc_flag.opts[0];
-        size_t user_desc_len = strlen(user_desc);
+        usize user_desc_len = strlen(user_desc);
         wstring w_user_desc = {
             user_desc_len,
             user_desc_len,
             malloc(user_desc_len * sizeof(wchar_t))
         };
-        for (size_t i = 0; i < user_desc_len; i++) {
+        for (usize i = 0; i < user_desc_len; i++) {
             mbtowc(w_user_desc.wstr + i, user_desc + i, 4);
         }
-        for (size_t i = 0; i < nodes_num; i++) if (!node_buf[i].hidden) {
-            for (size_t j = 0; j < w_user_desc.len; j++) {
+        for (usize i = 0; i < nodes_num; i++) if (!node_buf[i].hidden) {
+            for (usize j = 0; j < w_user_desc.len; j++) {
                 if (w_user_desc.wstr[j] != node_buf[i].desc.wstr[j]) {
                     node_buf[i].hidden = true;
                     selection_len--;
@@ -295,7 +292,7 @@ int main(int argc, char **argv) {
 
     // If date is the only flag used, only provide nodes on that date.
     if (user_date != 0 && sort_mode == SORT_NONE && cutoff_mode == CUT_NONE) {
-        for (size_t i = 0; i < nodes_num; i++) {
+        for (usize i = 0; i < nodes_num; i++) {
             if (!node_buf[i].hidden &&
                 (node_buf[i].date_num < floor(user_date) || node_buf[i].date_num > ceil(user_date)))
             {
@@ -307,7 +304,7 @@ int main(int argc, char **argv) {
 
     // Limit by tag
     if (tagged_flag.is_present) {
-        for (size_t i = 0; i < nodes_num; i++) {
+        for (usize i = 0; i < nodes_num; i++) {
             if (!node_buf[i].hidden && !node_buf[i].tag) {
                 node_buf[i].hidden = true;
                 selection_len--;
@@ -315,7 +312,7 @@ int main(int argc, char **argv) {
         }
     }
     else if (not_tagged_flag.is_present) {
-        for (size_t i = 0; i < nodes_num; i++) {
+        for (usize i = 0; i < nodes_num; i++) {
             if (!node_buf[i].hidden && node_buf[i].tag) {
                 node_buf[i].hidden = true;
                 selection_len--;
@@ -326,18 +323,18 @@ int main(int argc, char **argv) {
     // Limit by node name
     if (node_flag.is_present) {
         char *user_name = node_flag.opts[0];
-        size_t user_name_len = strlen(user_name);
+        usize user_name_len = strlen(user_name);
         wstring w_user_name = {
             user_name_len,
             user_name_len,
             malloc(user_name_len * sizeof(wchar_t))
         };
-        for (size_t i = 0; i < user_name_len; i++) {
+        for (usize i = 0; i < user_name_len; i++) {
             mbtowc(w_user_name.wstr + i, user_name + i, user_name_len);
         }
-        for (size_t i = 0; i < nodes_num; i++) {
+        for (usize i = 0; i < nodes_num; i++) {
             if (node_buf[i].hidden) continue;
-            for (size_t j = 0; j < w_user_name.len; j++) {
+            for (usize j = 0; j < w_user_name.len; j++) {
                 if (w_user_name.wstr[j] != node_buf[i].name.wstr[j]) {
                     node_buf[i].hidden = true;
                     selection_len--;
@@ -350,12 +347,12 @@ int main(int argc, char **argv) {
 
     // Print from node_buf if flags used, else print from root.children.nodes.
     if (args_optionalFlagsPresent(flags_count, flags)) {
-        for (size_t i = 0; i < nodes_num; i++) {
+        for (usize i = 0; i < nodes_num; i++) {
             Node_printFmt(node_buf[i], 0, i, nodes_num);
         }
     }
     else {
-        for (size_t i = 0; i < root.children.len; i++) {
+        for (usize i = 0; i < root.children.len; i++) {
             Node_printFmt(root.children.nodes[i], 0, i, root.children.len);
         }
     }
@@ -373,11 +370,11 @@ int main(int argc, char **argv) {
 double cstrToDouble(char *cstr) {
     double ret = 0;
 
-    size_t str_len = strlen(cstr);
+    usize str_len = strlen(cstr);
     char cbuf_int[str_len];
     bool found_decimal = false;
-    size_t int_idx = 0;
-    size_t int_cstr_idx = 0;
+    usize int_idx = 0;
+    usize int_cstr_idx = 0;
 
     for (; int_cstr_idx < str_len; int_cstr_idx++) {
         char c = cstr[int_cstr_idx];
@@ -395,8 +392,8 @@ double cstrToDouble(char *cstr) {
 
     if (found_decimal) {
         char cbuf_dec[str_len - int_cstr_idx];
-        size_t dec_idx = 0;
-        for (size_t dec_cstr_idx = int_cstr_idx + 1; dec_cstr_idx < str_len; dec_cstr_idx++) {
+        usize dec_idx = 0;
+        for (usize dec_cstr_idx = int_cstr_idx + 1; dec_cstr_idx < str_len; dec_cstr_idx++) {
             char c = cstr[dec_cstr_idx];
             if (c >= '0' && c <= '9') {
                 cbuf_dec[dec_idx] = cstr[dec_cstr_idx];
@@ -404,7 +401,7 @@ double cstrToDouble(char *cstr) {
             }
         }
         float dec_add = atof(cbuf_dec);
-        for (size_t i = 0; i < dec_idx; i++) {
+        for (usize i = 0; i < dec_idx; i++) {
             dec_add /= 10;
         }
         ret += dec_add;
@@ -420,14 +417,14 @@ double currentTimeToDouble(void) {
     date.tm_year += 1900;
     date.tm_mon += 1;
     // 33 is the max possible length of the formatted string below, courtesy of the compiler
-    const size_t date_cstr_size_cap = 33;
+    const usize date_cstr_size_cap = 33;
     char date_cstr[date_cstr_size_cap];
 
     snprintf(date_cstr, date_cstr_size_cap, "%04d%02d%02d.%02d%02d\n",
-            (int16_t)date.tm_year,
-            (int16_t)date.tm_mon,
-            (int16_t)date.tm_mday,
-            (int16_t)date.tm_hour,
-            (int16_t)date.tm_min);
+            (i16)date.tm_year,
+            (i16)date.tm_mon,
+            (i16)date.tm_mday,
+            (i16)date.tm_hour,
+            (i16)date.tm_min);
     return atof(date_cstr);
 }

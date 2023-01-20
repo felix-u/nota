@@ -8,9 +8,7 @@
 
 #define ANSI_IMPLEMENTATION
 #include "ansi.h"
-
-#include "arena.h"
-
+#include "int_types.h"
 #include "wstring.h"
 
 
@@ -29,8 +27,8 @@ const DelimiterSet DLM_TEXT = { '{', '}' };
 
 
 typedef struct NodeArray {
-    size_t len;
-    size_t cap;
+    usize len;
+    usize cap;
     struct Node *nodes;
 } NodeArray;
 
@@ -46,7 +44,7 @@ typedef struct Node {
     struct NodeArray children;
 } Node;
 
-void NodeArray_init(NodeArray *arr, size_t init_size) {
+void NodeArray_init(NodeArray *arr, usize init_size) {
     arr->nodes = malloc(init_size * sizeof(Node));
     arr->len = 0;
     arr->cap = init_size;
@@ -61,8 +59,8 @@ void NodeArray_append(NodeArray *arr, Node node) {
 }
 
 
-void NodeArray_toBuf(NodeArray *arr, Node *buf, size_t *idx) {
-    for (size_t i = 0; i < arr->len; i++) {
+void NodeArray_toBuf(NodeArray *arr, Node *buf, usize *idx) {
+    for (usize i = 0; i < arr->len; i++) {
         buf[*idx] = arr->nodes[i];
         (*idx)++;
         NodeArray_toBuf(&arr->nodes[i].children, buf, idx);
@@ -70,7 +68,7 @@ void NodeArray_toBuf(NodeArray *arr, Node *buf, size_t *idx) {
 }
 
 
-Node Node_process(FILE *file, Node *parent, size_t *nodes_num) {
+Node Node_process(FILE *file, Node *parent, usize *nodes_num) {
 
     Node this_node;
     this_node.parent = parent;
@@ -204,7 +202,7 @@ Node Node_process(FILE *file, Node *parent, size_t *nodes_num) {
 }
 
 
-void Node_processChildren(Node *node, FILE *file, size_t *nodes_num) {
+void Node_processChildren(Node *node, FILE *file, usize *nodes_num) {
     wint_t c;
     wchar_t wc;
     while ((c = fgetwc(file)) != WEOF) {
@@ -217,11 +215,11 @@ void Node_processChildren(Node *node, FILE *file, size_t *nodes_num) {
 }
 
 
-void Node_printFmt(Node node, size_t indent_level, size_t num_current, size_t num_max) {
+void Node_printFmt(Node node, usize indent_level, usize num_current, usize num_max) {
 
     if (node.hidden) return;
 
-    for (size_t i = 0; i < indent_level; i++) putchar('\t');
+    for (usize i = 0; i < indent_level; i++) putchar('\t');
 
     if (node.tag) {
         ansi_set("%s;%s", ANSI_BG_CYAN, ANSI_FG_BLACK);
@@ -258,17 +256,17 @@ void Node_printFmt(Node node, size_t indent_level, size_t num_current, size_t nu
     putchar('\n');
 
     if (node.text.len > 0) {
-        for (size_t i = 0; i < indent_level; i++) putchar('\t');
-        for (size_t i = 0; i < node.text.len; i++) {
+        for (usize i = 0; i < indent_level; i++) putchar('\t');
+        for (usize i = 0; i < node.text.len; i++) {
             printf("%lc", node.text.wstr[i]);
             if (node.text.wstr[i] == '\n') {
-                for (size_t j = 0; j < indent_level; j++) putchar('\t');
+                for (usize j = 0; j < indent_level; j++) putchar('\t');
             }
         }
         putchar('\n');
     }
 
-    for (size_t i = 0; i < node.children.len; i++) {
+    for (usize i = 0; i < node.children.len; i++) {
         Node_printFmt(node.children.nodes[i], indent_level + 1, i, node.children.len);
     }
 
@@ -292,7 +290,7 @@ void Node_free(Node node) {
     if (node.desc.wstr != NULL) free(node.desc.wstr);
     if (node.date.wstr != NULL) free(node.date.wstr);
     if (node.text.wstr != NULL) free(node.text.wstr);
-    for (size_t i = 0; i < node.children.len; i++) {
+    for (usize i = 0; i < node.children.len; i++) {
         Node_free(node.children.nodes[i]);
     }
     free(node.children.nodes);
