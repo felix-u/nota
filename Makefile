@@ -1,7 +1,7 @@
-VERSION=0.2
+VERSION=0.3-dev
 
-CFLAGS=-std=c99 -Wall -pedantic -Werror -Wshadow -Wstrict-overflow -Wextra \
-	   -Wall -Wno-unused-variable
+CFLAGS=-std=c99 -Wall -Wextra -pedantic -Wshadow -Wstrict-overflow \
+	   -Wstrict-aliasing
 DEBUGFLAGS=-g -Og
 RELEASEFLAGS=-O3 -s
 LIBS=-lm

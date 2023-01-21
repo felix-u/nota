@@ -10,7 +10,7 @@
 
 #define ARGS_IMPLEMENTATION
 #define ARGS_BINARY_NAME "nota"
-#define ARGS_BINARY_VERSION "0.2"
+#define ARGS_BINARY_VERSION "0.3-dev"
 #include "args.h"
 #include "int_types.h"
 #include "node.c"
