@@ -13,11 +13,11 @@
 #define ARGS_BINARY_VERSION "0.3-dev"
 #include "args.h"
 #include "int_types.h"
+#define NODE_IMPLEMENTATION
+#include "node.h"
 #include "node.c"
 #define WSTRING_IMPLEMENTATION
 #include "wstring.h"
-#define ARENA_IMPLEMENTATION
-#include "arena.h"
 
 #define EX_USAGE 64
 #define EX_IOERR 74
