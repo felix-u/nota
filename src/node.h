@@ -6,33 +6,31 @@
 #include <wchar.h>
 #include <wctype.h>
 
-#define ANSI_IMPLEMENTATION
 #include "ansi.h"
-#include "int_types.h"
 #include "wstring.h"
 
-#ifndef NODE_TYPE
-#define NODE_TYPE
+#ifndef node_TYPE
+#define node_TYPE
 
 typedef struct {
     wchar_t beg;
     wchar_t end;
-} DelimiterSet;
+} node_DelimiterSet;
 
 const wchar_t NODE_MARKER = '@';
       wchar_t TAG         = 'x';
 
-const DelimiterSet DLM_DESC = { '(', ')' };
-const DelimiterSet DLM_DATE = { '[', ']' };
-const DelimiterSet DLM_TAG  = { '<', '>' };
-const DelimiterSet DLM_TEXT = { '{', '}' };
+const node_DelimiterSet DLM_DESC = { '(', ')' };
+const node_DelimiterSet DLM_DATE = { '[', ']' };
+const node_DelimiterSet DLM_TAG  = { '<', '>' };
+const node_DelimiterSet DLM_TEXT = { '{', '}' };
 
 
-typedef struct NodeArray {
-    usize len;
-    usize cap;
+typedef struct node_Array {
+    size_t len;
+    size_t cap;
     struct node *nodes;
-} NodeArray;
+} node_Array;
 
 typedef struct node {
     struct node *parent;
@@ -43,46 +41,55 @@ typedef struct node {
     bool tag;
     wstring text;
     bool hidden;
-    struct NodeArray children;
+    struct node_Array children;
 } node;
 
-#endif // NODE_TYPE
+#endif // node_TYPE
 
 
-// Function prototypes here
+node_Array node_Array_init(size_t init_size);
+void node_Array_append(node_Array *arr, node node);
+void node_Array_toBuf(node_Array *arr, node *buf, size_t *idx);
+
+node node_process(FILE *file, node *parent, size_t *nodes_num);
+void node_processChildren(node *node, FILE *file, size_t *nodes_num);
+void node_printFmt(node node, size_t indent_level, size_t num_current, size_t num_max);
+int node_compareDateAscending(const void *a, const void *b);
+int node_compareDateDescending(const void *a, const void *b);
+void node_free(node node);
 
 
 #ifdef NODE_IMPLEMENTATION
 
-NodeArray NodeArray_init(usize init_size) {
-    return (NodeArray){
+node_Array node_Array_init(size_t init_size) {
+    return (node_Array){
         0,
         init_size,
-        malloc(init_size * sizeof(Node))
+        malloc(init_size * sizeof(node))
     };
 }
 
-void NodeArray_append(NodeArray *arr, Node node) {
+void node_Array_append(node_Array *arr, node n) {
     if (arr->len == arr->cap) {
         arr->cap *= 2;
-        arr->nodes = realloc(arr->nodes, arr->cap * sizeof(Node));
+        arr->nodes = realloc(arr->nodes, arr->cap * sizeof(node));
     }
-    arr->nodes[arr->len++] = node;
+    arr->nodes[arr->len++] = n;
 }
 
 
-void NodeArray_toBuf(NodeArray *arr, Node *buf, usize *idx) {
-    for (usize i = 0; i < arr->len; i++) {
+void node_Array_toBuf(node_Array *arr, node *buf, size_t *idx) {
+    for (size_t i = 0; i < arr->len; i++) {
         buf[*idx] = arr->nodes[i];
         (*idx)++;
-        NodeArray_toBuf(&arr->nodes[i].children, buf, idx);
+        node_Array_toBuf(&arr->nodes[i].children, buf, idx);
     }
 }
 
 
-Node Node_process(FILE *file, Node *parent, usize *nodes_num) {
+node node_process(FILE *file, node *parent, size_t *nodes_num) {
 
-    Node this_node = {
+    node this_node = {
         parent,           // parent
         wstring_init(1),  // name
         wstring_init(1),  // desc
@@ -91,7 +98,7 @@ Node Node_process(FILE *file, Node *parent, usize *nodes_num) {
         false,            // tag
         wstring_init(1),  // text
         false,            // hidden
-        NodeArray_init(1) // children
+        node_Array_init(1) // children
     };
 
     bool getting_name = true;
@@ -200,7 +207,7 @@ Node Node_process(FILE *file, Node *parent, usize *nodes_num) {
         }
 
         if (wc == NODE_MARKER) {
-            NodeArray_append(&this_node.children, Node_process(file, &this_node, nodes_num));
+            node_Array_append(&this_node.children, node_process(file, &this_node, nodes_num));
             (*nodes_num)++;
             continue;
         }
@@ -235,35 +242,35 @@ Node Node_process(FILE *file, Node *parent, usize *nodes_num) {
 }
 
 
-void Node_processChildren(Node *node, FILE *file, usize *nodes_num) {
+void node_processChildren(node *n, FILE *file, size_t *nodes_num) {
     wint_t c;
     wchar_t wc;
     while ((c = fgetwc(file)) != WEOF) {
         wc = (wchar_t)c;
         if (wc == NODE_MARKER) {
-            NodeArray_append(&node->children, Node_process(file, node, nodes_num));
+            node_Array_append(&n->children, node_process(file, n, nodes_num));
             (*nodes_num)++;
         }
     }
 }
 
 
-void Node_printFmt(Node node, usize indent_level, usize num_current, usize num_max) {
+void node_printFmt(node n, size_t indent_level, size_t num_current, size_t num_max) {
 
-    if (node.hidden) return;
+    if (n.hidden) return;
 
-    for (usize i = 0; i < indent_level; i++) putchar('\t');
+    for (size_t i = 0; i < indent_level; i++) putchar('\t');
 
-    if (node.tag) {
+    if (n.tag) {
         ansi_set("%s;%s", ANSI_BG_CYAN, ANSI_FG_BLACK);
         printf(" %lc ", TAG);
         ansi_reset();
         putchar(' ');
     }
 
-    if (node.name.len > 0) {
+    if (n.name.len > 0) {
         ansi_set("%s", ANSI_FMT_BOLD);
-        wstring_print(node.name);
+        wstring_print(n.name);
         ansi_reset();
     }
     else {
@@ -272,35 +279,35 @@ void Node_printFmt(Node node, usize indent_level, usize num_current, usize num_m
         ansi_reset();
     }
 
-    if (node.desc.len > 0) {
+    if (n.desc.len > 0) {
         printf(" | ");
         ansi_set("%s", ANSI_FG_BLUE);
-        wstring_print(node.desc);
+        wstring_print(n.desc);
         ansi_reset();
     }
 
-    if (node.date.len > 0) {
+    if (n.date.len > 0) {
         printf(" | ");
         ansi_set("%s", ANSI_FG_GREEN);
-        wstring_print(node.date);
+        wstring_print(n.date);
         ansi_reset();
     }
 
     putchar('\n');
 
-    if (node.text.len > 0) {
-        for (usize i = 0; i < indent_level; i++) putchar('\t');
-        for (usize i = 0; i < node.text.len; i++) {
-            printf("%lc", node.text.wstr[i]);
-            if (node.text.wstr[i] == '\n') {
-                for (usize j = 0; j < indent_level; j++) putchar('\t');
+    if (n.text.len > 0) {
+        for (size_t i = 0; i < indent_level; i++) putchar('\t');
+        for (size_t i = 0; i < n.text.len; i++) {
+            printf("%lc", n.text.wstr[i]);
+            if (n.text.wstr[i] == '\n') {
+                for (size_t j = 0; j < indent_level; j++) putchar('\t');
             }
         }
         putchar('\n');
     }
 
-    for (usize i = 0; i < node.children.len; i++) {
-        Node_printFmt(node.children.nodes[i], indent_level + 1, i, node.children.len);
+    for (size_t i = 0; i < n.children.len; i++) {
+        node_printFmt(n.children.nodes[i], indent_level + 1, i, n.children.len);
     }
 
     // Don't print newline if end reached
@@ -308,25 +315,25 @@ void Node_printFmt(Node node, usize indent_level, usize num_current, usize num_m
 }
 
 
-int Node_compareDateAscending(const void *a, const void *b) {
-    return ((Node *)a)->date_num - ((Node *)b)->date_num;
+int node_compareDateAscending(const void *a, const void *b) {
+    return ((node *)a)->date_num - ((node *)b)->date_num;
 }
 
 
-int Node_compareDateDescending(const void *a, const void *b) {
-    return ((Node *)b)->date_num - ((Node *)a)->date_num;
+int node_compareDateDescending(const void *a, const void *b) {
+    return ((node *)b)->date_num - ((node *)a)->date_num;
 }
 
 
-void Node_free(Node node) {
-    if (node.name.wstr != NULL) free(node.name.wstr);
-    if (node.desc.wstr != NULL) free(node.desc.wstr);
-    if (node.date.wstr != NULL) free(node.date.wstr);
-    if (node.text.wstr != NULL) free(node.text.wstr);
-    for (usize i = 0; i < node.children.len; i++) {
-        Node_free(node.children.nodes[i]);
+void node_free(node n) {
+    if (n.name.wstr != NULL) free(n.name.wstr);
+    if (n.desc.wstr != NULL) free(n.desc.wstr);
+    if (n.date.wstr != NULL) free(n.date.wstr);
+    if (n.text.wstr != NULL) free(n.text.wstr);
+    for (size_t i = 0; i < n.children.len; i++) {
+        node_free(n.children.nodes[i]);
     }
-    free(node.children.nodes);
+    free(n.children.nodes);
 }
 
-#endif // NODE_IMPLEMENTATION
+#endif // node_IMPLEMENTATION

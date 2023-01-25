@@ -15,9 +15,12 @@
 #include "int_types.h"
 #define NODE_IMPLEMENTATION
 #include "node.h"
-#include "node.c"
 #define WSTRING_IMPLEMENTATION
 #include "wstring.h"
+
+#define ANSI_IMPLEMENTATION
+#include "ansi.h"
+
 
 #define EX_USAGE 64
 #define EX_IOERR 74
@@ -237,7 +240,7 @@ int main(int argc, char **argv) {
     }
 
 
-    Node root = {
+    node root = {
         NULL,             // parent
         wstring_init(1),  // name
         wstring_init(1),  // desc
@@ -246,21 +249,21 @@ int main(int argc, char **argv) {
         false,            // tag
         wstring_init(1),  // text
         false,            // hidden
-        NodeArray_init(1) // children
+        node_Array_init(1) // children
     };
 
     usize nodes_num = 0;
-    Node_processChildren(&root, input_file, &nodes_num);
+    node_processChildren(&root, input_file, &nodes_num);
 
-    Node node_buf[nodes_num];
+    node node_buf[nodes_num];
     usize idx = 0;
-    NodeArray_toBuf(&root.children, node_buf, &idx);
+    node_Array_toBuf(&root.children, node_buf, &idx);
 
     isize selection_len = nodes_num;
 
     // Sorting
-    if (sort_mode == SORT_ASCENDING) qsort(node_buf, nodes_num, sizeof(Node), Node_compareDateAscending);
-    else if (sort_mode == SORT_DESCENDING) qsort(node_buf, nodes_num, sizeof(Node), Node_compareDateDescending);
+    if (sort_mode == SORT_ASCENDING) qsort(node_buf, nodes_num, sizeof(node), node_compareDateAscending);
+    else if (sort_mode == SORT_DESCENDING) qsort(node_buf, nodes_num, sizeof(node), node_compareDateDescending);
 
     // Limit by date
     if (cutoff_mode != CUT_NONE) {
@@ -350,19 +353,19 @@ int main(int argc, char **argv) {
     // Print from node_buf if flags used, else print from root.children.nodes.
     if (args_optionalFlagsPresent(flags_count, flags)) {
         for (usize i = 0; i < nodes_num; i++) {
-            Node_printFmt(node_buf[i], 0, i, nodes_num);
+            node_printFmt(node_buf[i], 0, i, nodes_num);
         }
     }
     else {
         for (usize i = 0; i < root.children.len; i++) {
-            Node_printFmt(root.children.nodes[i], 0, i, root.children.len);
+            node_printFmt(root.children.nodes[i], 0, i, root.children.len);
         }
     }
 
 
     if (selection_len <= 0) printf("%s: no nodes matched your selection\n", ARGS_BINARY_NAME);
 
-    Node_free(root);
+    node_free(root);
     fclose(input_file);
 
     return EXIT_SUCCESS;
