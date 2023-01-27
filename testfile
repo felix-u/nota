@@ -1,22 +1,24 @@
-This is a sentence qaml should know absolutely nothing about.
+This is a sentence nota should know absolutely nothing about.
 
-@Section(Nâme 1)[2000-01-01 20:00] <> {}
+@Section str:(Nâme 1) num:#date(2000-01-01 20:00) str:#done(false);
 
-@Section (Ñame 2 ) [
-                    2020-01-01
-                    ]{
-    This is the Section, with terrible whitespace. }
+@Section str:(Ñame 2 ) num:#date(
+                            2020-01-01
+                        ) str:(
+This is the Section, with terrible whitespace. );
 
-@Section(Name 3) {
-    @Subsection { wow, a subsection! }
-    @Subsection(A Name 大)[1990-01-01.12:00] < > {
-        OOh, another!
+@Section str:(Name 3) str:(
+    @Subsection str:( wow, a subsection! );
+    @Subsection str:(A Name 大) num:#date(1990-01-01.12:00) str:#done(false)
+     has:(
+        Ooh, another!
         More filler.
         Filler     again.
-        @Subsubsection <x> { A subsection of a subsection. Stunning. }
-    }
-}
+        @Subsubsection str:#done(true) has:(
+            A subsection of a subsection. Stunning.
+        );
+    );
+);
 
-@(Some anonymous node)[2024-01-01] <x> {
-    :P
-}
+@_ str:(Some anonymous node) num:#date(2024-01-01) str:#date(2024-01-01)
+   str:#done(true) has:( :P );
