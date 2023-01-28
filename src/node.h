@@ -120,9 +120,8 @@ node node_process(FILE *file, node *parent, char *filename, size_t *line_num, si
 
     while ((c = fgetwc(file)) != WEOF) {
 
-        if (c == '\n') (*line_num)++;
-
         wc = (wchar_t)c;
+        if (wc == '\n') (*line_num)++;
 
         if (getting_name) {
             if (wc == DLM_DESC.beg) {
@@ -253,6 +252,7 @@ void node_processChildren(node *n, FILE *file, char *filename, size_t *line_num,
     wchar_t wc;
     while ((c = fgetwc(file)) != WEOF) {
         wc = (wchar_t)c;
+        if (wc == '\n') (*line_num)++;
         if (wc == NODE_MARKER) {
             node_Array_append(&n->children, node_process(file, n, filename, line_num, nodes_num));
             (*nodes_num)++;
@@ -299,12 +299,12 @@ void node_printFmt(node n, size_t indent_level, size_t num_current, size_t num_m
         ansi_reset();
     }
 
-    // printf(" | ");
-    // ansi_set("%s", ANSI_FG_GREY);
-    // // printf("%s:", n.filename);
-    // // ansi_set("%s", ANSI_FMT_BOLD);
-    // printf("ln %ld", n.line_num);
-    // ansi_reset();
+    printf(" | ");
+    ansi_set("%s", ANSI_FG_GREY);
+    // printf("%s:", n.filename);
+    // ansi_set("%s", ANSI_FMT_BOLD);
+    printf("ln %ld", n.line_num);
+    ansi_reset();
 
     putchar('\n');
 
