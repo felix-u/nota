@@ -7,18 +7,18 @@ This is a sentence nota should know absolutely nothing about.
                         ) str:(
 This is the Section, with terrible whitespace. );
 
-@Section str:(Name 3) str:(
+@Section str:(Name 3) {
     @Subsection str:( wow, a subsection! );
     @Subsection str:(A Name 大) num:#date(1990-01-01.12:00) str:#done(false)
-     has:(
+    {
         Ooh, another!
         More filler.
         Filler     again.
-        @Subsubsection str:#done(true) has:(
+        @Subsubsection str:#done(true) {
             A subsection of a subsection. Stunning.
-        );
-    );
-);
+        };
+    };
+};
 
 @_ str:(Some anonymous node) num:#date(2024-01-01) str:#date(2024-01-01)
-   str:#done(true) has:( :P );
+   str:#done(true) { :P };
