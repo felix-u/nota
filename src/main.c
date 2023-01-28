@@ -241,19 +241,21 @@ int main(int argc, char **argv) {
 
 
     node root = {
-        NULL,             // parent
-        wstring_init(1),  // name
-        wstring_init(1),  // desc
-        wstring_init(1),  // date
-        -1,               // date_num
-        false,            // tag
-        wstring_init(1),  // text
-        false,            // hidden
-        node_Array_init(1) // children
+        .parent   = NULL,
+        .name     = wstring_init(1),
+        .desc     = wstring_init(1),
+        .date     = wstring_init(1),
+        .date_num = -1,
+        .tag      = false,
+        .text     = wstring_init(1),
+        .hidden   = false,
+        .children = node_Array_init(1)
     };
 
     usize nodes_num = 0;
-    node_processChildren(&root, input_file, &nodes_num);
+    char *filename = positional_args[0];
+    usize line_number = 0;
+    node_processChildren(&root, input_file, filename, line_number, &nodes_num);
 
     node node_buf[nodes_num];
     usize idx = 0;

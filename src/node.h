@@ -42,6 +42,8 @@ typedef struct node {
     wstring text;
     bool hidden;
     struct node_Array children;
+    char *filename;
+    size_t line_num;
 } node;
 
 #endif // node_TYPE
@@ -51,8 +53,8 @@ node_Array node_Array_init(size_t init_size);
 void node_Array_append(node_Array *arr, node node);
 void node_Array_toBuf(node_Array *arr, node *buf, size_t *idx);
 
-node node_process(FILE *file, node *parent, size_t *nodes_num);
-void node_processChildren(node *node, FILE *file, size_t *nodes_num);
+node node_process(FILE *file, node *parent, char *filename, size_t line_num, size_t *nodes_num);
+void node_processChildren(node *node, FILE *file, char *filename, size_t line_num, size_t *nodes_num);
 void node_printFmt(node node, size_t indent_level, size_t num_current, size_t num_max);
 int node_compareDateAscending(const void *a, const void *b);
 int node_compareDateDescending(const void *a, const void *b);
@@ -87,18 +89,19 @@ void node_Array_toBuf(node_Array *arr, node *buf, size_t *idx) {
 }
 
 
-node node_process(FILE *file, node *parent, size_t *nodes_num) {
+node node_process(FILE *file, node *parent, char *filename, size_t line_num, size_t *nodes_num) {
 
     node this_node = {
-        parent,           // parent
-        wstring_init(1),  // name
-        wstring_init(1),  // desc
-        wstring_init(1),  // date
-        0,                // date_num
-        false,            // tag
-        wstring_init(1),  // text
-        false,            // hidden
-        node_Array_init(1) // children
+        .parent   = parent,
+        .name     = wstring_init(1),
+        .desc     = wstring_init(1),
+        .date     = wstring_init(1),
+        .date_num = 0,
+        .tag      = false,
+        .text     = wstring_init(1),
+        .hidden   = false,
+        .children = node_Array_init(1),
+        .line_num = 0,
     };
 
     bool getting_name = true;
@@ -115,6 +118,8 @@ node node_process(FILE *file, node *parent, size_t *nodes_num) {
     bool found_text_not_whitespace = false;
 
     while ((c = fgetwc(file)) != WEOF) {
+
+        if (c == '\n') line_num++;
 
         wc = (wchar_t)c;
 
@@ -207,7 +212,7 @@ node node_process(FILE *file, node *parent, size_t *nodes_num) {
         }
 
         if (wc == NODE_MARKER) {
-            node_Array_append(&this_node.children, node_process(file, &this_node, nodes_num));
+            node_Array_append(&this_node.children, node_process(file, &this_node, filename, line_num, nodes_num));
             (*nodes_num)++;
             continue;
         }
@@ -238,17 +243,20 @@ node node_process(FILE *file, node *parent, size_t *nodes_num) {
 
     this_node.hidden = false;
 
+    this_node.filename = filename;
+    this_node.line_num = line_num;
+
     return this_node;
 }
 
 
-void node_processChildren(node *n, FILE *file, size_t *nodes_num) {
+void node_processChildren(node *n, FILE *file, char *filename, size_t line_num, size_t *nodes_num) {
     wint_t c;
     wchar_t wc;
     while ((c = fgetwc(file)) != WEOF) {
         wc = (wchar_t)c;
         if (wc == NODE_MARKER) {
-            node_Array_append(&n->children, node_process(file, n, nodes_num));
+            node_Array_append(&n->children, node_process(file, n, filename, line_num, nodes_num));
             (*nodes_num)++;
         }
     }
@@ -292,6 +300,13 @@ void node_printFmt(node n, size_t indent_level, size_t num_current, size_t num_m
         wstring_print(n.date);
         ansi_reset();
     }
+
+    printf(" | ");
+    ansi_set("%s", ANSI_FG_GREY);
+    // printf("%s:", n.filename);
+    // ansi_set("%s", ANSI_FMT_BOLD);
+    printf("ln %ld", n.line_num);
+    ansi_reset();
 
     putchar('\n');
 
