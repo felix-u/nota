@@ -53,8 +53,8 @@ node_Array node_Array_init(size_t init_size);
 void node_Array_append(node_Array *arr, node node);
 void node_Array_toBuf(node_Array *arr, node *buf, size_t *idx);
 
-node node_process(FILE *file, node *parent, char *filename, size_t line_num, size_t *nodes_num);
-void node_processChildren(node *node, FILE *file, char *filename, size_t line_num, size_t *nodes_num);
+node node_process(FILE *file, node *parent, char *filename, size_t *line_num, size_t *nodes_num);
+void node_processChildren(node *node, FILE *file, char *filename, size_t *line_num, size_t *nodes_num);
 void node_printFmt(node node, size_t indent_level, size_t num_current, size_t num_max);
 int node_compareDateAscending(const void *a, const void *b);
 int node_compareDateDescending(const void *a, const void *b);
@@ -89,7 +89,7 @@ void node_Array_toBuf(node_Array *arr, node *buf, size_t *idx) {
 }
 
 
-node node_process(FILE *file, node *parent, char *filename, size_t line_num, size_t *nodes_num) {
+node node_process(FILE *file, node *parent, char *filename, size_t *line_num, size_t *nodes_num) {
 
     node this_node = {
         .parent   = parent,
@@ -101,7 +101,8 @@ node node_process(FILE *file, node *parent, char *filename, size_t line_num, siz
         .text     = wstring_init(1),
         .hidden   = false,
         .children = node_Array_init(1),
-        .line_num = 0,
+        .line_num = *line_num,
+        .filename = filename,
     };
 
     bool getting_name = true;
@@ -119,7 +120,7 @@ node node_process(FILE *file, node *parent, char *filename, size_t line_num, siz
 
     while ((c = fgetwc(file)) != WEOF) {
 
-        if (c == '\n') line_num++;
+        if (c == '\n') (*line_num)++;
 
         wc = (wchar_t)c;
 
@@ -243,14 +244,11 @@ node node_process(FILE *file, node *parent, char *filename, size_t line_num, siz
 
     this_node.hidden = false;
 
-    this_node.filename = filename;
-    this_node.line_num = line_num;
-
     return this_node;
 }
 
 
-void node_processChildren(node *n, FILE *file, char *filename, size_t line_num, size_t *nodes_num) {
+void node_processChildren(node *n, FILE *file, char *filename, size_t *line_num, size_t *nodes_num) {
     wint_t c;
     wchar_t wc;
     while ((c = fgetwc(file)) != WEOF) {
@@ -301,12 +299,12 @@ void node_printFmt(node n, size_t indent_level, size_t num_current, size_t num_m
         ansi_reset();
     }
 
-    printf(" | ");
-    ansi_set("%s", ANSI_FG_GREY);
-    // printf("%s:", n.filename);
-    // ansi_set("%s", ANSI_FMT_BOLD);
-    printf("ln %ld", n.line_num);
-    ansi_reset();
+    // printf(" | ");
+    // ansi_set("%s", ANSI_FG_GREY);
+    // // printf("%s:", n.filename);
+    // // ansi_set("%s", ANSI_FMT_BOLD);
+    // printf("ln %ld", n.line_num);
+    // ansi_reset();
 
     putchar('\n');
 

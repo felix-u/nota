@@ -255,7 +255,7 @@ int main(int argc, char **argv) {
     usize nodes_num = 0;
     char *filename = positional_args[0];
     usize line_number = 0;
-    node_processChildren(&root, input_file, filename, line_number, &nodes_num);
+    node_processChildren(&root, input_file, filename, &line_number, &nodes_num);
 
     node node_buf[nodes_num];
     usize idx = 0;
