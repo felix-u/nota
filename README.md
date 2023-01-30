@@ -5,7 +5,7 @@
 ![GIF](./nota.gif)
 
 Licensed under [GPL-3.0](./LICENCE). To get `nota`,
-[download the latest release](https://github.com/felix-u/nota/releases/tag/v0.2) or follow the
+[download the latest release](https://github.com/felix-u/nota/releases/) or follow the
 [compilation instructions](#building).
 
 *Disclaimer: the syntax and features of `nota` are not yet stable, and are subject to change in upcoming versions.*
@@ -123,9 +123,11 @@ nota <OPTION>... <FILE>
 
 OPTIONS:
   -a, --after
-	narrows selection to nodes after given date(s), or after 'now' if none are specified
+	narrows selection to nodes after given date(s), or after 'now' if none
+	are specified
   -b, --before
-	narrows selection to nodes before given date(s), or before 'now' if none are specified
+	narrows selection to nodes before given date(s), or before 'now' if none
+	are specified
   -d, --date <STR>
 	narrows selection by given date: <ISO 8601>, <NUM>, 'now'/'n'.
 	Flags that rely on a date use 'now' if the user does not specify one
@@ -144,9 +146,16 @@ OPTIONS:
   -u, --upcoming
 	equivalent to '--after --sort ascending'
       --no-colour
-	disables colour in output. This will also occur if TERM=dumb, NO_COLO(U)R or NOTA_NO_COLO(U)R is set, or
-	the output is piped to a file
+	disables colour in output. This will also occur if TERM=dumb,
+	NO_COLO(U)R or NOTA_NO_COLO(U)R is set, or the output is piped to a file
       --no-color
+	equivalent to the above
+      --line-num
+	show node line numbers
+      --force-colour
+	forces colour in output. This will override TERM=dumb,
+	NO_COLO(U)R, and NOTA_NO_COLO(U)R
+      --force-color
 	equivalent to the above
   -h, --help
 	display this help and exit
