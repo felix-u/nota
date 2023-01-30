@@ -261,6 +261,7 @@ void node_processChildren(node *n, FILE *file, char *filename, size_t *line_num,
 }
 
 
+bool node_show_line_num = false;
 void node_printFmt(node n, size_t indent_level, size_t num_current, size_t num_max) {
 
     if (n.hidden) return;
@@ -299,12 +300,14 @@ void node_printFmt(node n, size_t indent_level, size_t num_current, size_t num_m
         ansi_reset();
     }
 
-    printf(" | ");
-    ansi_set("%s", ANSI_FG_GREY);
-    // printf("%s:", n.filename);
-    // ansi_set("%s", ANSI_FMT_BOLD);
-    printf("ln %ld", n.line_num);
-    ansi_reset();
+    if (node_show_line_num) {
+        printf(" | ");
+        ansi_set("%s", ANSI_FG_GREY);
+        // printf("%s:", n.filename);
+        // ansi_set("%s", ANSI_FMT_BOLD);
+        printf("ln %ld", n.line_num);
+        ansi_reset();
+    }
 
     putchar('\n');
 

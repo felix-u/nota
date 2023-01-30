@@ -141,6 +141,13 @@ int main(int argc, char **argv) {
         false, NULL, 0,
         ARGS_BOOLEAN, ARGS_EXPECTS_NONE
     };
+    args_Flag line_num_flag = {
+        false, "line-num",
+        "show node line numbers",
+        ARGS_OPTIONAL,
+        false, NULL, 0,
+        ARGS_BOOLEAN, ARGS_EXPECTS_NONE
+    };
     args_Flag forcecolour_flag = {
         false, "force-colour",
         "forces colour in output. This will override TERM=dumb, \n"
@@ -170,6 +177,7 @@ int main(int argc, char **argv) {
         &upcoming_flag,
         &nocolour_flag,
         &nocolor_flag,
+        &line_num_flag,
         &forcecolour_flag,
         &forcecolor_flag,
         &ARGS_HELP_FLAG,
@@ -351,6 +359,8 @@ int main(int argc, char **argv) {
         }
         wstring_free(node_user);
     }
+
+    if (line_num_flag.is_present) node_show_line_num = true;
 
     // Print from node_buf if flags used, else print from root.children.nodes.
     if (args_optionalFlagsPresent(flags_count, flags)) {
