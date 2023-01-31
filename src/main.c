@@ -95,7 +95,7 @@ int main(int argc, char **argv) {
         return EX_IOERR;
     }
 
-    wchar_t *filebuf = NULL;
+    char *filebuf = NULL;
     usize filelen = 0;
     if (fseek(input_file, 0L, SEEK_END) == 0) {
         usize filesize = ftell(input_file);
