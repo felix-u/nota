@@ -95,12 +95,28 @@ int main(int argc, char **argv) {
         return EX_IOERR;
     }
 
+    wchar_t *filebuf = NULL;
+    usize filelen = 0;
+    if (fseek(input_file, 0L, SEEK_END) == 0) {
+        usize filesize = ftell(input_file);
+        filebuf = malloc((filesize + 1) * sizeof(*filebuf));
 
+        if (fseek(input_file, 0L, SEEK_SET) != 0) { /* Error */ printf("Error 1\n"); }
+
+        filelen = fread(filebuf, sizeof(*filebuf), filesize, input_file);
+        if (ferror(input_file) != 0) { /* Error */ printf("Error 2\n"); }
+        else filebuf[filelen++] = '\0';
+    }
+
+
+    for (usize i = 0; i < filelen; i++) {
+        printf("%lc", filebuf[i]);
+    }
     printf("Placeholder - nothing works yet :)\n");
 
 
     fclose(input_file);
-
+    free(filebuf);
     return EXIT_SUCCESS;
 }
 
