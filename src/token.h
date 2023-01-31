@@ -50,10 +50,10 @@ token_SOA token_SOA_init(size_t init_size) {
     return (token_SOA){
         .len    = 0,
         .cap    = init_size,
-        .row    = malloc(init_size * sizeof(*row)),
-        .col    = malloc(init_size * sizeof(*col)),
-        .tok    = malloc(init_size * sizeof(*tok)),
-        .lexeme = malloc(init_size * sizeof(*lexeme)),
+        .row    = malloc(init_size * sizeof(size_t)),
+        .col    = malloc(init_size * sizeof(size_t)),
+        .tok    = malloc(init_size * sizeof(int)),
+        .lexeme = malloc(init_size * sizeof(wchar_t)),
     };
 }
 
@@ -68,10 +68,10 @@ void token_SOA_free(token_SOA tok_soa) {
 void token_SOA_append(token_SOA *tok_soa, token tok) {
     if (tok_soa->len == tok_soa->cap) {
         tok_soa->cap *= 2;
-        tok_soa->row    = realloc(tok_soa->row, tok_soa->cap * sizeof(*row));
-        tok_soa->col    = realloc(tok_soa->col, tok_soa->cap * sizeof(*col));
-        tok_soa->tok    = realloc(tok_soa->tok, tok_soa->cap * sizeof(*tok));
-        tok_soa->lexeme = realloc(tok_soa->lexeme, tok_soa->cap * sizeof(*lexeme));
+        tok_soa->row    = realloc(tok_soa->row, tok_soa->cap * sizeof(*tok_soa->row));
+        tok_soa->col    = realloc(tok_soa->col, tok_soa->cap * sizeof(*tok_soa->col));
+        tok_soa->tok    = realloc(tok_soa->tok, tok_soa->cap * sizeof(*tok_soa->tok));
+        tok_soa->lexeme = realloc(tok_soa->lexeme, tok_soa->cap * sizeof(*tok_soa->lexeme));
     }
     tok_soa->len++;
     tok_soa->row   [tok_soa->len] = tok.row;
