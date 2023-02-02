@@ -32,6 +32,9 @@ double cstrToDouble(char *cstr);
 double currentTimeToDouble(void);
 
 
+usize fsize(FILE *fp);
+
+
 int main(int argc, char **argv) {
 
     setlocale(LC_ALL, "");
@@ -95,28 +98,33 @@ int main(int argc, char **argv) {
         return EX_IOERR;
     }
 
-    char *filebuf = NULL;
-    usize filelen = 0;
-    if (fseek(input_file, 0L, SEEK_END) == 0) {
-        usize filesize = ftell(input_file);
-        filebuf = malloc((filesize + 1) * sizeof(*filebuf));
 
-        if (fseek(input_file, 0L, SEEK_SET) != 0) { /* Error */ printf("Error 1\n"); }
+    /* @Note { Closing and opening the file again is stupid, but it seems to be the only way I can get the seek
+               position to actually reset. }; */
 
-        filelen = fread(filebuf, sizeof(*filebuf), filesize, input_file);
-        if (ferror(input_file) != 0) { /* Error */ printf("Error 2\n"); }
-        else filebuf[filelen++] = '\0';
-    }
-
-
-    for (usize i = 0; i < filelen; i++) {
-        printf("%lc", filebuf[i]);
-    }
-    printf("Placeholder - nothing works yet :)\n");
-
-
+    wchar_t filebuf[fsize(input_file)];
     fclose(input_file);
-    free(filebuf);
+    input_file = fopen(positional_args[0], "r");
+    if (input_file == NULL) {
+        printf("%s: no such file or directory '%s'\n", ARGS_BINARY_NAME, positional_args[0]);
+        return EX_IOERR;
+    }
+
+    wint_t c;
+    wchar_t wc;
+    usize i = 0;
+    for (; (c = fgetwc(input_file)) != WEOF; i++) {
+        wc = (wchar_t)c;
+        filebuf[i] = wc;
+    }
+    filebuf[i++] = '\0';
+    fclose(input_file);
+
+    // filebuf[] now contains the input file.
+
+
+    printf("%ls", filebuf);
+
     return EXIT_SUCCESS;
 }
 
@@ -181,4 +189,13 @@ double currentTimeToDouble(void) {
             (i16)date.tm_hour,
             (i16)date.tm_min);
     return atof(date_cstr);
+}
+
+
+usize fsize(FILE *fp) {
+    usize start = ftell(fp);
+    fseek(fp, 0L, SEEK_END);
+    usize filesize = ftell(fp);
+    fseek(fp, start, SEEK_SET);
+    return filesize;
 }
