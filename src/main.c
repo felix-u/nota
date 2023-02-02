@@ -27,6 +27,20 @@
 #define EX_USAGE 64
 #define EX_IOERR 74
 
+typedef const enum Token {
+    // Single-character syntax
+    T_PAREN_LEFT, T_PAREN_RIGHT, T_SQUARE_BRACKET_LEFT, T_SQUARE_BRACKET_RIGHT,
+    T_CURLY_BRACKET_LEFT, T_CURLY_BRACKET_RIGHT, T_COLON, T_SEMICOLON, T_AT,
+    // Types
+    T_STR, T_NUM,
+    // Directives
+    T_MODS, T_PROVIDES, T_INHERITS,
+    T_EOF,
+    T_COUNT
+} Token;
+
+#define IGNORE_IN_CHARS "\"'`"
+
 
 double cstrToDouble(char *cstr);
 double currentTimeToDouble(void);
@@ -102,7 +116,8 @@ int main(int argc, char **argv) {
     /* @Note { Closing and opening the file again is stupid, but it seems to be the only way I can get the seek
                position to actually reset. }; */
 
-    wchar_t filebuf[fsize(input_file)];
+    usize filesize = fsize(input_file);
+    wchar_t filebuf[filesize];
     fclose(input_file);
     input_file = fopen(positional_args[0], "r");
     if (input_file == NULL) {
@@ -122,8 +137,8 @@ int main(int argc, char **argv) {
 
     // filebuf[] now contains the input file.
 
-
-    printf("%ls", filebuf);
+    token_SOA tokens[filesize];
+    // token_process(tokens, );
 
     return EXIT_SUCCESS;
 }

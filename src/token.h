@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdlib.h>
 #include <wchar.h>
 
@@ -5,25 +6,10 @@
 #ifndef TOKEN_TYPE
 #define TOKEN_TYPE
 
-typedef enum token_Type {
-    // Single-character syntax
-    T_PAREN_LEFT, T_PAREN_RIGHT, T_SQUARE_BRACKET_LEFT, T_SQUARE_BRACKET_RIGHT,
-    T_CURLY_BRACKET_LEFT, T_CURLY_BRACKET_RIGHT, T_COLON, T_SEMICOLON, T_AT,
-
-    // Types
-    T_STR, T_NUM,
-
-    // Directives
-    T_MODS, T_PROVIDES, T_INHERITS,
-
-    T_EOF,
-    T_COUNT
-} token_Type;
-
 typedef struct token {
     size_t row;
     size_t col;
-    token_Type tok;
+    uint8_t tok;
     wchar_t *lexeme;
 } token;
 
@@ -32,7 +18,7 @@ typedef struct token_SOA {
     size_t cap;
     size_t  *row;
     size_t  *col;
-    token_Type *tok;
+    uint8_t *tok;
     wchar_t **lexeme;
 } token_SOA;
 
@@ -52,7 +38,7 @@ token_SOA token_SOA_init(size_t init_size) {
         .cap    = init_size,
         .row    = malloc(init_size * sizeof(size_t)),
         .col    = malloc(init_size * sizeof(size_t)),
-        .tok    = malloc(init_size * sizeof(int)),
+        .tok    = malloc(init_size * sizeof(uint8_t)),
         .lexeme = malloc(init_size * sizeof(wchar_t)),
     };
 }
@@ -68,9 +54,9 @@ void token_SOA_free(token_SOA tok_soa) {
 void token_SOA_append(token_SOA *tok_soa, token tok) {
     if (tok_soa->len == tok_soa->cap) {
         tok_soa->cap *= 2;
-        tok_soa->row    = realloc(tok_soa->row, tok_soa->cap * sizeof(*tok_soa->row));
-        tok_soa->col    = realloc(tok_soa->col, tok_soa->cap * sizeof(*tok_soa->col));
-        tok_soa->tok    = realloc(tok_soa->tok, tok_soa->cap * sizeof(*tok_soa->tok));
+        tok_soa->row    = realloc(tok_soa->row,    tok_soa->cap * sizeof(*tok_soa->row));
+        tok_soa->col    = realloc(tok_soa->col,    tok_soa->cap * sizeof(*tok_soa->col));
+        tok_soa->tok    = realloc(tok_soa->tok,    tok_soa->cap * sizeof(*tok_soa->tok));
         tok_soa->lexeme = realloc(tok_soa->lexeme, tok_soa->cap * sizeof(*tok_soa->lexeme));
     }
     tok_soa->len++;
