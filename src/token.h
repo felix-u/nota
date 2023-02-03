@@ -25,14 +25,25 @@ typedef struct token_SOA {
 
 typedef enum token_Type {
     // Single-character syntax
-    T_PAREN_LEFT, T_PAREN_RIGHT, T_SQUARE_BRACKET_LEFT, T_SQUARE_BRACKET_RIGHT,
-    T_CURLY_BRACKET_LEFT, T_CURLY_BRACKET_RIGHT, T_COLON, T_SEMICOLON, T_AT,
+    T_PAREN_LEFT               = '(',
+    T_PAREN_RIGHT              = ')',
+    T_SQUARE_BRACKET_LEFT      = '[',
+    T_SQUARE_BRACKET_RIGHT     = ']',
+    T_CURLY_BRACKET_LEFT       = '{',
+    T_CURLY_BRACKET_RIGHT      = '}',
+    T_COLON                    = ':',
+    T_SEMICOLON                = ';',
+    T_AT                       = '@',
+
     // Types
-    T_STR, T_NUM,
+    T_STR = 256,
+    T_NUM,
+
     // Directives
-    T_MODS, T_PROVIDES, T_INHERITS,
+    T_MODS,
+    T_PROVIDES,
+    T_INHERITS,
     T_EOF,
-    T_COUNT
 } token_Type;
 
 #define TOKEN_STRING_PAIRS "\"'`"
@@ -55,15 +66,19 @@ token_SOA token_SOA_init(size_t init_size) {
         .row    = malloc(init_size * sizeof(size_t)),
         .col    = malloc(init_size * sizeof(size_t)),
         .tok    = malloc(init_size * sizeof(uint8_t)),
-        .lexeme = malloc(init_size * sizeof(wchar_t)),
+        .lexeme = malloc(init_size * sizeof(wchar_t*)),
     };
 }
 
 
 void token_SOA_free(token_SOA tok_soa) {
-    if (tok_soa.row != NULL) free(tok_soa.row);
-    if (tok_soa.col != NULL) free(tok_soa.col);
-    if (tok_soa.tok != NULL) free(tok_soa.tok);
+    free(tok_soa.row);
+    free(tok_soa.col);
+    free(tok_soa.tok);
+    for (size_t i = 0; i < tok_soa.len; i++) {
+        free(tok_soa.lexeme[i]);
+    }
+    free(tok_soa.lexeme);
 }
 
 
@@ -83,8 +98,14 @@ void token_SOA_append(token_SOA *tok_soa, token tok) {
 }
 
 
+// void _token_process_pos_inc(size_t *cursor, wchar_t *buf, size_t bufsize, size_t *row, size_t *col) {
+//     if (*cursor < bufsize) cursor++;
+// }
+
 void token_process(token_SOA *tok_soa, wchar_t *buf, const size_t bufsize) {
 
+    size_t row = 0;
+    size_t col = 0;
     wchar_t prev = 0;
     size_t  string_pairs_num = strlen(TOKEN_STRING_PAIRS);
 
@@ -93,19 +114,44 @@ void token_process(token_SOA *tok_soa, wchar_t *buf, const size_t bufsize) {
         // Skip strings
         for (size_t i = 0; i < string_pairs_num; i++) {
             if (buf[cursor] == TOKEN_STRING_PAIRS[i] && prev != '\\') {
-                cursor++;
-                for (; buf[cursor] != TOKEN_STRING_PAIRS[i] || prev == '\\'; cursor++) {
-                    ansi_set("%s", ANSI_FG_RED);
-                    printf("%lc", buf[cursor]);
+                if (cursor < bufsize) cursor++;
+                for (; (buf[cursor] != TOKEN_STRING_PAIRS[i] || prev == '\\') && cursor < bufsize; cursor++) {
                     prev = buf[cursor];
                 }
-                cursor++;
+                if (cursor < bufsize) cursor++;
                 break;
             }
         }
 
-        ansi_reset();
-        printf("%lc", buf[cursor]);
+        if (buf[cursor] != '@') continue;
+
+        // {
+        //     token tok_append = {
+        //         .row = ,
+        //         .col = ,
+        //         .tok = '@',
+        //         .lexeme = malloc(something),
+        //     }
+        //     tok_append.lexeme memcpy whatever
+        //     token_SOA_append(tok_soa, tok_append);
+        // }
+
+        if (cursor < bufsize) cursor++;
+        else break;
+        for (; buf[cursor] != ';' && cursor < bufsize; cursor++) {
+            // Get node name
+            size_t name_start = cursor;
+            while (!iswspace(buf[cursor]) && cursor < bufsize) cursor++;
+            size_t name_end = cursor;
+            for (size_t i = name_start; i < name_end; i++) {
+                putwchar(buf[i]);
+            }
+            printf("\n");
+
+
+            break;
+        }
+
         prev = buf[cursor];
     }
 }
