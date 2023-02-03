@@ -82,36 +82,31 @@ void token_SOA_append(token_SOA *tok_soa, token tok) {
     tok_soa->lexeme[tok_soa->len] = tok.lexeme;
 }
 
-#define TOKEN_STRING_PAIRS "\"'`"
 
 void token_process(token_SOA *tok_soa, wchar_t *buf, const size_t bufsize) {
+
     wchar_t prev = 0;
     size_t  string_pairs_num = strlen(TOKEN_STRING_PAIRS);
-    bool    inside_pairs[string_pairs_num];
-    memset(inside_pairs, false, sizeof inside_pairs);
 
-    bool inside_string = false;
-    for (size_t i = 0; i < bufsize; i++) {
+    for (size_t cursor = 0; cursor < bufsize; cursor++) {
 
-        // We need this to ignore @ if it's in a string.
-        for (size_t j = 0; j < string_pairs_num; j++) {
-            if (buf[i] == TOKEN_STRING_PAIRS[j] && prev != '\\') {
-                inside_pairs[j] = !inside_pairs[j];
-                break;
-            }
-        }
-        inside_string = false;
-        for (size_t j = 0; j < string_pairs_num; j++) {
-            if (inside_pairs[j]) {
-                inside_string = true;
+        // Skip strings
+        for (size_t i = 0; i < string_pairs_num; i++) {
+            if (buf[cursor] == TOKEN_STRING_PAIRS[i] && prev != '\\') {
+                cursor++;
+                for (; buf[cursor] != TOKEN_STRING_PAIRS[i] || prev == '\\'; cursor++) {
+                    ansi_set("%s", ANSI_FG_RED);
+                    printf("%lc", buf[cursor]);
+                    prev = buf[cursor];
+                }
+                cursor++;
                 break;
             }
         }
 
-        if (inside_string) ansi_set("%s", ANSI_FG_RED);
-        printf("%lc", buf[i]);
-        if (!inside_string) ansi_reset();
-        prev = buf[i];
+        ansi_reset();
+        printf("%lc", buf[cursor]);
+        prev = buf[cursor];
     }
 }
 
