@@ -7,9 +7,9 @@ This is a sentence nota should know absolutely nothing about.
                         ) str:(
 This is the Section, with terrible whitespace. );
 
-@Section str:(Name 3) {
-    @Subsection str:( wow, a subsection! );
-    @Subsection str:(A Name 大) num:#date(1990-01-01.12:00) str:#done(false)
+@Section str:(Name "3") {
+    @Subsection str:( `wow, a subsection!` );
+    @Subsection str:(A Name 大) num:#date(1990-01-01.12:00) str:#done('false')
     {
         Ooh, another!
         More filler.
