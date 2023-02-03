@@ -35,7 +35,7 @@ typedef enum token_Type {
     T_COUNT
 } token_Type;
 
-#define TOKEN_IGNORE_IN_PAIRS "\"'`"
+#define TOKEN_STRING_PAIRS "\"'`"
 
 #endif // TOKEN_TYPE
 
@@ -82,32 +82,31 @@ void token_SOA_append(token_SOA *tok_soa, token tok) {
     tok_soa->lexeme[tok_soa->len] = tok.lexeme;
 }
 
+#define TOKEN_STRING_PAIRS "\"'`"
 
 void token_process(token_SOA *tok_soa, wchar_t *buf, const size_t bufsize) {
     wchar_t prev = 0;
-    size_t  ignore_in_pairs_num = strlen(TOKEN_IGNORE_IN_PAIRS);
-    bool    inside_pairs[ignore_in_pairs_num];
+    size_t  string_pairs_num = strlen(TOKEN_STRING_PAIRS);
+    bool    inside_pairs[string_pairs_num];
     memset(inside_pairs, false, sizeof inside_pairs);
 
     bool inside_string = false;
     for (size_t i = 0; i < bufsize; i++) {
 
         // We need this to ignore @ if it's in a string.
-        for (size_t j = 0; j < ignore_in_pairs_num; j++) {
-            if (buf[i] == TOKEN_IGNORE_IN_PAIRS[j] && prev != '\\') {
+        for (size_t j = 0; j < string_pairs_num; j++) {
+            if (buf[i] == TOKEN_STRING_PAIRS[j] && prev != '\\') {
                 inside_pairs[j] = !inside_pairs[j];
                 break;
             }
         }
-        bool in_any_string_pair = false;
-        for (size_t j = 0; j < ignore_in_pairs_num; j++) {
+        inside_string = false;
+        for (size_t j = 0; j < string_pairs_num; j++) {
             if (inside_pairs[j]) {
-                in_any_string_pair = true;
                 inside_string = true;
                 break;
             }
         }
-        if (!in_any_string_pair) inside_string = false;
 
         if (inside_string) ansi_set("%s", ANSI_FG_RED);
         printf("%lc", buf[i]);
