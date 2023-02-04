@@ -8,19 +8,21 @@
 #define TOKEN_TYPE
 
 typedef struct token {
-    size_t row;
-    size_t col;
+    size_t  row;
+    size_t  col;
     uint8_t tok;
-    wchar_t *lexeme;
+    size_t  lexeme_start;
+    size_t  lexeme_end;
 } token;
 
 typedef struct token_SOA {
-    size_t len;
-    size_t cap;
+    size_t  len;
+    size_t  cap;
     size_t  *row;
     size_t  *col;
     uint8_t *tok;
-    wchar_t **lexeme;
+    size_t  *lexeme_start;
+    size_t  *lexeme_end;
 } token_SOA;
 
 typedef enum token_Type {
@@ -61,12 +63,13 @@ void      token_process(token_SOA *tok_soa, wchar_t *buf, size_t bufsize);
 
 token_SOA token_SOA_init(size_t init_size) {
     return (token_SOA){
-        .len    = 0,
-        .cap    = init_size,
-        .row    = malloc(init_size * sizeof(size_t)),
-        .col    = malloc(init_size * sizeof(size_t)),
-        .tok    = malloc(init_size * sizeof(uint8_t)),
-        .lexeme = malloc(init_size * sizeof(wchar_t*)),
+        .len          = 0,
+        .cap          = init_size,
+        .row          = calloc(init_size, sizeof(size_t)),
+        .col          = calloc(init_size, sizeof(size_t)),
+        .tok          = calloc(init_size, sizeof(uint8_t)),
+        .lexeme_start = calloc(init_size, sizeof(size_t)),
+        .lexeme_end   = calloc(init_size, sizeof(size_t)),
     };
 }
 
@@ -75,39 +78,59 @@ void token_SOA_free(token_SOA tok_soa) {
     free(tok_soa.row);
     free(tok_soa.col);
     free(tok_soa.tok);
-    for (size_t i = 0; i < tok_soa.len; i++) {
-        free(tok_soa.lexeme[i]);
-    }
-    free(tok_soa.lexeme);
+    free(tok_soa.lexeme_start);
+    free(tok_soa.lexeme_end);
 }
 
 
 void token_SOA_append(token_SOA *tok_soa, token tok) {
     if (tok_soa->len == tok_soa->cap) {
         tok_soa->cap *= 2;
-        tok_soa->row    = realloc(tok_soa->row,    tok_soa->cap * sizeof(*tok_soa->row));
-        tok_soa->col    = realloc(tok_soa->col,    tok_soa->cap * sizeof(*tok_soa->col));
-        tok_soa->tok    = realloc(tok_soa->tok,    tok_soa->cap * sizeof(*tok_soa->tok));
-        tok_soa->lexeme = realloc(tok_soa->lexeme, tok_soa->cap * sizeof(*tok_soa->lexeme));
+        tok_soa->row           = realloc(tok_soa->row,          tok_soa->cap * sizeof(*tok_soa->row));
+        tok_soa->col           = realloc(tok_soa->col,          tok_soa->cap * sizeof(*tok_soa->col));
+        tok_soa->tok           = realloc(tok_soa->tok,          tok_soa->cap * sizeof(*tok_soa->tok));
+        tok_soa->lexeme_start  = realloc(tok_soa->lexeme_start, tok_soa->cap * sizeof(*tok_soa->lexeme_start));
+        tok_soa->lexeme_end    = realloc(tok_soa->lexeme_end,   tok_soa->cap * sizeof(*tok_soa->lexeme_end));
     }
     tok_soa->len++;
-    tok_soa->row   [tok_soa->len] = tok.row;
-    tok_soa->col   [tok_soa->len] = tok.col;
-    tok_soa->tok   [tok_soa->len] = tok.tok;
-    tok_soa->lexeme[tok_soa->len] = tok.lexeme;
+    tok_soa->row          [tok_soa->len] = tok.row;
+    tok_soa->col          [tok_soa->len] = tok.col;
+    tok_soa->tok          [tok_soa->len] = tok.tok;
+    tok_soa->lexeme_start [tok_soa->len] = tok.lexeme_start;
+    tok_soa->lexeme_end   [tok_soa->len] = tok.lexeme_end;
 }
 
 
-// void _token_process_pos_inc(size_t *cursor, wchar_t *buf, size_t bufsize, size_t *row, size_t *col) {
-//     if (*cursor < bufsize) cursor++;
-// }
+typedef struct _token_ProcPosInfo {
+    size_t  cursor;
+    wchar_t *buf;
+    size_t  bufsize;
+    size_t  row;
+    size_t  col;
+} _token_ProcPosInfo;
+
+void _token_process_pos_inc(_token_ProcPosInfo *pos) {
+    if (pos->cursor < pos->bufsize) pos->cursor++;
+    else return;
+    if (pos->buf[cursor] == '\n') {
+        if (pos->cursor < pos->bufsize) pos->cursor++;
+        else return;
+        pos->col = 0;
+        pos->row++;
+    }
+}
 
 void token_process(token_SOA *tok_soa, wchar_t *buf, const size_t bufsize) {
 
-    size_t row = 0;
-    size_t col = 0;
     wchar_t prev = 0;
     size_t  string_pairs_num = strlen(TOKEN_STRING_PAIRS);
+
+    _token_ProcPosInfo pos = {
+        .buf = buf,
+        .bufsize = bufsize,
+        .row = 1,
+        .col = 1,
+    };
 
     for (size_t cursor = 0; cursor < bufsize; cursor++) {
 
