@@ -2,7 +2,7 @@ VERSION=0.3-dev
 
 CFLAGS=-std=c99 -Wall -Wextra -pedantic -Wshadow -Wstrict-overflow \
 	   -Wstrict-aliasing
-DEBUGFLAGS=-g -Og -pg
+DEBUGFLAGS=-g -Og -pg -fsanitize=address,undefined,leak
 RELEASEFLAGS=-O3 -s
 LIBS=-lm
 
