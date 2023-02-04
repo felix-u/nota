@@ -120,5 +120,16 @@ int main(int argc, char **argv) {
     token_SOA tokens = token_SOA_init(filesize);
     token_process(&tokens, filebuf, filebuf_len);
 
+    // MARK 3
+    for (usize i = 0; i < tokens.len; i++) {
+        printf("%ld:%ld\n", tokens.row[i], tokens.col[i]);
+        printf("TOKEN: %c\n", tokens.tok[i]);
+        for (usize j = tokens.lexeme_start[i]; j <= tokens.lexeme_end[i]; j++) {
+            putchar(filebuf[j]);
+        }
+        printf("\n\n");
+    }
+
+    token_SOA_free(tokens);
     return EXIT_SUCCESS;
 }

@@ -7,24 +7,6 @@
 #ifndef TOKEN_TYPE
 #define TOKEN_TYPE
 
-typedef struct token {
-    size_t  row;
-    size_t  col;
-    uint8_t tok;
-    size_t  lexeme_start;
-    size_t  lexeme_end;
-} token;
-
-typedef struct token_SOA {
-    size_t  len;
-    size_t  cap;
-    size_t  *row;
-    size_t  *col;
-    uint8_t *tok;
-    size_t  *lexeme_start;
-    size_t  *lexeme_end;
-} token_SOA;
-
 typedef enum token_Type {
     // Single-character syntax
     T_PAREN_LEFT               = '(',
@@ -48,6 +30,24 @@ typedef enum token_Type {
     T_EOF,
 } token_Type;
 
+typedef struct token {
+    size_t     row;
+    size_t     col;
+    token_Type tok;
+    size_t     lexeme_start;
+    size_t     lexeme_end;
+} token;
+
+typedef struct token_SOA {
+    size_t     len;
+    size_t     cap;
+    size_t     *row;
+    size_t     *col;
+    token_Type *tok;
+    size_t     *lexeme_start;
+    size_t     *lexeme_end;
+} token_SOA;
+
 #define TOKEN_STRING_PAIRS "\"'`"
 
 #endif // TOKEN_TYPE
@@ -67,7 +67,7 @@ token_SOA token_SOA_init(size_t init_size) {
         .cap          = init_size,
         .row          = calloc(init_size, sizeof(size_t)),
         .col          = calloc(init_size, sizeof(size_t)),
-        .tok          = calloc(init_size, sizeof(uint8_t)),
+        .tok          = calloc(init_size, sizeof(token_Type)),
         .lexeme_start = calloc(init_size, sizeof(size_t)),
         .lexeme_end   = calloc(init_size, sizeof(size_t)),
     };
@@ -84,6 +84,7 @@ void token_SOA_free(token_SOA tok_soa) {
 
 
 void token_SOA_append(token_SOA *tok_soa, token tok) {
+    // printf("s"); // MARK 1
     if (tok_soa->len == tok_soa->cap) {
         tok_soa->cap *= 2;
         tok_soa->row           = realloc(tok_soa->row,          tok_soa->cap * sizeof(*tok_soa->row));
@@ -92,12 +93,12 @@ void token_SOA_append(token_SOA *tok_soa, token tok) {
         tok_soa->lexeme_start  = realloc(tok_soa->lexeme_start, tok_soa->cap * sizeof(*tok_soa->lexeme_start));
         tok_soa->lexeme_end    = realloc(tok_soa->lexeme_end,   tok_soa->cap * sizeof(*tok_soa->lexeme_end));
     }
-    tok_soa->len++;
     tok_soa->row          [tok_soa->len] = tok.row;
     tok_soa->col          [tok_soa->len] = tok.col;
     tok_soa->tok          [tok_soa->len] = tok.tok;
     tok_soa->lexeme_start [tok_soa->len] = tok.lexeme_start;
     tok_soa->lexeme_end   [tok_soa->len] = tok.lexeme_end;
+    tok_soa->len++;
 }
 
 
@@ -109,10 +110,10 @@ typedef struct _token_ProcPosInfo {
     size_t  col;
 } _token_ProcPosInfo;
 
-void _token_process_pos_inc(_token_ProcPosInfo *pos) {
+static void pos_inc(_token_ProcPosInfo *pos) {
     if (pos->cursor < pos->bufsize) pos->cursor++;
     else return;
-    if (pos->buf[cursor] == '\n') {
+    if (pos->buf[pos->cursor] == '\n') {
         if (pos->cursor < pos->bufsize) pos->cursor++;
         else return;
         pos->col = 0;
@@ -132,50 +133,51 @@ void token_process(token_SOA *tok_soa, wchar_t *buf, const size_t bufsize) {
         .col = 1,
     };
 
-    for (size_t cursor = 0; cursor < bufsize; cursor++) {
+    for (pos.cursor = 0; pos.cursor < bufsize; pos_inc(&pos)) {
 
         // Skip strings
         for (size_t i = 0; i < string_pairs_num; i++) {
-            if (buf[cursor] == TOKEN_STRING_PAIRS[i] && prev != '\\') {
-                if (cursor < bufsize) cursor++;
-                for (; (buf[cursor] != TOKEN_STRING_PAIRS[i] || prev == '\\') && cursor < bufsize; cursor++) {
-                    prev = buf[cursor];
+            if (buf[pos.cursor] == TOKEN_STRING_PAIRS[i] && prev != '\\') {
+                pos_inc(&pos);
+                while ((buf[pos.cursor] != TOKEN_STRING_PAIRS[i] || prev == '\\') && pos.cursor < bufsize) {
+                    prev = buf[pos.cursor];
+                    pos_inc(&pos);
                 }
-                if (cursor < bufsize) cursor++;
+                pos_inc(&pos);
                 break;
             }
         }
 
-        if (buf[cursor] != '@') continue;
+        if (buf[pos.cursor] != '@') continue;
 
-        // {
-        //     token tok_append = {
-        //         .row = ,
-        //         .col = ,
-        //         .tok = '@',
-        //         .lexeme = malloc(something),
-        //     }
-        //     tok_append.lexeme memcpy whatever
-        //     token_SOA_append(tok_soa, tok_append);
-        // }
+        {
+            token tok_append = {
+                .row           = pos.row,
+                .col           = pos.col,
+                .tok           = '@',
+                .lexeme_start  = pos.cursor,
+                .lexeme_end    = pos.cursor,
+            };
+            token_SOA_append(tok_soa, tok_append);
+        }
 
-        if (cursor < bufsize) cursor++;
-        else break;
-        for (; buf[cursor] != ';' && cursor < bufsize; cursor++) {
+        pos_inc(&pos);
+        for (; buf[pos.cursor] != ';' && pos.cursor < bufsize; pos_inc(&pos)) {
             // Get node name
-            size_t name_start = cursor;
-            while (!iswspace(buf[cursor]) && cursor < bufsize) cursor++;
-            size_t name_end = cursor;
+            size_t name_start = pos.cursor;
+            while (!iswspace(buf[pos.cursor]) && pos.cursor < bufsize) pos_inc(&pos);
+            // MARK 2 START
+            size_t name_end = pos.cursor;
             for (size_t i = name_start; i < name_end; i++) {
                 putwchar(buf[i]);
             }
             printf("\n");
-
+            // MARK 2 END
 
             break;
         }
 
-        prev = buf[cursor];
+        prev = buf[pos.cursor];
     }
 }
 
