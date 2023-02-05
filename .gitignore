@@ -1,3 +1,5 @@
 nota
 release/
 *.out
+zig-cache/
+zig-out/
