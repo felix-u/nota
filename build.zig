@@ -23,7 +23,7 @@ pub fn build(b: *std.Build) !void {
     };
     const cc_release_flags = cc_shared_flags ++ .{
         "-O3",
-        "-s"
+        "-s",
     };
 
 
@@ -77,9 +77,11 @@ pub fn build(b: *std.Build) !void {
             .target = cross_target,
             .optimize = .ReleaseSafe,
         });
-        cross_exe.addCSourceFile("src/main.c", &cc_shared_flags);
+        cross_exe.addCSourceFile("src/main.c", &(cc_shared_flags ++ .{ "-static" }));
+        cross_exe.disable_sanitize_c = true;
         cross_exe.strip = true;
         cross_exe.linkLibC();
         cross_step.dependOn(&b.addInstallArtifact(cross_exe).step);
     }
+
 }
