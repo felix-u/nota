@@ -112,7 +112,6 @@ node node_process(FILE *file, node *parent, char *filename, size_t *line_num, si
     bool getting_text = false;
 
     wint_t c;
-    wchar_t wc;
 
     wstring text_whitespace_buf = wstring_init(1);
     bool text_getting_whitespace = false;
@@ -120,7 +119,7 @@ node node_process(FILE *file, node *parent, char *filename, size_t *line_num, si
 
     while ((c = fgetwc(file)) != WEOF) {
 
-        wc = (wchar_t)c;
+        wchar_t wc = (wchar_t)c;
         if (wc == '\n') (*line_num)++;
 
         if (getting_name) {
@@ -249,9 +248,8 @@ node node_process(FILE *file, node *parent, char *filename, size_t *line_num, si
 
 void node_processChildren(node *n, FILE *file, char *filename, size_t *line_num, size_t *nodes_num) {
     wint_t c;
-    wchar_t wc;
     while ((c = fgetwc(file)) != WEOF) {
-        wc = (wchar_t)c;
+        wchar_t wc = (wchar_t)c;
         if (wc == '\n') (*line_num)++;
         if (wc == NODE_MARKER) {
             node_Array_append(&n->children, node_process(file, n, filename, line_num, nodes_num));
@@ -305,7 +303,7 @@ void node_printFmt(node n, size_t indent_level, size_t num_current, size_t num_m
         ansi_set("%s", ANSI_FG_GREY);
         // printf("%s:", n.filename);
         // ansi_set("%s", ANSI_FMT_BOLD);
-        printf("ln %ld", n.line_num);
+        printf("ln %zu", n.line_num);
         ansi_reset();
     }
 
