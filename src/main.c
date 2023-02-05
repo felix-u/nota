@@ -98,6 +98,7 @@ int main(int argc, char **argv) {
 
     usize filesize = fsize(input_file);
     wchar_t filebuf[filesize];
+    memset(filebuf, 0, sizeof(*filebuf) * filesize);
     fclose(input_file);
     input_file = fopen(positional_args[0], "r");
     if (input_file == NULL) {
@@ -120,7 +121,6 @@ int main(int argc, char **argv) {
     token_SOA tokens = token_SOA_init(filesize);
     token_process(&tokens, filebuf, filebuf_len);
 
-    // MARK 3
     for (usize i = 0; i < tokens.len; i++) {
         printf("%ld:%ld\n", tokens.row[i], tokens.col[i]);
         printf("TOKEN: %c\n", tokens.tok[i]);

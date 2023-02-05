@@ -84,7 +84,6 @@ void token_SOA_free(token_SOA tok_soa) {
 
 
 void token_SOA_append(token_SOA *tok_soa, token tok) {
-    // printf("s"); // MARK 1
     if (tok_soa->len == tok_soa->cap) {
         tok_soa->cap *= 2;
         tok_soa->row           = realloc(tok_soa->row,          tok_soa->cap * sizeof(*tok_soa->row));
@@ -127,13 +126,14 @@ void token_process(token_SOA *tok_soa, wchar_t *buf, const size_t bufsize) {
     size_t  string_pairs_num = strlen(TOKEN_STRING_PAIRS);
 
     _token_ProcPosInfo pos = {
+        .cursor = 0,
         .buf = buf,
         .bufsize = bufsize,
         .row = 1,
         .col = 1,
     };
 
-    for (pos.cursor = 0; pos.cursor < bufsize; pos_inc(&pos)) {
+    for (; pos.cursor < bufsize; pos_inc(&pos)) {
 
         // Skip strings
         for (size_t i = 0; i < string_pairs_num; i++) {
@@ -166,13 +166,11 @@ void token_process(token_SOA *tok_soa, wchar_t *buf, const size_t bufsize) {
             // Get node name
             size_t name_start = pos.cursor;
             while (!iswspace(buf[pos.cursor]) && pos.cursor < bufsize) pos_inc(&pos);
-            // MARK 2 START
             size_t name_end = pos.cursor;
             for (size_t i = name_start; i < name_end; i++) {
                 putwchar(buf[i]);
             }
             printf("\n");
-            // MARK 2 END
 
             break;
         }
