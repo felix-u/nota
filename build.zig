@@ -29,6 +29,7 @@ pub fn build(b: *std.Build) !void {
         "-O3",
         "-s",
         "-static",
+        "-march=native",
     };
 
 
