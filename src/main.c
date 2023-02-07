@@ -7,16 +7,16 @@
 #include <wchar.h>
 #include <wctype.h>
 
-#define ARGS_IMPLEMENTATION
-#define ARGS_BINARY_NAME "nota"
-#define ARGS_BINARY_VERSION "0.3-dev"
+#define  ARGS_IMPLEMENTATION
+#define  ARGS_BINARY_NAME    "nota"
+#define  ARGS_BINARY_VERSION "0.3-dev"
 #include "args.h"
 #include "int_types.h"
-#define NODE_IMPLEMENTATION
+#define  NODE_IMPLEMENTATION
 #include "node.h"
-#define TOKEN_IMPLEMENTATION
+#define  TOKEN_IMPLEMENTATION
 #include "token.h"
-#define WSTRING_IMPLEMENTATION
+#define  WSTRING_IMPLEMENTATION
 #include "wstring.h"
 
 #define ANSI_IMPLEMENTATION
