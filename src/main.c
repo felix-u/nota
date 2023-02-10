@@ -4,8 +4,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <strings.h>
-#include <wchar.h>
-#include <wctype.h>
 
 #define  ARGS_IMPLEMENTATION
 #define  ARGS_BINARY_NAME    "nota"
@@ -16,8 +14,6 @@
 #include "node.h"
 #define  TOKEN_IMPLEMENTATION
 #include "token.h"
-#define  WSTRING_IMPLEMENTATION
-#include "wstring.h"
 
 #define ANSI_IMPLEMENTATION
 #include "ansi.h"

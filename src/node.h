@@ -3,22 +3,20 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <unistd.h>
-#include <wchar.h>
-#include <wctype.h>
 
 #include "ansi.h"
-#include "wstring.h"
+#include "sstring.h"
 
 #ifndef node_TYPE
 #define node_TYPE
 
 typedef struct {
-    wchar_t beg;
-    wchar_t end;
+    uint8_t beg;
+    uint8_t end;
 } node_DelimiterSet;
 
-const wchar_t NODE_MARKER = '@';
-      wchar_t TAG         = 'x';
+const uint8_t NODE_MARKER = '@';
+      uint8_t TAG         = 'x';
 
 const node_DelimiterSet DLM_DESC = { '(', ')' };
 const node_DelimiterSet DLM_DATE = { '[', ']' };
@@ -34,12 +32,12 @@ typedef struct node_Array {
 
 typedef struct node {
     struct node *parent;
-    wstring name;
-    wstring desc;
-    wstring date;
+    sstring name;
+    sstring desc;
+    sstring date;
     double date_num;
     bool tag;
-    wstring text;
+    sstring text;
     bool hidden;
     struct node_Array children;
 } node;
@@ -91,12 +89,12 @@ node node_process(FILE *file, node *parent, size_t *nodes_num) {
 
     node this_node = {
         parent,           // parent
-        wstring_init(1),  // name
-        wstring_init(1),  // desc
-        wstring_init(1),  // date
+        sstring_init(1),  // name
+        sstring_init(1),  // desc
+        sstring_init(1),  // date
         0,                // date_num
         false,            // tag
-        wstring_init(1),  // text
+        sstring_init(1),  // text
         false,            // hidden
         node_Array_init(1) // children
     };
@@ -108,15 +106,15 @@ node node_process(FILE *file, node *parent, size_t *nodes_num) {
     bool getting_text = false;
 
     wint_t c;
-    wchar_t wc;
+    uint8_t wc;
 
-    wstring text_whitespace_buf = wstring_init(1);
+    sstring text_whitespace_buf = sstring_init(1);
     bool text_getting_whitespace = false;
     bool found_text_not_whitespace = false;
 
     while ((c = fgetwc(file)) != WEOF) {
 
-        wc = (wchar_t)c;
+        wc = (uint8_t)c;
 
         if (getting_name) {
             if (wc == DLM_DESC.beg) {
@@ -139,14 +137,14 @@ node node_process(FILE *file, node *parent, size_t *nodes_num) {
                 getting_tag = true;
                 continue;
             }
-            wstring_append(&this_node.name, wc);
+            sstring_append(&this_node.name, wc);
             continue;
         }
 
         if (getting_desc) {
             if (wc == DLM_DESC.end) getting_desc = false;
             else {
-                wstring_append(&this_node.desc, wc);
+                sstring_append(&this_node.desc, wc);
                 continue;
             }
         }
@@ -154,7 +152,7 @@ node node_process(FILE *file, node *parent, size_t *nodes_num) {
         if (getting_date) {
             if (wc == DLM_DATE.end) getting_date = false;
             else {
-                wstring_append(&this_node.date, wc);
+                sstring_append(&this_node.date, wc);
                 continue;
             }
         }
@@ -179,7 +177,7 @@ node node_process(FILE *file, node *parent, size_t *nodes_num) {
                     text_whitespace_buf.len = 0;
                 }
                 else if (wc != NODE_MARKER) {
-                    wstring_append(&this_node.text, wc);
+                    sstring_append(&this_node.text, wc);
                     found_text_not_whitespace = true;
                     continue;
                 }
@@ -187,19 +185,19 @@ node node_process(FILE *file, node *parent, size_t *nodes_num) {
 
             if (text_getting_whitespace) {
                 if (iswspace(wc)) {
-                    wstring_append(&text_whitespace_buf, wc);
+                    sstring_append(&text_whitespace_buf, wc);
                     continue;
                 }
 
                 text_getting_whitespace = false;
 
-                if (wstring_containsNewline(&text_whitespace_buf)) {
-                    wstring_appendNewlinesFromWstring(&this_node.text, &text_whitespace_buf);
+                if (sstring_containsNewline(&text_whitespace_buf)) {
+                    sstring_appendNewlinesFromsstring(&this_node.text, &text_whitespace_buf);
                 }
-                else wstring_appendWstring(&this_node.text, &text_whitespace_buf);
+                else sstring_appendsstring(&this_node.text, &text_whitespace_buf);
 
                 if (wc != NODE_MARKER) {
-                    wstring_append(&this_node.text, wc);
+                    sstring_append(&this_node.text, wc);
                     continue;
                 }
             }
@@ -221,17 +219,17 @@ node node_process(FILE *file, node *parent, size_t *nodes_num) {
 
     }
 
-    wstring_removeSurroundingWhitespace(&this_node.name);
-    wstring_nullTerminate(&this_node.name);
+    sstring_removeSurroundingWhitespace(&this_node.name);
+    sstring_nullTerminate(&this_node.name);
 
-    wstring_removeSurroundingWhitespace(&this_node.desc);
-    wstring_nullTerminate(&this_node.desc);
+    sstring_removeSurroundingWhitespace(&this_node.desc);
+    sstring_nullTerminate(&this_node.desc);
 
-    wstring_removeSurroundingWhitespace(&this_node.date);
-    this_node.date_num = wstring_toDouble(this_node.date);
+    sstring_removeSurroundingWhitespace(&this_node.date);
+    this_node.date_num = sstring_toDouble(this_node.date);
 
-    wstring_removeSurroundingWhitespace(&this_node.text);
-    wstring_nullTerminate(&this_node.text);
+    sstring_removeSurroundingWhitespace(&this_node.text);
+    sstring_nullTerminate(&this_node.text);
     // If the text consists only of whitespace, treat it as empty.
     if (!found_text_not_whitespace) this_node.text.len = 0;
     free(text_whitespace_buf.wstr);
@@ -244,9 +242,9 @@ node node_process(FILE *file, node *parent, size_t *nodes_num) {
 
 void node_processChildren(node *n, FILE *file, size_t *nodes_num) {
     wint_t c;
-    wchar_t wc;
+    uint8_t wc;
     while ((c = fgetwc(file)) != WEOF) {
-        wc = (wchar_t)c;
+        wc = (uint8_t)c;
         if (wc == NODE_MARKER) {
             node_Array_append(&n->children, node_process(file, n, nodes_num));
             (*nodes_num)++;
@@ -270,7 +268,7 @@ void node_printFmt(node n, size_t indent_level, size_t num_current, size_t num_m
 
     if (n.name.len > 0) {
         ansi_set("%s", ANSI_FMT_BOLD);
-        wstring_print(n.name);
+        sstring_print(n.name);
         ansi_reset();
     }
     else {
@@ -282,14 +280,14 @@ void node_printFmt(node n, size_t indent_level, size_t num_current, size_t num_m
     if (n.desc.len > 0) {
         printf(" | ");
         ansi_set("%s", ANSI_FG_BLUE);
-        wstring_print(n.desc);
+        sstring_print(n.desc);
         ansi_reset();
     }
 
     if (n.date.len > 0) {
         printf(" | ");
         ansi_set("%s", ANSI_FG_GREEN);
-        wstring_print(n.date);
+        sstring_print(n.date);
         ansi_reset();
     }
 
