@@ -1,134 +1,133 @@
-/* args.h - easy and robust command line argument parsing - felix-u 2022
-*
-*   This is an stb-style single-header-file C library.
-*
-*   To use this library, do this in *one* C file:
-*       #define ARGS_IMPLEMENTATION
-*       #include "args.h"
-*
-*
-*   COMPILE-TIME OPTIONS
-*
-*   #define ARGS_BINARY_NAME "name"
-*       If this is not defined, argv[0] will be used instead.
-*
-*   #define ARGS_BINARY_VERSION "1.0"
-*       *Required* to use ARGS_VERSION_FLAG.
-*
-*   #define ARGS_HELP_FLAG_DISABLED
-*       Disables the provided ARGS_HELP_FLAG.
-*
-*   Other options not expected to change but able to be modified are in the source code.
-*
-*
-*   DOCUMENTATION
-*
-*   Basic usage (see EXAMPLE for a full example):
-*       args_Flag *flags[] = { ... };
-*       size_t positional_num = 0;
-*       const size_t positional_cap = LARGE_NUMBER;
-*       char *positional_args[positional_cap];
-*       int args_return = args_process(argc, argv, "short description of program", flags_count, flags, &positional_num,
-*                                      positional_args, positional_expects, positional_type, positional_cap);
-*       if (args_return != ARGS_RETURN_CONTINUE) return args_return;
-*
-*   See near top of source code for enum types.
-*
-*   args_process() parameters:
-*       int argc            -- from main()
-*       char **argv         -- from main()
-*       const char *usage_description                      -- short description of program purpose, shown at the top of
-*                                                             help text
-*       const size_t flags_count                           -- number of flags
-*       args_flag *flags[]                                 -- flags
-*       size_t *positional_num                             -- number of positional arguments passed directly to the
-*                                                             binary. Unknown before processing, and therefore 0
-*       char **positional_args                             -- empty string array of size positional_cap. Will contain
-*                                                             positional arguments passed directly to the binary
-*       const ARGS_FLAG_EXPECTS positional_expects         -- what kind of positional arguments the binary expects.
-*                                                             Used in help text
-*       const ARGS_BINARY_POSITIONAL_TYPE positional_type  -- how many positional arguments the binary expects
-*       const size_t positional_cap                        -- max no. of positional arguments; size of positional_args
-*
-*   struct args_Flag members:
-*       const char name_short               -- flag short form, e.g. '-h'. Can be false
-*       const char *name_long               -- flag long form, e.g. '--help'. Must *not* be NULL
-*       const char *help_text               -- flag help text, e.g. 'display this help'. May be NULL, but shouldn't
-*       const bool required                 -- whether flag is required
-*       bool is_present                     -- whether flag has been passed. Should initially be false
-*       char **opts                         -- arguments passed to flag. *Must* initially be NULL
-*       size_t opts_num                     -- number of arguments passed to flag. *Must* initially be 0
-*       const ARGS_FLAG_TYPE type           -- whether the flag is boolean, expects one argument, or expects multiple
-*       const ARGS_FLAG_EXPECTS expects     -- what kind of arguments the flag expects. Used in help text
-*
-*
-*   EXAMPLE
-*
-*       #include <stdio.h>
-*       #include <stdlib.h>
-*
-*       #define ARGS_IMPLEMENTATION
-*       #define ARGS_BINARY_NAME "name"
-*       #define ARGS_BINARY_VERSION "version"
-*       #include "args.h"
-*
-*       int main(int argc, char **argv) {
-*
-*           args_Flag boolean_flag = {
-*               'b', "boolean",
-*               "an example boolean flag",
-*               false,
-*               false, NULL, 0,
-*               ARGS_BOOLEAN, ARGS_EXPECTS_NONE
-*           };
-*           args_Flag single_flag = {
-*               's', "single",
-*               "an example of a flag which takes one argument",
-*               true,
-*               false, NULL, 0,
-*               ARGS_SINGLE_OPT, ARGS_EXPECTS_STRING
-*           };
-*           args_Flag multi_flag = {
-*               'm', "multi",
-*               "an example of a flag which takes multiple arguments",
-*               true,
-*               false, NULL, 0,
-*               ARGS_MULTI_OPT, ARGS_EXPECTS_FILE
-*           };
-*           args_Flag *flags[] = {
-*               &boolean_flag,
-*               &single_flag,
-*               &multi_flag,
-*               ARGS_HELP_FLAG,
-*               ARGS_VERSION_FLAG,
-*           };
-*
-*           const size_t flags_count = sizeof(flags) / sizeof(flags[0]);
-*           size_t positional_num = 0;
-*           const size_t positional_cap = 256;
-*           char *positional_args[positional_cap];
-*
-*           int args_return = args_process(argc, argv, "test of args.h", flags_count, flags, &positional_num,
-*                                          positional_args, ARGS_EXPECTS_FILE, ARGS_POSITIONAL_MULTI, positional_cap);
-*           if (args_return != ARGS_RETURN_CONTINUE) return args_return;
-*
-*           if (single_flag.is_present) printf("You passed flag 'single'!\n");
-*
-*           return 0;
-*       }
-*
-*/
+// args.h - simple and robust command line argument parsing - felix-u 2023
+//
+//    This is an stb-style single-header-file C library.
+//
+//    To use this library, do this in *one* C file:
+//        #define ARGS_IMPLEMENTATION
+//        #include "args.h"
+//
+//
+//    COMPILE-TIME OPTIONS
+//
+//    #define ARGS_BINARY_NAME "name"
+//        If this is not defined, argv[0] will be used instead.
+//
+//    #define ARGS_BINARY_VERSION "1.0"
+//        *Required* to use ARGS_VERSION_FLAG.
+//
+//    #define ARGS_HELP_FLAG_DISABLED
+//        Disables the provided ARGS_HELP_FLAG.
+//
+//    Other options not expected to change but technically able to be modified are in the source code.
+//
+//
+//    DOCUMENTATION
+//
+//    Basic usage (see EXAMPLE for a full example):
+//        args_Flag *flags[] = { ... };
+//        size_t positional_num = 0;
+//        const size_t positional_cap = LARGE_NUMBER;
+//        char *positional_args[positional_cap];
+//        int args_return = args_process(argc, argv, "short description of program", flags_count, flags, &positional_num,
+//                                       positional_args, positional_expects, positional_type, positional_cap);
+//        if (args_return != ARGS_RETURN_CONTINUE) return args_return;
+//
+//    See near top of source code for enum types.
+//
+//    args_process() parameters:
+//        int argc            -- from main()
+//        char **argv         -- from main()
+//        const char *usage_description                      -- short description of program purpose, shown at the top of
+//                                                              help text
+//        const size_t flags_count                           -- number of flags
+//        args_flag *flags[]                                 -- flags
+//        size_t *positional_num                             -- number of positional arguments passed directly to the
+//                                                              binary. Unknown before processing, and therefore 0
+//        char **positional_args                             -- empty string array of size positional_cap. Will contain
+//                                                              positional arguments passed directly to the binary
+//        const ARGS_FLAG_EXPECTS positional_expects         -- what kind of positional arguments the binary expects.
+//                                                              Used in help text
+//        const ARGS_BINARY_POSITIONAL_TYPE positional_type  -- how many positional arguments the binary expects
+//        const size_t positional_cap                        -- max no. of positional arguments; size of positional_args
+//
+//    struct args_Flag members:
+//        const char name_short               -- flag short form, e.g. '-h'. Can be false
+//        const char *name_long               -- flag long form, e.g. '--help'. Must *not* be NULL
+//        const char *help_text               -- flag help text, e.g. 'display this help'. May be NULL, but shouldn't
+//        const bool required                 -- whether flag is required
+//        bool is_present                     -- whether flag has been passed. Should initially be false
+//        char **opts                         -- arguments passed to flag. *Must* initially be NULL
+//        size_t opts_num                     -- number of arguments passed to flag. *Must* initially be 0
+//        const ARGS_FLAG_TYPE type           -- whether the flag is boolean, expects one argument, or expects multiple
+//        const ARGS_FLAG_EXPECTS expects     -- what kind of arguments the flag expects. Used in help text
+//
+//
+//    EXAMPLE
+//
+//        #include <stdio.h>
+//        #include <stdlib.h>
+//
+//        #define ARGS_IMPLEMENTATION
+//        #define ARGS_BINARY_NAME "name"
+//        #define ARGS_BINARY_VERSION "version"
+//        #include "args.h"
+//
+//        int main(int argc, char **argv) {
+//
+//            args_Flag boolean_flag = {
+//                'b', "boolean",
+//                "an example boolean flag",
+//                false,
+//                false, NULL, 0,
+//                ARGS_BOOLEAN, ARGS_EXPECTS_NONE
+//            };
+//            args_Flag single_flag = {
+//                's', "single",
+//                "an example of a flag which takes one argument",
+//                true,
+//                false, NULL, 0,
+//                ARGS_SINGLE_OPT, ARGS_EXPECTS_STRING
+//            };
+//            args_Flag multi_flag = {
+//                'm', "multi",
+//                "an example of a flag which takes multiple arguments",
+//                true,
+//                false, NULL, 0,
+//                ARGS_MULTI_OPT, ARGS_EXPECTS_FILE
+//            };
+//            args_Flag *flags[] = {
+//                &boolean_flag,
+//                &single_flag,
+//                &multi_flag,
+//                ARGS_HELP_FLAG,
+//                ARGS_VERSION_FLAG,
+//            };
+//
+//            const size_t flags_count = sizeof(flags) / sizeof(flags[0]);
+//            size_t positional_num = 0;
+//            const size_t positional_cap = 256;
+//            char *positional_args[positional_cap];
+//
+//            int args_return = args_process(argc, argv, "test of args.h", flags_count, flags, &positional_num,
+//                                           positional_args, ARGS_EXPECTS_FILE, ARGS_POSITIONAL_MULTI, positional_cap);
+//            if (args_return != ARGS_RETURN_CONTINUE) return args_return;
+//
+//            if (single_flag.is_present) printf("You passed flag 'single'!\n");
+//
+//            return 0;
+//        }
+//
+//
 
+
+#ifndef ARGS_H
+#define ARGS_H
 
 #include <stdbool.h>
 #include <string.h>
 #include <strings.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-
-#ifndef ARGS_TYPE
-#define ARGS_TYPE
 
 typedef enum ARGS_FLAG_TYPE {
     ARGS_NONE,
@@ -161,8 +160,6 @@ typedef struct args_Flag {
     const ARGS_FLAG_EXPECTS expects;
 } args_Flag;
 
-#endif // ARGS_TYPE
-
 
 args_Flag *args_byNameShort(char name_short, const size_t flags_count, args_Flag *flags[]);
 
@@ -172,10 +169,22 @@ void args_helpHint(void);
 
 bool args_optionalFlagsPresent(const size_t flags_count, args_Flag *flags[]);
 
-int args_process
-(int argc, char **argv, const char *usage_description, const size_t flags_count, args_Flag *flags[],
-size_t *positional_num, char **positional_args, const ARGS_FLAG_EXPECTS positional_expects,
-const ARGS_BINARY_POSITIONAL_TYPE positional_type, const size_t positional_cap);
+typedef struct args_Proc_Args {
+    int argc;
+    char **argv;
+    const char *usage_description;
+    const size_t flags_count;
+    args_Flag **flags;
+    size_t *positional_num;
+    char **positional_args;
+    const ARGS_FLAG_EXPECTS positional_expects;
+    const ARGS_BINARY_POSITIONAL_TYPE positional_type;
+    const size_t positional_cap;
+} args_Proc_Args;
+
+int args_proc (args_Proc_Args args);
+
+#endif // ARGS_H
 
 
 #ifdef ARGS_IMPLEMENTATION
