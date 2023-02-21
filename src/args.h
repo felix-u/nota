@@ -120,7 +120,6 @@
 */
 
 
-#include <assert.h>
 #include <stdbool.h>
 #include <string.h>
 #include <strings.h>
@@ -307,12 +306,12 @@ const ARGS_BINARY_POSITIONAL_TYPE positional_type, const size_t positional_cap)
     (void) usage_description;
     #endif // ARGS_HELP_FLAG_DISABLED
 
-    // All flags MUST have a long format, if not a short one.
-    // While we're looping over flags, if none are required, let's not mention mandatory options in help text later.
+    // If no flags are required, let's not mention mandatory options in help text later.
     bool any_mandatory = false;
     for (size_t i = 0; i < flags_count; i++) {
-        assert(flags[i]->name_long != NULL && "One flag has a NULL name_long");
-        if (flags[i]->required == true) any_mandatory = true;
+        if (!flags[i]->required) continue;
+        any_mandatory = true;
+        break;
     }
 
     #ifndef ARGS_HELP_FLAG_DISABLED
