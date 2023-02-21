@@ -54,114 +54,96 @@ int main(int argc, char **argv) {
     if (getenv("NOTA_NO_COLOR") == NULL && getenv("NOTA_NO_COLOUR") == NULL) ansi_stateSet();
 
     args_Flag after_flag = {
-        'a', "after",
-        "narrows selection to nodes after given date(s), or after 'now' if none \n"
-        "are specified",
-        ARGS_OPTIONAL,
-        false, NULL, 0,
-        ARGS_BOOLEAN, ARGS_EXPECTS_NONE
+        .name_short = 'a',
+        .name_long = "after",
+        .help_text = "narrows selection to nodes after given date(s), or after 'now' if none \n"
+                     "are specified",
+        .type = ARGS_BOOLEAN,
     };
     args_Flag before_flag = {
-        'b', "before",
-        "narrows selection to nodes before given date(s), or before 'now' if none \n"
-        "are specified",
-        ARGS_OPTIONAL,
-        false, NULL, 0,
-        ARGS_BOOLEAN, ARGS_EXPECTS_NONE
+        .name_short = 'b',
+        .name_long = "before",
+        .help_text = "narrows selection to nodes before given date(s), or before 'now' if none \n"
+                     "are specified",
+        .type = ARGS_BOOLEAN,
     };
     args_Flag date_flag = {
-        'd', "date",
-        "narrows selection by given date: <ISO 8601>, <NUM>, 'now'/'n'.\n"
-        "Flags that rely on a date use 'now' if the user does not specify one",
-        ARGS_OPTIONAL,
-        false, NULL, 0,
-        ARGS_SINGLE_OPT, ARGS_EXPECTS_STRING
+        .name_short = 'd',
+        .name_long = "date",
+        .help_text = "narrows selection by given date: <ISO 8601>, <NUM>, 'now'/'n'.\n"
+                     "Flags that rely on a date use 'now' if the user does not specify one",
+        .type = ARGS_SINGLE_OPT,
+        .expects = ARGS_EXPECTS_STRING,
     };
     args_Flag desc_flag = {
-        false, "desc",
-        "narrows selection by given description",
-        ARGS_OPTIONAL,
-        false, NULL, 0,
-        ARGS_SINGLE_OPT, ARGS_EXPECTS_STRING
+        .name_long = "desc",
+        .help_text = "narrows selection by given description",
+        .type = ARGS_SINGLE_OPT,
+        .expects = ARGS_EXPECTS_STRING,
     };
     args_Flag node_flag = {
-        'n', "node",
-        "narrows selection by given node name(s)",
-        ARGS_OPTIONAL,
-        false, NULL, 0,
-        ARGS_SINGLE_OPT, ARGS_EXPECTS_STRING
+        .name_short = 'n',
+        .name_long = "node",
+        .help_text = "narrows selection by given node name(s)",
+        .type = ARGS_SINGLE_OPT,
+        .expects = ARGS_EXPECTS_STRING,
     };
     args_Flag tagchar_flag = {
-        false, "tagchar",
-        "provides tag character",
-        ARGS_OPTIONAL,
-        false, NULL, 0,
-        ARGS_SINGLE_OPT, ARGS_EXPECTS_STRING
+        .name_long = "tagchar",
+        .help_text = "provides tag character",
+        .type = ARGS_SINGLE_OPT,
+        .expects = ARGS_EXPECTS_STRING,
     };
     args_Flag tagged_flag = {
-        't', "tagged",
-        "limits selection to tagged nodes (default tag character: 'x')",
-        ARGS_OPTIONAL,
-        false, NULL, 0,
-        ARGS_BOOLEAN, ARGS_EXPECTS_NONE
+        .name_short = 't',
+        .name_long = "tagged",
+        .help_text = "limits selection to tagged nodes (default tag character: 'x')",
+        .type = ARGS_BOOLEAN,
     };
     args_Flag not_tagged_flag = {
-        false, "not-tagged",
-        "limits selection to nodes NOT tagged (default tag character: 'x')",
-        ARGS_OPTIONAL,
-        false, NULL, 0,
-        ARGS_BOOLEAN, ARGS_EXPECTS_NONE
+        .name_long = "not-tagged",
+        .help_text = "limits selection to nodes NOT tagged (default tag character: 'x')",
+        .type = ARGS_BOOLEAN,
     };
     args_Flag sort_flag = {
-        's', "sort",
-        "sorts by: 'descending'/'d', 'ascending'/'a'",
-        ARGS_OPTIONAL,
-        false, NULL, 0,
-        ARGS_SINGLE_OPT, ARGS_EXPECTS_STRING
+        .name_short = 's',
+        .name_long = "sort",
+        .help_text = "sorts by: 'descending'/'d', 'ascending'/'a'",
+        .type = ARGS_SINGLE_OPT,
+        .expects = ARGS_EXPECTS_STRING,
     };
     args_Flag upcoming_flag = {
-        'u', "upcoming",
-        "equivalent to '--after --sort ascending'",
-        ARGS_OPTIONAL,
-        false, NULL, 0,
-        ARGS_BOOLEAN, ARGS_EXPECTS_NONE
+        .name_short = 'u',
+        .name_long = "upcoming",
+        .help_text = "equivalent to '--after --sort ascending'",
+        .type = ARGS_BOOLEAN,
     };
     args_Flag nocolour_flag = {
-        false, "no-colour",
-        "disables colour in output. This will also occur if TERM=dumb, \n"
-        "NO_COLO(U)R or NOTA_NO_COLO(U)R is set, or the output is piped to a file",
-        ARGS_OPTIONAL,
-        false, NULL, 0,
-        ARGS_BOOLEAN, ARGS_EXPECTS_NONE
+        .name_long = "no-colour",
+        .help_text = "disables colour in output. This will also occur if TERM=dumb, \n"
+                     "NO_COLO(U)R or NOTA_NO_COLO(U)R is set, or the output is piped to a file",
+        .type = ARGS_BOOLEAN,
     };
     args_Flag nocolor_flag = {
-        false, "no-color",
-        "equivalent to the above",
-        ARGS_OPTIONAL,
-        false, NULL, 0,
-        ARGS_BOOLEAN, ARGS_EXPECTS_NONE
+        .name_long = "no-color",
+        .help_text = "equivalent to the above",
+        .type = ARGS_BOOLEAN,
     };
     args_Flag line_num_flag = {
-        false, "line-num",
-        "show node line numbers",
-        ARGS_OPTIONAL,
-        false, NULL, 0,
-        ARGS_BOOLEAN, ARGS_EXPECTS_NONE
+        .name_long = "line-num",
+        .help_text = "show node line numbers",
+        .type = ARGS_BOOLEAN,
     };
     args_Flag forcecolour_flag = {
-        false, "force-colour",
-        "forces colour in output. This will override TERM=dumb, \n"
-        "NO_COLO(U)R, and NOTA_NO_COLO(U)R",
-        ARGS_OPTIONAL,
-        false, NULL, 0,
-        ARGS_BOOLEAN, ARGS_EXPECTS_NONE
+        .name_long = "force-colour",
+        .help_text = "forces colour in output. This will override TERM=dumb, \n"
+                     "NO_COLO(U)R, and NOTA_NO_COLO(U)R",
+        .type = ARGS_BOOLEAN,
     };
     args_Flag forcecolor_flag = {
-        false, "force-color",
-        "equivalent to the above",
-        ARGS_OPTIONAL,
-        false, NULL, 0,
-        ARGS_BOOLEAN, ARGS_EXPECTS_NONE
+        .name_long = "force-color",
+        .help_text = "equivalent to the above",
+        .type = ARGS_BOOLEAN,
     };
 
     args_Flag *flags[] = {
