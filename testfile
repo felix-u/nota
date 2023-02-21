@@ -1,24 +1,21 @@
 This is a sentence nota should know absolutely nothing about. `Nothing` 'nothing' "zilch"
 
-@Section str:(Nâme 1) num:#date(2000-01-01 20:00) str:#done(false);
+@Section "Nâme 1" #date(2000-01-01 20:00) #done"false";
 
-@Section str:(Ñame 2 ) num:#date(
+@Section (Ñame 2) #date(
                             2020-01-01
-                        ) str:(
-This is the Section, with terrible whitespace. );
+                        ) "
+This is the Section, with terrible whitespace. ";
 
-@Section str:(Name "3") {
-    @Subsection str:( `wow, a subsection!` );
-    @Subsection str:(A Name 大) num:#date(1990-01-01.12:00) str:#done('false')
+@Section "Name \"3\"" {
+    @Subsection "`wow, a subsection!`";
+    @Subsection "A Name 大" #date(1990-01-01.12:00) #done"false" #meaningoflife(42)
     {
         Ooh, another!
         More filler.
         Filler     again.
-        @Subsubsection str:#done(true) {
+        @Subsubsection #done"true" {
             A subsection of a subsection. Stunning.
         };
     };
 };
-
-@_ str:(Some anonymous node) num:#date(2024-01-01) str:#date(2024-01-01)
-   str:#done(true) { :P };
