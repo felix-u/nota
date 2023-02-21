@@ -267,7 +267,7 @@ void node_printFmt(node n, size_t indent_level, size_t num_current, size_t num_m
     for (size_t i = 0; i < indent_level; i++) putchar('\t');
 
     if (n.tag) {
-        ansi_set("%s;%s", ANSI_BG_CYAN, ANSI_FG_BLACK);
+        ansi_set("%s;%s", ANSI_BG_YELLOW, ANSI_FG_BLACK);
         printf(" %lc ", TAG);
         ansi_reset();
         putchar(' ');
@@ -286,14 +286,14 @@ void node_printFmt(node n, size_t indent_level, size_t num_current, size_t num_m
 
     if (n.desc.len > 0) {
         printf(" | ");
-        ansi_set("%s", ANSI_FG_BLUE);
+        ansi_set("%s", ANSI_FG_CYAN);
         wstring_print(n.desc);
         ansi_reset();
     }
 
     if (n.date.len > 0) {
         printf(" | ");
-        ansi_set("%s", ANSI_FG_GREEN);
+        ansi_set("%s", ANSI_FG_MAGENTA);
         wstring_print(n.date);
         ansi_reset();
     }
