@@ -170,9 +170,15 @@ int main(int argc, char **argv) {
     usize positional_num = 0;
     const usize positional_cap = 256;
     char *positional_args[positional_cap];
-    int args_return = args_process(argc, argv, "parser for simple node notation", flags_count, flags,
-                                   &positional_num, positional_args, ARGS_EXPECTS_FILE, ARGS_POSITIONAL_SINGLE,
-                                   positional_cap);
+    int args_return = args_proc((args_Proc_Args) {
+        argc, argv,
+        flags_count, flags,
+        &positional_num, positional_args,
+        .usage_description = "parser for simple node notation",
+        .positional_expects = ARGS_EXPECTS_FILE,
+        .positional_type = ARGS_POSITIONAL_SINGLE,
+        positional_cap,
+    });
     if (args_return != ARGS_RETURN_CONTINUE) return args_return;
 
     if (nocolour_flag.is_present || nocolor_flag.is_present) ansi_enabled = false;
