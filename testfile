@@ -1,21 +1,54 @@
-This is a sentence nota should know absolutely nothing about. `Nothing` 'nothing' "zilch"
+@Section "Nâme 1" date#2000-01-01.20:00 done#false;
 
-@Section "Nâme 1" #date(2000-01-01 20:00) #done"false";
-
-@Section (Ñame 2) #date(
-                            2020-01-01
-                        ) "
-This is the Section, with terrible whitespace. ";
+@Section "Ñame 2" date#2020-01-01 "This is the Section, with terrible whitespace.";
 
 @Section "Name \"3\"" {
-    @Subsection "`wow, a subsection!`";
-    @Subsection "A Name 大" #date(1990-01-01.12:00) #done"false" #meaningoflife(42)
+    @Subsection "wow, a subsection!";
+    @Subsection "A Name 大" date#1990-01-01.12:00 done#false meaningoflife#42
     {
         Ooh, another!
         More filler.
         Filler     again.
-        @Subsubsection #done"true" {
+        @Subsubsection done#true mods[inherits[#date] + 25d7h] {
             A subsection of a subsection. Stunning.
         };
     };
+};
+
+
+@Week shares[startdate#2023-05-01] {
+    @Day Mon mods[startdate# + 0d];
+    @Day Tue mods[startdate# + 1d];
+    @Day Wed mods[startdate# + 2d];
+    @Day Thu mods[startdate# + 3d];
+    @Day Fri mods[startdate# + 4d];
+    @Day Sat mods[startdate# + 5d];
+    @Day Sun mods[startdate# + 6d];
+};
+
+@Books {
+    @Book title#"The Catcher in the Rye" 
+          author#"J.D. Salinger" 
+          pages#277 
+          status#Read 
+          genres#(fiction coming-of-age);
+    @Book title#"To Kill a Mockingbird" 
+          author#"Harper Lee" pages#324 
+          status#Read 
+          genres#(fiction classic social-issues);
+    @Book title#"Dune" 
+          author#"Frank Herbert" 
+          pages#896 
+          status#Reading 
+          genres#(science-fiction fantasy adventure);
+    @Book title#"1984" 
+          author#"George Orwell" 
+          pages#328 
+          status#"To Read" 
+          genres#(fiction dystopian social-criticism);
+    @Book title#"Brave New World" 
+          author#"Aldous Huxley" 
+          pages#268 
+          status#"To Read" 
+          genres#(fiction dystopian philosophy);
 };
