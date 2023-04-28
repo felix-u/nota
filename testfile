@@ -27,6 +27,16 @@
 };
 
 @Books {
+    @Series 
+        title#"Harry Potter" 
+        shares[
+            author#"J. K. Rowling"
+            genres#(fiction fantasy magic)
+        ]
+    {
+        @Book title#"Harry Potter and the Philosopher's Stone"
+              status#Read;  
+    };
     @Book title#"The Catcher in the Rye" 
           author#"J.D. Salinger" 
           pages#277 
