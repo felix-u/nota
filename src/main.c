@@ -24,53 +24,24 @@
 
 int main(int argc, char **argv) {
 
-    args_Flag nocolour_flag = {
-        false, "no-colour",
-        "disables colour in output. This will also occur if TERM=dumb, \n"
-        "NO_COLO(U)R or NOTA_NO_COLO(U)R is set, or the output is piped to a file",
-        ARGS_OPTIONAL,
-        false, NULL, 0,
-        ARGS_BOOLEAN, ARGS_EXPECTS_NONE
-    };
-    args_Flag nocolor_flag = {
-        false, "no-color",
-        "equivalent to the above",
-        ARGS_OPTIONAL,
-        false, NULL, 0,
-        ARGS_BOOLEAN, ARGS_EXPECTS_NONE
-    };
-    args_Flag forcecolour_flag = {
-        false, "force-colour",
-        "forces colour in output. This will override TERM=dumb, \n"
-        "NO_COLO(U)R, and NOTA_NO_COLO(U)R",
-        ARGS_OPTIONAL,
-        false, NULL, 0,
-        ARGS_BOOLEAN, ARGS_EXPECTS_NONE
-    };
-    args_Flag forcecolor_flag = {
-        false, "force-color",
-        "equivalent to the above",
-        ARGS_OPTIONAL,
-        false, NULL, 0,
-        ARGS_BOOLEAN, ARGS_EXPECTS_NONE
-    };
-
     args_Flag *flags[] = {
-        &nocolour_flag,
-        &nocolor_flag,
-        &forcecolour_flag,
-        &forcecolor_flag,
         &ARGS_HELP_FLAG,
         &ARGS_VERSION_FLAG,
     };
 
-    const usize flags_count = sizeof(flags) / sizeof(flags[0]);
     usize positional_num = 0;
     const usize positional_cap = 256;
     char *positional_args[positional_cap];
-    int args_return = args_process(argc, argv, "parser for simple node notation", flags_count, flags,
-                                   &positional_num, positional_args, ARGS_EXPECTS_FILE, ARGS_POSITIONAL_SINGLE,
-                                   positional_cap);
+    int args_return = args_proc((args_Proc_Args) {
+        argc, argv, 
+        .flags_count = sizeof(flags) / sizeof(flags[0]),
+        flags,
+        &positional_num, positional_args,
+        .usage_description = "parser for simple node notation",
+        .positional_expects = ARGS_EXPECTS_FILE,
+        .positional_type = ARGS_POSITIONAL_SINGLE, 
+        positional_cap,
+    });
     if (args_return != ARGS_RETURN_CONTINUE) return args_return;
 
     FILE *input_file = fopen(positional_args[0], "r");

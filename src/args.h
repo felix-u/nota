@@ -1,135 +1,134 @@
-/* args.h - easy and robust command line argument parsing - felix-u 2022
-*
-*   This is an stb-style single-header-file C library.
-*
-*   To use this library, do this in *one* C file:
-*       #define ARGS_IMPLEMENTATION
-*       #include "args.h"
-*
-*
-*   COMPILE-TIME OPTIONS
-*
-*   #define ARGS_BINARY_NAME "name"
-*       If this is not defined, argv[0] will be used instead.
-*
-*   #define ARGS_BINARY_VERSION "1.0"
-*       *Required* to use ARGS_VERSION_FLAG.
-*
-*   #define ARGS_HELP_FLAG_DISABLED
-*       Disables the provided ARGS_HELP_FLAG.
-*
-*   Other options not expected to change but able to be modified are in the source code.
-*
-*
-*   DOCUMENTATION
-*
-*   Basic usage (see EXAMPLE for a full example):
-*       args_Flag *flags[] = { ... };
-*       size_t positional_num = 0;
-*       const size_t positional_cap = LARGE_NUMBER;
-*       char *positional_args[positional_cap];
-*       int args_return = args_process(argc, argv, "short description of program", flags_count, flags, &positional_num,
-*                                      positional_args, positional_expects, positional_type, positional_cap);
-*       if (args_return != ARGS_RETURN_CONTINUE) return args_return;
-*
-*   See near top of source code for enum types.
-*
-*   args_process() parameters:
-*       int argc            -- from main()
-*       char **argv         -- from main()
-*       const char *usage_description                      -- short description of program purpose, shown at the top of
-*                                                             help text
-*       const size_t flags_count                           -- number of flags
-*       args_flag *flags[]                                 -- flags
-*       size_t *positional_num                             -- number of positional arguments passed directly to the
-*                                                             binary. Unknown before processing, and therefore 0
-*       char **positional_args                             -- empty string array of size positional_cap. Will contain
-*                                                             positional arguments passed directly to the binary
-*       const ARGS_FLAG_EXPECTS positional_expects         -- what kind of positional arguments the binary expects.
-*                                                             Used in help text
-*       const ARGS_BINARY_POSITIONAL_TYPE positional_type  -- how many positional arguments the binary expects
-*       const size_t positional_cap                        -- max no. of positional arguments; size of positional_args
-*
-*   struct args_Flag members:
-*       const char name_short               -- flag short form, e.g. '-h'. Can be false
-*       const char *name_long               -- flag long form, e.g. '--help'. Must *not* be NULL
-*       const char *help_text               -- flag help text, e.g. 'display this help'. May be NULL, but shouldn't
-*       const bool required                 -- whether flag is required
-*       bool is_present                     -- whether flag has been passed. Should initially be false
-*       char **opts                         -- arguments passed to flag. *Must* initially be NULL
-*       size_t opts_num                     -- number of arguments passed to flag. *Must* initially be 0
-*       const ARGS_FLAG_TYPE type           -- whether the flag is boolean, expects one argument, or expects multiple
-*       const ARGS_FLAG_EXPECTS expects     -- what kind of arguments the flag expects. Used in help text
-*
-*
-*   EXAMPLE
-*
-*       #include <stdio.h>
-*       #include <stdlib.h>
-*
-*       #define ARGS_IMPLEMENTATION
-*       #define ARGS_BINARY_NAME "name"
-*       #define ARGS_BINARY_VERSION "version"
-*       #include "args.h"
-*
-*       int main(int argc, char **argv) {
-*
-*           args_Flag boolean_flag = {
-*               'b', "boolean",
-*               "an example boolean flag",
-*               ARGS_OPTIONAL,
-*               false, NULL, 0,
-*               ARGS_BOOLEAN, ARGS_EXPECTS_NONE
-*           };
-*           args_Flag single_flag = {
-*               's', "single",
-*               "an example of a flag which takes one argument",
-*               ARGS_REQUIRED,
-*               false, NULL, 0,
-*               ARGS_SINGLE_OPT, ARGS_EXPECTS_STRING
-*           };
-*           args_Flag multi_flag = {
-*               'm', "multi",
-*               "an example of a flag which takes multiple arguments",
-*               ARGS_REQUIRED,
-*               false, NULL, 0,
-*               ARGS_MULTI_OPT, ARGS_EXPECTS_FILE
-*           };
-*           args_Flag *flags[] = {
-*               &boolean_flag,
-*               &single_flag,
-*               &multi_flag,
-*               ARGS_HELP_FLAG,
-*               ARGS_VERSION_FLAG,
-*           };
-*
-*           const size_t flags_count = sizeof(flags) / sizeof(flags[0]);
-*           size_t positional_num = 0;
-*           const size_t positional_cap = 256;
-*           char *positional_args[positional_cap];
-*
-*           int args_return = args_process(argc, argv, "test of args.h", flags_count, flags, &positional_num,
-*                                          positional_args, ARGS_EXPECTS_FILE, ARGS_POSITIONAL_MULTI, positional_cap);
-*           if (args_return != ARGS_RETURN_CONTINUE) return args_return;
-*
-*           if (single_flag.is_present) printf("You passed flag 'single'!\n");
-*
-*           return 0;
-*       }
-*
-*/
+// args.h - simple and robust command line argument parsing - felix-u 2023
+// 2023-02-23
+//
+//    This is an stb-style single-header-file C library.
+//
+//    To use this library, do this in *one* C file:
+//        #define ARGS_IMPLEMENTATION
+//        #include "args.h"
+//
+//
+//    COMPILE-TIME OPTIONS
+//
+//    #define ARGS_BINARY_NAME "name"
+//        If this is not defined, argv[0] will be used instead.
+//
+//    #define ARGS_BINARY_VERSION "1.0"
+//        *Required* to use ARGS_VERSION_FLAG.
+//
+//    #define ARGS_HELP_FLAG_DISABLED
+//        Disables the provided ARGS_HELP_FLAG.
+//
+//    Other options not expected to change but technically able to be modified are in the source code.
+//
+//
+//    DOCUMENTATION
+//
+//    Basic usage (see EXAMPLE for a full example):
+//        args_Flag *flags[] = { ... };
+//        size_t positional_num = 0;
+//        const size_t positional_cap = LARGE_NUMBER;
+//        char *positional_args[positional_cap];
+//        int args_return = args_process(argc, argv, "short description of program", flags_count, flags, &positional_num,
+//                                       positional_args, positional_expects, positional_type, positional_cap);
+//        if (args_return != ARGS_RETURN_CONTINUE) return args_return;
+//
+//    See near top of source code for enum types.
+//
+//    args_process() parameters:
+//        int argc            -- from main()
+//        char **argv         -- from main()
+//        const char *usage_description                      -- short description of program purpose, shown at the top of
+//                                                              help text
+//        const size_t flags_count                           -- number of flags
+//        args_flag *flags[]                                 -- flags
+//        size_t *positional_num                             -- number of positional arguments passed directly to the
+//                                                              binary. Unknown before processing, and therefore 0
+//        char **positional_args                             -- empty string array of size positional_cap. Will contain
+//                                                              positional arguments passed directly to the binary
+//        const ARGS_FLAG_EXPECTS positional_expects         -- what kind of positional arguments the binary expects.
+//                                                              Used in help text
+//        const ARGS_BINARY_POSITIONAL_TYPE positional_type  -- how many positional arguments the binary expects
+//        const size_t positional_cap                        -- max no. of positional arguments; size of positional_args
+//
+//    struct args_Flag members:
+//        const char name_short               -- flag short form, e.g. '-h'. Can be false
+//        const char *name_long               -- flag long form, e.g. '--help'. Must *not* be NULL
+//        const char *help_text               -- flag help text, e.g. 'display this help'. May be NULL, but shouldn't
+//        const bool required                 -- whether flag is required
+//        bool is_present                     -- whether flag has been passed. Should initially be false
+//        char **opts                         -- arguments passed to flag. *Must* initially be NULL
+//        size_t opts_num                     -- number of arguments passed to flag. *Must* initially be 0
+//        const ARGS_FLAG_TYPE type           -- whether the flag is boolean, expects one argument, or expects multiple
+//        const ARGS_FLAG_EXPECTS expects     -- what kind of arguments the flag expects. Used in help text
+//
+//
+//    EXAMPLE
+//
+//        #include <stdio.h>
+//        #include <stdlib.h>
+//
+//        #define ARGS_IMPLEMENTATION
+//        #define ARGS_BINARY_NAME "name"
+//        #define ARGS_BINARY_VERSION "version"
+//        #include "args.h"
+//
+//        int main(int argc, char **argv) {
+//
+//            args_Flag boolean_flag = {
+//                'b', "boolean",
+//                "an example boolean flag",
+//                false,
+//                false, NULL, 0,
+//                ARGS_BOOLEAN, ARGS_EXPECTS_NONE
+//            };
+//            args_Flag single_flag = {
+//                's', "single",
+//                "an example of a flag which takes one argument",
+//                true,
+//                false, NULL, 0,
+//                ARGS_SINGLE_OPT, ARGS_EXPECTS_STRING
+//            };
+//            args_Flag multi_flag = {
+//                'm', "multi",
+//                "an example of a flag which takes multiple arguments",
+//                true,
+//                false, NULL, 0,
+//                ARGS_MULTI_OPT, ARGS_EXPECTS_FILE
+//            };
+//            args_Flag *flags[] = {
+//                &boolean_flag,
+//                &single_flag,
+//                &multi_flag,
+//                ARGS_HELP_FLAG,
+//                ARGS_VERSION_FLAG,
+//            };
+//
+//            const size_t flags_count = sizeof(flags) / sizeof(flags[0]);
+//            size_t positional_num = 0;
+//            const size_t positional_cap = 256;
+//            char *positional_args[positional_cap];
+//
+//            int args_return = args_process(argc, argv, "test of args.h", flags_count, flags, &positional_num,
+//                                           positional_args, ARGS_EXPECTS_FILE, ARGS_POSITIONAL_MULTI, positional_cap);
+//            if (args_return != ARGS_RETURN_CONTINUE) return args_return;
+//
+//            if (single_flag.is_present) printf("You passed flag 'single'!\n");
+//
+//            return 0;
+//        }
+//
+//
 
 
-#include <assert.h>
+#ifndef ARGS_H
+#define ARGS_H
+
 #include <stdbool.h>
 #include <string.h>
 #include <strings.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-
-#ifndef ARGS_TYPE
-#define ARGS_TYPE
 
 typedef enum ARGS_FLAG_TYPE {
     ARGS_NONE,
@@ -139,6 +138,7 @@ typedef enum ARGS_FLAG_TYPE {
 } ARGS_FLAG_TYPE;
 
 typedef enum ARGS_BINARY_POSITIONAL_TYPE {
+    ARGS_POSITIONAL_NONE,
     ARGS_POSITIONAL_SINGLE,
     ARGS_POSITIONAL_MULTI,
 } ARGS_BINARY_POSITIONAL_TYPE;
@@ -149,11 +149,6 @@ typedef enum ARGS_FLAG_EXPECTS {
     ARGS_EXPECTS_STRING,
     ARGS_EXPECTS_FILE,
 } ARGS_FLAG_EXPECTS;
-
-typedef enum ARGS_FLAG_REQUIRED {
-    ARGS_REQUIRED = true,
-    ARGS_OPTIONAL = false
-} ARGS_FLAG_REQUIRED;
 
 typedef struct args_Flag {
     const char name_short;
@@ -167,8 +162,6 @@ typedef struct args_Flag {
     const ARGS_FLAG_EXPECTS expects;
 } args_Flag;
 
-#endif // ARGS_TYPE
-
 
 args_Flag *args_byNameShort(char name_short, const size_t flags_count, args_Flag *flags[]);
 
@@ -178,10 +171,23 @@ void args_helpHint(void);
 
 bool args_optionalFlagsPresent(const size_t flags_count, args_Flag *flags[]);
 
-int args_process
-(int argc, char **argv, const char *usage_description, const size_t flags_count, args_Flag *flags[],
-size_t *positional_num, char **positional_args, const ARGS_FLAG_EXPECTS positional_expects,
-const ARGS_BINARY_POSITIONAL_TYPE positional_type, const size_t positional_cap);
+typedef struct args_Proc_Args {
+    int argc;
+    char **argv;
+    const size_t flags_count;
+    args_Flag **flags;
+    size_t *positional_num;
+    char **positional_args;
+    const char *usage_description;
+    const char *extra_usage_text;
+    const ARGS_FLAG_EXPECTS positional_expects;
+    const ARGS_BINARY_POSITIONAL_TYPE positional_type;
+    const size_t positional_cap;
+} args_Proc_Args;
+
+int args_proc (args_Proc_Args a);
+
+#endif // ARGS_H
 
 
 #ifdef ARGS_IMPLEMENTATION
@@ -234,7 +240,7 @@ const ARGS_BINARY_POSITIONAL_TYPE positional_type, const size_t positional_cap);
         ARGS_HELP_FLAG_NAME_SHORT,              \
         ARGS_HELP_FLAG_NAME_LONG,               \
         ARGS_HELP_FLAG_HELP_TEXT,               \
-        ARGS_OPTIONAL,                          \
+        false,                                  \
         false, NULL, 0,                         \
         ARGS_BOOLEAN, ARGS_EXPECTS_NONE         \
     }
@@ -263,7 +269,7 @@ const ARGS_BINARY_POSITIONAL_TYPE positional_type, const size_t positional_cap);
         ARGS_VERSION_FLAG_NAME_SHORT,              \
         ARGS_VERSION_FLAG_NAME_LONG,               \
         ARGS_VERSION_FLAG_HELP_TEXT,               \
-        ARGS_OPTIONAL,                             \
+        false,                                     \
         false, NULL, 0,                            \
         ARGS_BOOLEAN, ARGS_EXPECTS_NONE            \
     }
@@ -303,31 +309,24 @@ bool args_optionalFlagsPresent(const size_t flags_count, args_Flag *flags[]) {
 }
 
 
-int args_process
-(int argc, char **argv, const char *usage_description, const size_t flags_count, args_Flag *flags[],
-size_t *positional_num, char **positional_args, const ARGS_FLAG_EXPECTS positional_expects,
-const ARGS_BINARY_POSITIONAL_TYPE positional_type, const size_t positional_cap)
-{
-    #ifdef ARGS_HELP_FLAG_DISABLED
-    (void) usage_description;
-    #endif // ARGS_HELP_FLAG_DISABLED
+int args_proc (args_Proc_Args a) {
 
-    // All flags MUST have a long format, if not a short one.
-    // While we're looping over flags, if none are required, let's not mention mandatory options in help text later.
+    // If no flags are required, let's not mention mandatory options in help text later.
     bool any_mandatory = false;
-    for (size_t i = 0; i < flags_count; i++) {
-        assert(flags[i]->name_long != NULL && "One flag has a NULL name_long");
-        if (flags[i]->required == ARGS_REQUIRED) any_mandatory = true;
+    for (size_t i = 0; i < a.flags_count; i++) {
+        if (!a.flags[i]->required) continue;
+        any_mandatory = true;
+        break;
     }
 
     #ifndef ARGS_HELP_FLAG_DISABLED
-    args_Flag *help_flag = args_byNameShort(ARGS_HELP_FLAG_NAME_SHORT, flags_count, flags);
+    args_Flag *help_flag = args_byNameShort(ARGS_HELP_FLAG_NAME_SHORT, a.flags_count, a.flags);
     bool help_implied = false;
     #endif // ARGS_HELP_FLAG_DISABLED
 
     // Immediately show help if binary was expecting positional arguments but got none.
     #ifndef ARGS_HELP_FLAG_DISABLED
-    if ((positional_type == ARGS_POSITIONAL_SINGLE || positional_type == ARGS_POSITIONAL_MULTI) && argc == 1) {
+    if ((a.positional_type == ARGS_POSITIONAL_SINGLE || a.positional_type == ARGS_POSITIONAL_MULTI) && a.argc == 1) {
         if (help_flag != NULL) help_flag->is_present = true;
         help_implied = true;
     }
@@ -335,19 +334,19 @@ const ARGS_BINARY_POSITIONAL_TYPE positional_type, const size_t positional_cap)
 
     int skip = 0;
     bool no_more_flags = false; // All arguments are positional after "--", as is convention.
-    bool is_positional[argc];
-    for (int i = 0; i < argc; i++) is_positional[i] = false;
-    *positional_num = 0;
+    bool is_positional[a.argc];
+    for (int i = 0; i < a.argc; i++) is_positional[i] = false;
+    *a.positional_num = 0;
 
-    for (int i = 1; i + skip < argc; i++) {
+    for (int i = 1; i + skip < a.argc; i++) {
         i += skip;
         skip = 0;
 
-        char *arg = argv[i];
+        char *arg = a.argv[i];
         size_t arg_len = strlen(arg);
 
-        if ((arg[0] != '-' || no_more_flags) && (size_t)i <= positional_cap) {
-            (*positional_num)++;
+        if ((arg[0] != '-' || no_more_flags) && (size_t)i <= a.positional_cap) {
+            (*a.positional_num)++;
             is_positional[i] = true;
             continue;
         }
@@ -365,24 +364,24 @@ const ARGS_BINARY_POSITIONAL_TYPE positional_type, const size_t positional_cap)
 
             // Arg is of form "--arg"
             bool found_match = false;
-            for (size_t j = 0; j < flags_count; j++) {
-                if (!strncasecmp(flags[j]->name_long, (arg + 2), (arg_len))) {
-                    flags[j]->is_present = true;
-                    if (flags[j]->type == ARGS_SINGLE_OPT && (i + 1) < argc &&
-                       (strlen(argv[i + 1]) >= 1 && argv[i + 1][0] != '-'))
+            for (size_t j = 0; j < a.flags_count; j++) {
+                if (!strncasecmp(a.flags[j]->name_long, (arg + 2), (arg_len))) {
+                    a.flags[j]->is_present = true;
+                    if (a.flags[j]->type == ARGS_SINGLE_OPT && (i + 1) < a.argc &&
+                       (strlen(a.argv[i + 1]) >= 1 && a.argv[i + 1][0] != '-'))
                     {
-                        flags[j]->opts = argv + i + 1;
-                        flags[j]->opts_num = 1;
+                        a.flags[j]->opts = a.argv + i + 1;
+                        a.flags[j]->opts_num = 1;
                         skip = 1;
                     }
-                    else if (flags[j]->type == ARGS_MULTI_OPT) {
+                    else if (a.flags[j]->type == ARGS_MULTI_OPT) {
                         size_t opts_num = 0;
-                        for (int k = i + 1; k < argc; k++) {
-                            if (strlen(argv[k]) > 1 && argv[k][0] == '-') break;
+                        for (int k = i + 1; k < a.argc; k++) {
+                            if (strlen(a.argv[k]) > 1 && a.argv[k][0] == '-') break;
                             opts_num++;
                         }
-                        flags[j]->opts = argv + i + 1;
-                        flags[j]->opts_num = opts_num;
+                        a.flags[j]->opts = a.argv + i + 1;
+                        a.flags[j]->opts_num = opts_num;
                         skip = opts_num;
                     }
                     found_match = true;
@@ -391,7 +390,7 @@ const ARGS_BINARY_POSITIONAL_TYPE positional_type, const size_t positional_cap)
             }
             // Flag invalid
             if (!found_match) {
-                printf("%s: %s '%s'\n", ARGS_BINARY_NAME, ARGS_INVALID_FLAG_TEXT, argv[i]);
+                printf("%s: %s '%s'\n", ARGS_BINARY_NAME, ARGS_INVALID_FLAG_TEXT, a.argv[i]);
                 #ifndef ARGS_HELP_FLAG_DISABLED
                 printf(ARGS_USAGE_ERR_HELP_TEXT, ARGS_BINARY_NAME, ARGS_HELP_FLAG_NAME_LONG);
                 putchar('\n');
@@ -407,9 +406,9 @@ const ARGS_BINARY_POSITIONAL_TYPE positional_type, const size_t positional_cap)
         // Go up to last character
         for (size_t j = 1; j < arg_len - 1; j++) {
             bool found_match = false;
-            for (size_t k = 0; k < flags_count; k++) {
-                if (arg[j] == flags[k]->name_short) {
-                    flags[k]->is_present = true;
+            for (size_t k = 0; k < a.flags_count; k++) {
+                if (arg[j] == a.flags[k]->name_short) {
+                    a.flags[k]->is_present = true;
                     found_match= true;
                     break;
                 }
@@ -426,25 +425,25 @@ const ARGS_BINARY_POSITIONAL_TYPE positional_type, const size_t positional_cap)
         }
         // Last character could have options supplied to it ("-arg opt opt" == "-a -r -g opt opt").
         bool found_match = false;
-        for (size_t k = 0; k < flags_count; k++) {
-            if (arg[arg_len - 1] == flags[k]->name_short) {
-                flags[k]->is_present = true;
+        for (size_t k = 0; k < a.flags_count; k++) {
+            if (arg[arg_len - 1] == a.flags[k]->name_short) {
+                a.flags[k]->is_present = true;
                 found_match = true;
-                if (flags[k]->type == ARGS_SINGLE_OPT && (i + 1) < argc &&
-                   (strlen(argv[i + 1]) >= 1 && argv[i + 1][0] != '-'))
+                if (a.flags[k]->type == ARGS_SINGLE_OPT && (i + 1) < a.argc &&
+                   (strlen(a.argv[i + 1]) >= 1 && a.argv[i + 1][0] != '-'))
                 {
-                    flags[k]->opts = argv + i + 1;
-                    flags[k]->opts_num = 1;
+                    a.flags[k]->opts = a.argv + i + 1;
+                    a.flags[k]->opts_num = 1;
                     skip = 1;
                 }
-                else if (flags[k]->type == ARGS_MULTI_OPT) {
+                else if (a.flags[k]->type == ARGS_MULTI_OPT) {
                     size_t opts_num = 0;
-                    for (int l = i + 1; l < argc; l++) {
-                        if (strlen(argv[l]) > 1 && argv[l][0] == '-') break;
+                    for (int l = i + 1; l < a.argc; l++) {
+                        if (strlen(a.argv[l]) > 1 && a.argv[l][0] == '-') break;
                         opts_num++;
                     }
-                    flags[k]->opts = argv + i + 1;
-                    flags[k]->opts_num = opts_num;
+                    a.flags[k]->opts = a.argv + i + 1;
+                    a.flags[k]->opts_num = opts_num;
                     skip = opts_num;
                 }
             }
@@ -466,9 +465,9 @@ const ARGS_BINARY_POSITIONAL_TYPE positional_type, const size_t positional_cap)
 
     // Fill array of positional args
     size_t positional_counter = 0;
-    for (int i = 1; i < argc; i++) {
-        if (is_positional[i] == true && positional_counter < positional_cap) {
-            positional_args[positional_counter] = argv[i];
+    for (int i = 1; i < a.argc; i++) {
+        if (is_positional[i] == true && positional_counter < a.positional_cap) {
+            a.positional_args[positional_counter] = a.argv[i];
             positional_counter++;
         }
     }
@@ -477,16 +476,16 @@ const ARGS_BINARY_POSITIONAL_TYPE positional_type, const size_t positional_cap)
     #ifndef ARGS_HELP_FLAG_DISABLED
     if (help_flag != NULL && help_flag->is_present == true) {
         printf(ARGS_BINARY_NAME);
-        if (usage_description != NULL) printf(" - %s", usage_description);
+        if (a.usage_description != NULL) printf(" - %s", a.usage_description);
         #ifndef ARGS_VERSION_FLAG_DISABLED
         printf(" (version %s)", ARGS_BINARY_VERSION);
         #endif // ARGS_VERSION_FLAG_DISABLED
 
         printf("\n\nUSAGE:\n");
         printf("%s <OPTION>", ARGS_BINARY_NAME);
-        if (flags_count > 1) printf("...");
-        if (positional_expects != ARGS_EXPECTS_NONE) {
-            switch (positional_expects) {
+        if (a.flags_count > 1) printf("...");
+        if (a.positional_expects != ARGS_EXPECTS_NONE) {
+            switch (a.positional_expects) {
                 case ARGS_EXPECTS_NUM:
                     printf(" <NUM>");
                     break;
@@ -499,23 +498,25 @@ const ARGS_BINARY_POSITIONAL_TYPE positional_type, const size_t positional_cap)
                 default:
                     printf(" <ARG>");
             }
-            if (positional_type == ARGS_POSITIONAL_MULTI) printf("...");
+            if (a.positional_type == ARGS_POSITIONAL_MULTI) printf("...");
         }
         putchar('\n');
         if (any_mandatory) printf("Options marked with '*' are mandatory.\n");
 
+        if (a.extra_usage_text != 0) printf("\n%s\n", a.extra_usage_text);
+
         printf("\nOPTIONS:\n");
-        for (size_t i = 0; i < flags_count; i++) {
-            if (flags[i]->required == true) printf("* ");
+        for (size_t i = 0; i < a.flags_count; i++) {
+            if (a.flags[i]->required == true) printf("* ");
             else printf("  ");
 
-            if (flags[i]->name_short != false) printf("-%c, ", flags[i]->name_short);
+            if (a.flags[i]->name_short != false) printf("-%c, ", a.flags[i]->name_short);
             else printf("    ");
 
-            if (flags[i]->name_long != NULL) printf("--%s", flags[i]->name_long);
+            if (a.flags[i]->name_long != NULL) printf("--%s", a.flags[i]->name_long);
 
-            if (flags[i]->expects != ARGS_EXPECTS_NONE) {
-                switch (flags[i]->expects) {
+            if (a.flags[i]->expects != ARGS_EXPECTS_NONE) {
+                switch (a.flags[i]->expects) {
                     case ARGS_EXPECTS_NUM:
                         printf(" <NUM>");
                         break;
@@ -528,17 +529,17 @@ const ARGS_BINARY_POSITIONAL_TYPE positional_type, const size_t positional_cap)
                     default:
                         printf(" <ARG>");
                 }
-                if (flags[i]->type == ARGS_MULTI_OPT) printf("...");
+                if (a.flags[i]->type == ARGS_MULTI_OPT) printf("...");
             }
 
             putchar('\n');
 
-            if (flags[i]->help_text != NULL) {
+            if (a.flags[i]->help_text != NULL) {
                 putchar('\t');
-                size_t help_len = strlen(flags[i]->help_text);
+                size_t help_len = strlen(a.flags[i]->help_text);
                 for (size_t j = 0; j < help_len; j++) {
-                    putchar(flags[i]->help_text[j]);
-                    if (flags[i]->help_text[j] == '\n') putchar('\t');
+                    putchar(a.flags[i]->help_text[j]);
+                    if (a.flags[i]->help_text[j] == '\n') putchar('\t');
                 }
                 putchar('\n');
             }
@@ -551,7 +552,7 @@ const ARGS_BINARY_POSITIONAL_TYPE positional_type, const size_t positional_cap)
 
     // Version number
     #ifndef ARGS_VERSION_FLAG_DISABLED
-    args_Flag *version_flag = args_byNameLong(ARGS_VERSION_FLAG_NAME_LONG, flags_count, flags);
+    args_Flag *version_flag = args_byNameLong(ARGS_VERSION_FLAG_NAME_LONG, a.flags_count, a.flags);
     if (version_flag != NULL && version_flag->is_present) {
         printf("%s %s\n", ARGS_BINARY_NAME, ARGS_BINARY_VERSION);
         return EXIT_SUCCESS;
@@ -559,10 +560,10 @@ const ARGS_BINARY_POSITIONAL_TYPE positional_type, const size_t positional_cap)
     #endif // ARGS_VERSION_FLAG_DISABLED
 
     // Check mandatory flags
-    for (size_t i = 0; i < flags_count; i++) {
-        if (flags[i]->required && !flags[i]->is_present) {
+    for (size_t i = 0; i < a.flags_count; i++) {
+        if (a.flags[i]->required && !a.flags[i]->is_present) {
             printf("%s: ", ARGS_BINARY_NAME);
-            printf(ARGS_MISSING_FLAG_TEXT, flags[i]->name_long);
+            printf(ARGS_MISSING_FLAG_TEXT, a.flags[i]->name_long);
             putchar('\n');
             #ifndef ARGS_HELP_FLAG_DISABLED
             printf(ARGS_USAGE_ERR_HELP_TEXT, ARGS_BINARY_NAME, ARGS_HELP_FLAG_NAME_LONG);
@@ -570,11 +571,11 @@ const ARGS_BINARY_POSITIONAL_TYPE positional_type, const size_t positional_cap)
             #endif // ARGS_HELP_FLAG_DISABLED
             return EX_USAGE;
         }
-        else if (flags[i]->is_present && (flags[i]->type == ARGS_SINGLE_OPT || flags[i]->type == ARGS_MULTI_OPT)
-                 && flags[i]->opts_num < 1)
+        else if (a.flags[i]->is_present && (a.flags[i]->type == ARGS_SINGLE_OPT || a.flags[i]->type == ARGS_MULTI_OPT)
+                 && a.flags[i]->opts_num < 1)
         {
             printf("%s: ", ARGS_BINARY_NAME);
-            printf(ARGS_MISSING_ARG_TEXT, flags[i]->name_long);
+            printf(ARGS_MISSING_ARG_TEXT, a.flags[i]->name_long);
             putchar('\n');
             #ifndef ARGS_HELP_FLAG_DISABLED
             printf(ARGS_USAGE_ERR_HELP_TEXT, ARGS_BINARY_NAME, ARGS_HELP_FLAG_NAME_LONG);
@@ -585,11 +586,11 @@ const ARGS_BINARY_POSITIONAL_TYPE positional_type, const size_t positional_cap)
     }
 
     // Exit if positional arguments were expected, but not received.
-    if ((positional_type == ARGS_POSITIONAL_SINGLE || positional_type == ARGS_POSITIONAL_MULTI)
-        && *positional_num == 0)
+    if ((a.positional_type == ARGS_POSITIONAL_SINGLE || a.positional_type == ARGS_POSITIONAL_MULTI)
+        && *a.positional_num == 0)
     {
         printf("%s: ", ARGS_BINARY_NAME);
-        switch (positional_expects) {
+        switch (a.positional_expects) {
             case ARGS_EXPECTS_NUM:
                 printf(ARGS_MISSING_POSITIONAL_TEXT, "NUM");
                 break;
@@ -602,7 +603,7 @@ const ARGS_BINARY_POSITIONAL_TYPE positional_type, const size_t positional_cap)
             default:
                 printf(ARGS_MISSING_POSITIONAL_TEXT, "ARG");
         }
-        if (positional_type == ARGS_POSITIONAL_MULTI) printf("...");
+        if (a.positional_type == ARGS_POSITIONAL_MULTI) printf("...");
         putchar('\n');
         #ifndef ARGS_HELP_FLAG_DISABLED
         printf(ARGS_USAGE_ERR_HELP_TEXT, ARGS_BINARY_NAME, ARGS_HELP_FLAG_NAME_LONG);
