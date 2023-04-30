@@ -1,8 +1,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <wchar.h>
 
+#include "better_int_types.h"
 
 #ifndef TOKEN_TYPE
 #define TOKEN_TYPE
@@ -56,7 +56,7 @@ typedef struct token_SOA {
 token_SOA token_SOA_init(size_t init_size);
 void      token_SOA_free(token_SOA tok_soa);
 void      token_SOA_append(token_SOA *tok_soa, token tok);
-void      token_process(token_SOA *tok_soa, wchar_t *buf, size_t bufsize);
+void      token_process(token_SOA *tok_soa, char *buf, size_t bufsize);
 
 
 #ifdef TOKEN_IMPLEMENTATION
@@ -100,83 +100,11 @@ void token_SOA_append(token_SOA *tok_soa, token tok) {
     tok_soa->len++;
 }
 
-
-typedef struct _token_ProcPosInfo {
-    size_t  cursor;
-    wchar_t *buf;
-    size_t  bufsize;
-    size_t  row;
-    size_t  col;
-} _token_ProcPosInfo;
-
-static void pos_inc(_token_ProcPosInfo *pos) {
-    if (pos->cursor < pos->bufsize) pos->cursor++;
-    else return;
-    if (pos->buf[pos->cursor] == '\n') {
-        if (pos->cursor < pos->bufsize) pos->cursor++;
-        else return;
-        pos->col = 0;
-        pos->row++;
-    }
-}
-
-void token_process(token_SOA *tok_soa, wchar_t *buf, const size_t bufsize) {
-
-    wchar_t prev = 0;
-    size_t  string_pairs_num = strlen(TOKEN_STRING_PAIRS);
-
-    _token_ProcPosInfo pos = {
-        .cursor = 0,
-        .buf = buf,
-        .bufsize = bufsize,
-        .row = 1,
-        .col = 1,
-    };
-
-    for (; pos.cursor < bufsize; pos_inc(&pos)) {
-
-        // Skip strings
-        for (size_t i = 0; i < string_pairs_num; i++) {
-            if (buf[pos.cursor] == TOKEN_STRING_PAIRS[i] && prev != '\\') {
-                pos_inc(&pos);
-                while ((buf[pos.cursor] != TOKEN_STRING_PAIRS[i] || prev == '\\') && pos.cursor < bufsize) {
-                    prev = buf[pos.cursor];
-                    pos_inc(&pos);
-                }
-                pos_inc(&pos);
-                break;
-            }
-        }
-
-        if (buf[pos.cursor] != '@') continue;
-
-        {
-            token tok_append = {
-                .row           = pos.row,
-                .col           = pos.col,
-                .tok           = '@',
-                .lexeme_start  = pos.cursor,
-                .lexeme_end    = pos.cursor,
-            };
-            token_SOA_append(tok_soa, tok_append);
-        }
-
-        pos_inc(&pos);
-        for (; buf[pos.cursor] != ';' && pos.cursor < bufsize; pos_inc(&pos)) {
-            // Get node name
-            size_t name_start = pos.cursor;
-            while (!iswspace(buf[pos.cursor]) && pos.cursor < bufsize) pos_inc(&pos);
-            size_t name_end = pos.cursor;
-            for (size_t i = name_start; i < name_end; i++) {
-                putwchar(buf[i]);
-            }
-            printf("\n");
-
-            break;
-        }
-
-        prev = buf[pos.cursor];
-    }
+void token_process(token_SOA *tok_soa, char *buf, size_t bufsize) {
+    (void) tok_soa;
+    (void) buf;
+    (void) bufsize;
+    return;
 }
 
 #endif // TOKEN_IMPLEMENTATION

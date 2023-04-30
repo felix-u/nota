@@ -1,4 +1,3 @@
-#include <locale.h>
 #include <math.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -7,28 +6,23 @@
 
 #define  ARGS_IMPLEMENTATION
 #define  ARGS_BINARY_NAME    "nota"
-#define  ARGS_BINARY_VERSION "0.3-dev"
+#define  ARGS_BINARY_VERSION "0.4-dev"
 #include "args.h"
-#include "int_types.h"
-#define  NODE_IMPLEMENTATION
-#include "node.h"
-#define  TOKEN_IMPLEMENTATION
-#include "token.h"
-
-#define ANSI_IMPLEMENTATION
-#include "ansi.h"
-
+#include "better_int_types.h"
 
 #define EX_USAGE 64
 #define EX_IOERR 74
 
-#include "helper.c"
+#ifdef UNITY_BUILD
+    #include "helper.c"
+    #include "token.c"
+#else
+    #include "helper.h"
+    #include "token.h"
+#endif
 
 
 int main(int argc, char **argv) {
-
-    setlocale(LC_ALL, "");
-    if (getenv("NOTA_NO_COLOR") == NULL && getenv("NOTA_NO_COLOUR") == NULL) ansi_stateSet();
 
     args_Flag nocolour_flag = {
         false, "no-colour",
@@ -79,9 +73,6 @@ int main(int argc, char **argv) {
                                    positional_cap);
     if (args_return != ARGS_RETURN_CONTINUE) return args_return;
 
-    if (nocolour_flag.is_present || nocolor_flag.is_present) ansi_enabled = false;
-    else if (forcecolour_flag.is_present || forcecolor_flag.is_present) ansi_enabled = true;
-
     FILE *input_file = fopen(positional_args[0], "r");
     if (input_file == NULL) {
         printf("%s: no such file or directory '%s'\n", ARGS_BINARY_NAME, positional_args[0]);
@@ -93,7 +84,7 @@ int main(int argc, char **argv) {
                position to actually reset. }; */
 
     usize filesize = fsize(input_file);
-    wchar_t filebuf[filesize];
+    char filebuf[filesize];
     memset(filebuf, 0, sizeof(*filebuf) * filesize);
     fclose(input_file);
     input_file = fopen(positional_args[0], "r");
@@ -102,12 +93,9 @@ int main(int argc, char **argv) {
         return EX_IOERR;
     }
 
-    wint_t c;
-    wchar_t wc;
     usize filebuf_len = 0;
-    for (; (c = fgetwc(input_file)) != WEOF; filebuf_len++) {
-        wc = (wchar_t)c;
-        filebuf[filebuf_len] = wc;
+    for (char c = 0; (c = fgetc(input_file)) != EOF; filebuf_len++) {
+        filebuf[filebuf_len] = c;
     }
     filebuf[filebuf_len++] = '\0';
     fclose(input_file);
