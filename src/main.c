@@ -12,7 +12,7 @@
 #include "better_int_types.h"
 
 #define ARR_TYPE int
-#include "arrays.inc"
+#include "arrays.h"
 #undef ARR_TYPE
 
 #define EX_USAGE 64
