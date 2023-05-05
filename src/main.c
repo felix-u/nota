@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <strings.h>
 
 #define  ARGS_IMPLEMENTATION
@@ -9,6 +10,10 @@
 #define  ARGS_BINARY_VERSION "0.4-dev"
 #include "args.h"
 #include "better_int_types.h"
+
+#define ARR_TYPE int
+#include "arrays.inc"
+#undef ARR_TYPE
 
 #define EX_USAGE 64
 #define EX_IOERR 74
@@ -55,7 +60,7 @@ int main(int argc, char **argv) {
        position to actually reset."; */
 
     usize filesize = fsize(input_file);
-    char filebuf[filesize];
+    char filebuf[filesize + 1];
     memset(filebuf, 0, sizeof(*filebuf) * filesize);
     fclose(input_file);
     input_file = fopen(positional_args[0], "r");
@@ -64,27 +69,36 @@ int main(int argc, char **argv) {
         return EX_IOERR;
     }
 
-    usize filebuf_len = 0;
-    for (char c = 0; (c = fgetc(input_file)) != EOF; filebuf_len++) {
-        filebuf[filebuf_len] = c;
+    for (usize i = 0; i < filesize; i++) {
+        filebuf[i] = fgetc(input_file);
     }
-    filebuf[filebuf_len++] = '\0';
+    filebuf[filesize] = '\0';
     fclose(input_file);
 
     // filebuf[] now contains the input file.
-
-    token_SOA tokens = token_SOA_init(filesize);
-    token_process(&tokens, filebuf, filebuf_len);
-
-    for (usize i = 0; i < tokens.len; i++) {
-        printf("%ld:%ld\n", tokens.row[i], tokens.col[i]);
-        printf("TOKEN: %c\n", tokens.tok[i]);
-        for (usize j = tokens.lexeme_start[i]; j <= tokens.lexeme_end[i]; j++) {
-            putchar(filebuf[j]);
-        }
-        printf("\n\n");
+    
+    // DEBUG
+    int *inta = intarr_init(2);
+    for (usize i = 0; i < 200; i++) {
+        intarr_push(inta, (i + 1)*(i + 1));
     }
+    for (usize i = 0; i < arr_len(inta); i++) {
+        printf("%ld/%ld (capacity %ld)\t%d\n", i + 1, arr_len(inta), arr_cap(inta), inta[i]);
+    }
+    intarr_free(inta);
 
-    token_SOA_free(tokens);
+    // token_SOA tokens = token_SOA_init(filesize);
+    // token_process(&tokens, filebuf, filesize);
+
+    // for (usize i = 0; i < tokens.len; i++) {
+    //     printf("%ld:%ld\n", tokens.row[i], tokens.col[i]);
+    //     printf("TOKEN: %c\n", tokens.tok[i]);
+    //     for (usize j = tokens.lexeme_start[i]; j <= tokens.lexeme_end[i]; j++) {
+    //         putchar(filebuf[j]);
+    //     }
+    //     printf("\n\n");
+    // }
+
+    // token_SOA_free(tokens);
     return EXIT_SUCCESS;
 }

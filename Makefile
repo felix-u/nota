@@ -10,6 +10,8 @@ DEBUGFLAGS=-Og -g -ggdb
 RELEASEFLAGS=-O3 -s
 LIBS=
 
+CROSSCC=zig cc -DUNITY_BUILD
+
 debug: $(obj)
 	$(CC) $(CFLAGS) $(DEBUGFLAGS) $(LIBS) -o $(NAME) $^
 
