@@ -51,8 +51,8 @@ int main(int argc, char **argv) {
     }
 
 
-    /* @Note { Closing and opening the file again is stupid, but it seems to be the only way I can get the seek
-               position to actually reset. }; */
+    /* @Note "Closing and opening the file again is stupid, but it seems to be the only way I can get the seek
+       position to actually reset."; */
 
     usize filesize = fsize(input_file);
     char filebuf[filesize];
