@@ -77,15 +77,13 @@ int main(int argc, char **argv) {
 
     // filebuf[] now contains the input file.
     
-    // DEBUG
-    int *inta = intarr_init(2);
-    for (usize i = 0; i < 200; i++) {
-        intarr_push(inta, (i + 1)*(i + 1));
-    }
-    for (usize i = 0; i < arr_len(inta); i++) {
-        printf("%ld/%ld (capacity %ld)\t%d\n", i + 1, arr_len(inta), arr_cap(inta), inta[i]);
-    }
-    intarr_free(inta);
+    // // DEBUG
+    // int *inta = intarr_init(2);
+    // for (usize i = 0; i < 200; i++) {
+    //     intarr_push(&inta, (i + 1)*(i + 1));
+    //     printf("%ld/%ld (capacity %ld)\t%d\n", i + 1, arr_len(inta), arr_cap(inta), inta[i]);
+    // }
+    // intarr_free(inta);
 
     // token_SOA tokens = token_SOA_init(filesize);
     // token_process(&tokens, filebuf, filesize);

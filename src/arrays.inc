@@ -31,8 +31,8 @@ void ARR_FREE_NAME(ARR_TYPE *arr) {
     free((size_t *)arr - 2);
 }
 
-void ARR_PUSH_NAME(ARR_TYPE *arr, ARR_TYPE e) {
-    size_t *metadata = (size_t *)arr - 2;
+void ARR_PUSH_NAME(ARR_TYPE **arr, ARR_TYPE e) {
+    size_t *metadata = (size_t *)(*arr) - 2;
     size_t cap = metadata[0];
     size_t len = metadata[1];
     if (len == cap) {
@@ -40,9 +40,9 @@ void ARR_PUSH_NAME(ARR_TYPE *arr, ARR_TYPE e) {
         size_t *new_data = (size_t *)realloc(metadata, ARR_PTR_OFFSET + cap * sizeof(ARR_TYPE));
         new_data[0] = cap;
         new_data[1] = len;
-        arr = (ARR_TYPE *)(new_data + 2);
+        *arr = (ARR_TYPE *)(new_data + 2);
     }
-    arr[((size_t *)arr)[-1]++] = e;
+    (*arr)[arr_len(*arr)++] = e;
 }
 
 #endif // ARR_TYPE
