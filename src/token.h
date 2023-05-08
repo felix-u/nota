@@ -1,32 +1,40 @@
+#ifndef TOKEN_H
+#define TOKEN_H
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 
 #include "better_int_types.h"
 
+#endif // TOKEN_H
+
+
 #ifndef TOKEN_TYPE
 #define TOKEN_TYPE
 
 typedef enum token_Type {
     // Single-character syntax
-    T_PAREN_LEFT               = '(',
-    T_PAREN_RIGHT              = ')',
-    T_SQUARE_BRACKET_LEFT      = '[',
-    T_SQUARE_BRACKET_RIGHT     = ']',
-    T_CURLY_BRACKET_LEFT       = '{',
-    T_CURLY_BRACKET_RIGHT      = '}',
-    T_COLON                    = ':',
-    T_SEMICOLON                = ';',
-    T_AT                       = '@',
+    T_PAREN_LEFT   = '(',
+    T_PAREN_RIGHT  = ')',
+    T_SQUARE_LEFT  = '[',
+    T_SQUARE_RIGHT = ']',
+    T_CURLY_LEFT   = '{',
+    T_CURLY_RIGHT  = '}',
+    T_SEMICOLON    = ';',
+    T_AT           = '@',
+    T_HASH         = '#',
 
     // Types
-    T_STR = 256,
+    T_STR = 128,
     T_NUM,
+    T_DATE,
 
     // Directives
     T_MODS,
     T_PROVIDES,
-    T_INHERITS,
+    T_SHARES,
+
     T_EOF,
 } token_Type;
 
