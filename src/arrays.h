@@ -1,6 +1,7 @@
 #ifndef ARR_H
 #define ARR_H
 
+#include "allocators.h"
 #include <stdlib.h>
 
 #endif // ARR_H
@@ -20,24 +21,24 @@
 
 #define ARR_PTR_OFFSET (sizeof(size_t) * 2)
 
-ARR_TYPE *ARR_INIT_NAME(size_t init_size) {
-    size_t *data = (size_t *)calloc(1, ARR_PTR_OFFSET + init_size * sizeof(ARR_TYPE));
+ARR_TYPE *ARR_INIT_NAME(size_t init_size, Allocator allocator) {
+    size_t *data = (size_t *)allocator.alloc(1, ARR_PTR_OFFSET + init_size * sizeof(ARR_TYPE));
     data[0] = init_size; // capacity
     data[1] = 0; // length
     return (ARR_TYPE *)(data + 2);
 }
 
-void ARR_FREE_NAME(ARR_TYPE *arr) {
-    free((size_t *)arr - 2);
+void ARR_FREE_NAME(ARR_TYPE *arr, Allocator allocator) {
+    allocator.free((size_t *)arr - 2);
 }
 
-void ARR_PUSH_NAME(ARR_TYPE **arr, ARR_TYPE e) {
+void ARR_PUSH_NAME(ARR_TYPE **arr, ARR_TYPE e, Allocator allocator) {
     size_t *metadata = (size_t *)(*arr) - 2;
     size_t cap = metadata[0];
     size_t len = metadata[1];
     if (len == cap) {
         cap = (cap == 0) ? 1 : cap * 2;
-        size_t *new_data = (size_t *)realloc(metadata, ARR_PTR_OFFSET + cap * sizeof(ARR_TYPE));
+        size_t *new_data = (size_t *)allocator.realloc(metadata, ARR_PTR_OFFSET + cap * sizeof(ARR_TYPE));
         new_data[0] = cap;
         new_data[1] = len;
         *arr = (ARR_TYPE *)(new_data + 2);
