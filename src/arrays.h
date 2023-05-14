@@ -15,8 +15,8 @@
 #define ARR_INIT_NAME ARR_CONCAT(ARR_TYPE_NAME, _init)
 #define ARR_FREE_NAME ARR_CONCAT(ARR_TYPE_NAME, _free)
 #define ARR_PUSH_NAME ARR_CONCAT(ARR_TYPE_NAME, _push)
-#define arr_len(arr) (((size_t *)(arr))[-1])
-#define arr_cap(arr) (((size_t *)(arr))[-2])
+#define ARR_LEN(arr) (((size_t *)(arr))[-1])
+#define ARR_CAP(arr) (((size_t *)(arr))[-2])
 
 #define ARR_PTR_OFFSET (sizeof(size_t) * 2)
 
@@ -42,7 +42,7 @@ void ARR_PUSH_NAME(ARR_TYPE **arr, ARR_TYPE e) {
         new_data[1] = len;
         *arr = (ARR_TYPE *)(new_data + 2);
     }
-    (*arr)[arr_len(*arr)++] = e;
+    (*arr)[ARR_LEN(*arr)++] = e;
 }
 
 #endif // ARR_TYPE
