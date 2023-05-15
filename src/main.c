@@ -12,7 +12,7 @@
 #include "better_int_types.h"
 
 #define ARR_TYPE int
-#include "arrays.h"
+#include "mem.h"
 #undef ARR_TYPE
 
 #define EX_USAGE 64
@@ -78,12 +78,12 @@ int main(int argc, char **argv) {
     // filebuf[] now contains the input file.
     
     // DEBUG
-    int *inta = intarr_init(2, c_allocator);
+    int *inta = intarr_init(8, c_allocator);
     for (usize i = 0; i < 200; i++) {
-        intarr_push(&inta, (i + 1)*(i + 1), c_allocator);
+        intarr_push(&inta, (i + 1) * (i + 1), c_allocator);
         printf("%ld/%ld (capacity %ld)\t%d\n", i + 1, ARR_LEN(inta), ARR_CAP(inta), inta[i]);
     }
-    intarr_free(inta, c_allocator);
+    arr_free(inta, c_allocator);
 
     // token_SOA tokens = token_SOA_init(filesize);
     // token_process(&tokens, filebuf, filesize);

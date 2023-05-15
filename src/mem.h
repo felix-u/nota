@@ -1,11 +1,30 @@
-#ifndef ARR_H
-#define ARR_H
+#ifndef MEM_H
+#define MEM_H
 
-#include "allocators.h"
+#include <stdbool.h>
 #include <stdlib.h>
 
-#endif // ARR_H
+// Generic allocator interface
 
+typedef struct Allocator {
+    void *(*alloc)   (size_t n, size_t type_size);
+    void  (*free)    (void *mem);
+    void *(*realloc) (void *old_mem, size_t new_n);
+} Allocator;
+
+// Allocators
+
+// Wraps calloc, realloc, and free
+const Allocator c_allocator = {
+    .alloc   = calloc,
+    .free    = free,
+    .realloc = realloc,
+};
+
+#endif // MEM_H
+
+
+// Arrays
 
 #ifdef ARR_TYPE
 
@@ -14,7 +33,6 @@
 
 #define ARR_TYPE_NAME ARR_CONCAT(ARR_TYPE, arr)
 #define ARR_INIT_NAME ARR_CONCAT(ARR_TYPE_NAME, _init)
-#define ARR_FREE_NAME ARR_CONCAT(ARR_TYPE_NAME, _free)
 #define ARR_PUSH_NAME ARR_CONCAT(ARR_TYPE_NAME, _push)
 #define ARR_LEN(arr) (((size_t *)(arr))[-1])
 #define ARR_CAP(arr) (((size_t *)(arr))[-2])
@@ -28,7 +46,7 @@ ARR_TYPE *ARR_INIT_NAME(size_t init_size, Allocator allocator) {
     return (ARR_TYPE *)(data + 2);
 }
 
-void ARR_FREE_NAME(ARR_TYPE *arr, Allocator allocator) {
+void arr_free(void *arr, Allocator allocator) {
     allocator.free((size_t *)arr - 2);
 }
 
