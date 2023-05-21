@@ -1,3 +1,5 @@
+// 2023-05-20
+
 const std = @import("std");
 
 pub fn build(b: *std.Build) void {
@@ -14,6 +16,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
         .linkage = .static,
     });
+
     b.installArtifact(exe);
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
@@ -23,35 +26,27 @@ pub fn build(b: *std.Build) void {
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
 
-    const debug_exe = b.addExecutable(.{
-        .name = exe_name,
-        .root_source_file = .{ .path = "src/main.zig" },
-        .target = target,
-        .optimize = .Debug,
-        .linkage = .static,
-    });
-    debug_exe.strip = false;
     const debug_step = b.step("debug", "Build [Debug]");
-    debug_step.dependOn(&b.addInstallArtifact(debug_exe).step);
-
-    const release_exe = b.addExecutable(.{
+    makeStep(b, debug_step, .Debug, .{
         .name = exe_name,
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = .{ .path = root_source_file },
         .target = target,
-        .optimize = .ReleaseFast,
-        .linkage = .static,
     });
-    release_exe.strip = true;
-    const release_step = b.step("release", "Build [ReleaseFast]");
-    release_step.dependOn(&b.addInstallArtifact(release_exe).step);
 
-    const cross_step = b.step("cross", "Build for targets [ReleaseSafe]");
+    const release_step = b.step("release", "Build [ReleaseFast]");
+    makeStep(b, release_step, .ReleaseFast, .{
+        .name = exe_name,
+        .root_source_file = .{ .path = root_source_file },
+        .target = target,
+    });
+
     const target_arches = [_][]const u8{
         "x86_64", "aarch64",
     };
     const target_oses = [_][]const u8{
         "linux", "macos", "windows",
     };
+    const cross_step = b.step("cross", "Build for targets [ReleaseSafe]");
     inline for (target_arches) |target_arch| {
         inline for (target_oses) |target_os| {
             const triple = target_arch ++ "-" ++ target_os;
