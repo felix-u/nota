@@ -1,102 +1,83 @@
 const std = @import("std");
 
-pub fn build(b: *std.Build) !void {
-
+pub fn build(b: *std.Build) void {
     const exe_name = "nota";
-    const exe_version = "0.3";
+    const exe_version = "0.4-dev";
+    const root_source_file = "src/main.zig";
 
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-
-
-    const cc_shared_flags = [_][]const u8 {
-        "-std=c99",
-        "-Wall",
-        "-Wextra",
-        "-pedantic",
-        "-Wshadow",
-        "-Wstrict-overflow",
-        "-Wstrict-aliasing",
-        // libs
-        // "-lm",
-    };
-    const cc_debug_flags = cc_shared_flags ++ .{
-        "-g",
-        "-Og",
-        "-ggdb",
-    };
-    const cc_release_flags = cc_shared_flags ++ .{
-        "-O3",
-        "-s",
-        "-static",
-        "-march=native",
-    };
-
-
     const exe = b.addExecutable(.{
         .name = exe_name,
+        .root_source_file = .{ .path = "src/main.zig" },
         .target = target,
         .optimize = optimize,
+        .linkage = .static,
     });
-    exe.addCSourceFile("src/main.c", &cc_shared_flags);
-    exe.linkLibC();
-    exe.install();
-
-
-    const debug_step = b.step("debug", "build debug exe");
-    const debug_exe = b.addExecutable(.{
-        .name = exe_name,
-        .target = target,
-        .optimize = .Debug,
-    });
-    debug_exe.addCSourceFile("src/main.c", &cc_debug_flags);
-    debug_exe.linkLibC();
-    debug_step.dependOn(&b.addInstallArtifact(debug_exe).step);
-
-    const run_cmd = debug_exe.run();
-    run_cmd.step.dependOn(debug_step);
+    b.installArtifact(exe);
+    const run_cmd = b.addRunArtifact(exe);
+    run_cmd.step.dependOn(b.getInstallStep());
     if (b.args) |args| {
         run_cmd.addArgs(args);
     }
-    const run_step = b.step("run", "run the debug build");
+    const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
 
+    const debug_exe = b.addExecutable(.{
+        .name = exe_name,
+        .root_source_file = .{ .path = "src/main.zig" },
+        .target = target,
+        .optimize = .Debug,
+        .linkage = .static,
+    });
+    debug_exe.strip = false;
+    const debug_step = b.step("debug", "Build [Debug]");
+    debug_step.dependOn(&b.addInstallArtifact(debug_exe).step);
 
-    const release_step = b.step("release", "build release exe");
     const release_exe = b.addExecutable(.{
         .name = exe_name,
+        .root_source_file = .{ .path = "src/main.zig" },
         .target = target,
         .optimize = .ReleaseFast,
+        .linkage = .static,
     });
-    release_exe.addCSourceFile("src/main.c", &cc_release_flags);
-    release_exe.linkLibC();
-    release_exe.disable_sanitize_c = true;
     release_exe.strip = true;
+    const release_step = b.step("release", "Build [ReleaseFast]");
     release_step.dependOn(&b.addInstallArtifact(release_exe).step);
 
-
-    const cross_step = b.step("cross", "cross-compile for all targets");
-    const target_architectures = [_][]const u8 {
+    const cross_step = b.step("cross", "Build for targets [ReleaseSafe]");
+    const target_arches = [_][]const u8{
         "x86_64", "aarch64",
     };
-    const target_OSes = [_][]const u8 {
+    const target_oses = [_][]const u8{
         "linux", "macos", "windows",
     };
-    inline for (target_architectures) |target_arch| {
-        inline for (target_OSes) |target_OS| {
-            const triple = target_arch ++ "-" ++ target_OS;
+    inline for (target_arches) |target_arch| {
+        inline for (target_oses) |target_os| {
+            const triple = target_arch ++ "-" ++ target_os;
             const cross_target = std.zig.CrossTarget.parse(.{ .arch_os_abi = triple }) catch unreachable;
-            const cross_exe = b.addExecutable(.{
-                .name = b.fmt("{s}-v{s}-{s}", .{exe_name, exe_version, triple}),
+            makeStep(b, cross_step, .ReleaseFast, .{
+                .name = b.fmt("{s}-v{s}-{s}", .{ exe_name, exe_version, triple }),
+                .root_source_file = .{ .path = root_source_file },
                 .target = cross_target,
-                .optimize = .ReleaseSafe,
             });
-            cross_exe.addCSourceFile("src/main.c", &(cc_shared_flags ++ .{ "-static" }));
-            cross_exe.disable_sanitize_c = true;
-            cross_exe.strip = true;
-            cross_exe.linkLibC();
-            cross_step.dependOn(&b.addInstallArtifact(cross_exe).step);
         }
     }
+}
 
+fn makeStep(
+    b: *std.Build,
+    step: *std.Build.Step,
+    comptime mode: std.builtin.Mode,
+    options: std.Build.ExecutableOptions,
+) void {
+    const exe = b.addExecutable(.{
+        .name = options.name,
+        .root_source_file = options.root_source_file,
+        .target = options.target,
+        .optimize = mode,
+        .linkage = options.linkage,
+    });
+    exe.strip = if (mode == .Debug) false else true;
+    step.dependOn(&b.addInstallArtifact(exe).step);
 }
