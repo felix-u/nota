@@ -36,11 +36,21 @@ pub const Token = struct {
 
 pub const TokenList = std.MultiArrayList(Token);
 
+const quote_pairs = "\"'`";
 pub fn parse(buf: []const u8, token_list: *TokenList, allocator: std.mem.Allocator) !void {
     var pos = ParsePosition{ .buf = buf };
 
     while (pos.idx < buf.len) : (pos.increment()) {
-        // Node name.
+        // Don't parse quoted strings (@Node is a node, but not "@Node").
+        for (quote_pairs) |quote| {
+            if (pos.byte() == quote) {
+                pos.increment();
+                while (pos.byte() != quote) pos.increment();
+                pos.increment();
+                break;
+            }
+        }
+        // Get name;
         if (pos.byte() != '@') continue;
         pos.increment();
         const name_start = pos;
