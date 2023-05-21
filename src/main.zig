@@ -22,7 +22,12 @@ pub fn main() !void {
     const filebuf = try infile.readToEndAlloc(allocator, 10e6);
     defer allocator.free(filebuf);
 
-    // Placeholder.
-    var placeholder: token.TokenList = undefined;
-    try token.parse(filebuf, &placeholder);
+    var token_list = token.TokenList{};
+    try token.parse(filebuf, &token_list, allocator);
+
+    // Print tokens (for now).
+    for (0..token_list.len) |i| {
+        const item = token_list.get(i);
+        std.debug.print("{d}:{d}\t\"{s}\" ({})\n", .{ item.row, item.col, item.lexeme, item.token });
+    }
 }
