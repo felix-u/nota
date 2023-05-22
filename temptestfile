@@ -1,0 +1,13 @@
+"@Not a node!;"
+
+@Test somefield {};
+
+@Test2 bug{};
+
+"@Not a node!;"
+'@Also not;'
+`@Same here;`
+
+@Section "Name 1" date ## hey date#2000-01-01.20:00 done#false;
+
+@Section "Name 2" date#2020-01-01 "This is the Section, with terrible whitespace." {};

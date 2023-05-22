@@ -1,6 +1,6 @@
 "@Not a node!;"
 
-@Test;
+@Test somefield;
 
 "@Not a node!;"
 '@Also not;'
@@ -8,7 +8,7 @@
 
 @Section "Name 1" date#2000-01-01.20:00 done#false;
 
-@Section "Name 2" date#2020-01-01 "This is the Section, with terrible whitespace.";
+@Section "Name 2" date#2020-01-01 "This is the Section, with terrible whitespace." {};
 
 @Section "Name \"3\"" {
     @Subsection "wow, a subsection!";
