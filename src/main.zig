@@ -23,7 +23,8 @@ pub fn main() !void {
     defer allocator.free(filebuf);
 
     var token_list = token.TokenList{};
-    try token.parse(filebuf, &token_list, allocator);
+    var pos: token.ParsePosition = .{ .buf = filebuf };
+    try token.parse(&pos, &token_list, allocator);
 
     // Print tokens (for now).
     for (0..token_list.len) |i| {

@@ -41,8 +41,7 @@ pub const Token = struct {
 pub const TokenList = std.MultiArrayList(Token);
 
 const quote_pairs = "\"'`";
-pub fn parse(buf: []const u8, token_list: *TokenList, allocator: std.mem.Allocator) !void {
-    var pos = ParsePosition{ .buf = buf };
+pub fn parse(pos: *ParsePosition, token_list: *TokenList, allocator: std.mem.Allocator) !void {
     var in_bounds = true;
 
     root: while (in_bounds) : (in_bounds = pos.inc()) {
@@ -58,18 +57,18 @@ pub fn parse(buf: []const u8, token_list: *TokenList, allocator: std.mem.Allocat
         // Parse node name.
         if (pos.byte() != '@') continue;
         try token_list.append(allocator, .{
-            .pos = pos,
+            .pos = pos.*,
             .token = .at,
-            .lexeme = buf[pos.idx .. pos.idx + 1],
+            .lexeme = pos.buf[pos.idx .. pos.idx + 1],
         });
         in_bounds = pos.inc();
-        const name_start = pos;
+        const name_start = pos.*;
         while (in_bounds and isValidSymbolChar(pos.byte())) : (in_bounds = pos.inc()) {}
-        const name_end = pos;
+        const name_end = pos.*;
         try token_list.append(allocator, .{
             .pos = name_start,
             .token = .name,
-            .lexeme = buf[name_start.idx..name_end.idx],
+            .lexeme = pos.buf[name_start.idx..name_end.idx],
         });
 
         // Parse node contents.
@@ -78,69 +77,70 @@ pub fn parse(buf: []const u8, token_list: *TokenList, allocator: std.mem.Allocat
             // Symbols.
 
             // Quoted (in which case we know it's a string).
+            // TODO: Skip over escaped quotes.
             for (quote_pairs) |quote| {
                 if (pos.byte() != quote) continue;
-                var prev_byte = pos.byte();
                 in_bounds = pos.inc();
-                const symbol_start = pos;
-                while (in_bounds and prev_byte != '\\' and pos.byte() != quote) : (in_bounds = pos.inc()) {
-                    prev_byte = pos.byte();
-                }
-                const symbol_end = pos;
+                const symbol_start = pos.*;
+                while (in_bounds and pos.byte() != quote) : (in_bounds = pos.inc()) {}
+                const symbol_end = pos.*;
                 try token_list.append(allocator, .{
                     .pos = symbol_start,
                     .token = .string,
-                    .lexeme = buf[symbol_start.idx..symbol_end.idx],
+                    .lexeme = pos.buf[symbol_start.idx..symbol_end.idx],
                 });
                 continue :node;
             }
 
             // Unquoted.
             if (isValidSymbolChar(pos.byte())) {
-                const symbol_start = pos;
+                const symbol_start = pos.*;
                 while (in_bounds and isValidSymbolChar(pos.byte())) : (in_bounds = pos.inc()) {}
-                const symbol_end = pos;
+                const symbol_end = pos.*;
                 try token_list.append(allocator, .{
                     .pos = symbol_start,
                     .token = .unresolved,
-                    .lexeme = buf[symbol_start.idx..symbol_end.idx],
+                    .lexeme = pos.buf[symbol_start.idx..symbol_end.idx],
                 });
             }
 
             if (!in_bounds) break;
 
+            // Single-character syntax.
             switch (pos.byte()) {
-                ';', '#', '.', ':', '=', '(', ')', '[', ']' => |byte| {
+                ';', '#', '.', ':', '=', '(', ')', '[', ']', '{', '}' => |byte| {
                     try token_list.append(allocator, .{
-                        .pos = pos,
+                        .pos = pos.*,
                         .token = @intToEnum(TokenType, byte),
-                        .lexeme = buf[pos.idx .. pos.idx + 1],
+                        .lexeme = pos.buf[pos.idx .. pos.idx + 1],
                     });
+                    if (byte == '{') try parse(pos, token_list, allocator);
+                    if (byte == '}') break :root;
                     if (byte == ';') continue :root;
                     continue :node;
                 },
-                // TODO: Some recursion needs to happen here.
-                '{' => {
-                    try token_list.append(allocator, .{
-                        .pos = pos,
-                        .token = .curly_left,
-                        .lexeme = buf[pos.idx .. pos.idx + 1],
-                    });
-                    in_bounds = pos.inc();
-                    while (in_bounds and pos.byte() != '}') : (in_bounds = pos.inc()) {}
-                    if (pos.byte() == '}') try token_list.append(allocator, .{
-                        .pos = pos,
-                        .token = .curly_right,
-                        .lexeme = buf[pos.idx .. pos.idx + 1],
-                    });
-                    continue :node;
-                },
+                // // TODO: Some recursion needs to happen here.
+                // '{' => {
+                //     try token_list.append(allocator, .{
+                //         .pos = pos.*,
+                //         .token = .curly_left,
+                //         .lexeme = pos.buf[pos.idx .. pos.idx + 1],
+                //     });
+                //     in_bounds = pos.inc();
+                //     while (in_bounds and pos.byte() != '}') : (in_bounds = pos.inc()) {}
+                //     if (pos.byte() == '}') try token_list.append(allocator, .{
+                //         .pos = pos.*,
+                //         .token = .curly_right,
+                //         .lexeme = pos.buf[pos.idx .. pos.idx + 1],
+                //     });
+                //     continue :node;
+                // },
                 else => |byte| {
                     if (ascii.isWhitespace(byte)) continue :node;
                     try token_list.append(allocator, .{
-                        .pos = pos,
+                        .pos = pos.*,
                         .token = .invalid,
-                        .lexeme = buf[pos.idx .. pos.idx + 1],
+                        .lexeme = pos.buf[pos.idx .. pos.idx + 1],
                     });
                 },
             }
@@ -150,7 +150,7 @@ pub fn parse(buf: []const u8, token_list: *TokenList, allocator: std.mem.Allocat
     }
 }
 
-const ParsePosition = struct {
+pub const ParsePosition = struct {
     buf: []const u8 = undefined,
     row: usize = 1,
     col: usize = 1,
