@@ -28,6 +28,6 @@ pub fn main() !void {
     // Print tokens (for now).
     for (0..token_list.len) |i| {
         const item = token_list.get(i);
-        std.debug.print("{d}:{d}\t\"{s}\" ({})\n", .{ item.row, item.col, item.lexeme, item.token });
+        std.debug.print("{d}:{d}\t\"{s}\"\t{}\n", .{ item.row, item.col, item.lexeme, item.token });
     }
 }

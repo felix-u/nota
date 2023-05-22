@@ -1,14 +1,18 @@
 "@Not a node!;"
+
+@Test;
+
+"@Not a node!;"
 '@Also not;'
 `@Same here;`
 
-@Section "Nâme 1" date#2000-01-01.20:00 done#false;
+@Section "Name 1" date#2000-01-01.20:00 done#false;
 
-@Section "Ñame 2" date#2020-01-01 "This is the Section, with terrible whitespace.";
+@Section "Name 2" date#2020-01-01 "This is the Section, with terrible whitespace.";
 
 @Section "Name \"3\"" {
     @Subsection "wow, a subsection!";
-    @Subsection "A Name 大" date#1990-01-01.12:00 done#false meaningoflife#42
+    @Subsection "A Name" date#1990-01-01.12:00 done#false meaningoflife#42
     {
         Ooh, another!
         More filler.
