@@ -1,72 +1,66 @@
-"@Not a node!;"
+@Test :str="somefield";
 
-@Test somefield;
+@Section "Name 1" date:date=2000-01-01.20:00 done:=false;
 
-"@Not a node!;"
-'@Also not;'
-`@Same here;`
-
-@Section "Name 1" date#2000-01-01.20:00 done#false;
-
-@Section "Name 2" date#2020-01-01 "This is the Section, with terrible whitespace." {};
+@Section "Name 2" date:date=2020-01-01 "This is the Section, with terrible whitespace." {};
 
 @Section "Name \"3\"" {
     @Subsection "wow, a subsection!";
-    @Subsection "A Name" date#1990-01-01.12:00 done#false meaningoflife#42
+    @Subsection "A Name" date:date=1990-01-01.12:00 done:=false meaningoflife:=42
     {
         Ooh, another!
         More filler.
         Filler     again.
-        @Subsubsection done#true mods(inherits(#date) + 25d7h) {
+        @Subsubsection done:=true (inherits(date) + 25d7h) {
             A subsection of a subsection. Stunning.
         };
     };
 };
 
 
-@Week shares(startdate#2023-05-01) {
-    @Day Mon mods(startdate# + 0d);
-    @Day Tue mods(startdate# + 1d);
-    @Day Wed mods(startdate# + 2d);
-    @Day Thu mods(startdate# + 3d);
-    @Day Fri mods(startdate# + 4d);
-    @Day Sat mods(startdate# + 5d);
-    @Day Sun mods(startdate# + 6d);
+@Week shares(startdate:=2023-05-01) {
+    @Day "Mon" (startdate += 0d);
+    @Day "Tue" (startdate += 1d);
+    @Day "Wed" (startdate += 2d);
+    @Day "Thu" (startdate += 3d);
+    @Day "Fri" (startdate += 4d);
+    @Day "Sat" (startdate += 5d);
+    @Day "Sun" (startdate += 6d);
 };
 
 @Books {
     @Series 
-        title#"Harry Potter" 
+        title:="Harry Potter" 
         shares( 
-            author#"J. K. Rowling"
-            genres#[fiction fantasy magic]
+            author:="J. K. Rowling"
+            genres:=["fiction" "fantasy" "magic"]
         )
     {
-        @Book title#"Harry Potter and the Philosopher's Stone"
-              status#Read;  
+        @Book title:="Harry Potter and the Philosopher's Stone"
+              status:="Read";  
     };
-    @Book title#"The Catcher in the Rye" 
-          author#"J.D. Salinger" 
-          pages#277 
-          status#Read 
-          genres#[fiction coming-of-age];
-    @Book title#"To Kill a Mockingbird" 
-          author#"Harper Lee" pages#324 
-          status#Read 
-          genres#[fiction classic social-issues];
-    @Book title#"Dune" 
-          author#"Frank Herbert" 
-          pages#896 
-          status#Reading 
-          genres#[science-fiction fantasy adventure];
-    @Book title#"1984" 
-          author#"George Orwell" 
-          pages#328 
-          status#"To Read" 
-          genres#[fiction dystopian social-criticism];
-    @Book title#"Brave New World" 
-          author#"Aldous Huxley" 
-          pages#268 
-          status#"To Read" 
-          genres#[fiction dystopian philosophy];
+    @Book title:="The Catcher in the Rye" 
+          author:="J.D. Salinger" 
+          pages:=277 
+          status:="Read"
+          genres:=["fiction" "coming-of-age"];
+    @Book title:="To Kill a Mockingbird" 
+          author:="Harper Lee" pages:=324 
+          status:="Read"
+          genres:=["fiction" "classic" "social-issues"];
+    @Book title:="Dune" 
+          author:="Frank Herbert" 
+          pages:=896 
+          status:="Reading"
+          genres:=["science-fiction" "fantasy" "adventure"];
+    @Book title:="1984" 
+          author:="George Orwell" 
+          pages:=328 
+          status:="To Read" 
+          genres:=["fiction" "dystopian" "social-criticism"];
+    @Book title:="Brave New World" 
+          author:="Aldous Huxley" 
+          pages:=268 
+          status:="To Read" 
+          genres:=["fiction" "dystopian" "philosophy"];
 };

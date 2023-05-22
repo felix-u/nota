@@ -9,11 +9,13 @@ pub const TokenType = enum(u8) {
     square_right = ']',
     curly_left = '{',
     curly_right = '}',
-    semicolon = ';',
     at = '@',
     hash = '#',
     dot = '.',
     colon = ':',
+    semicolon = ';',
+    equals = '=',
+    invalid,
 
     // Types.
     string = 128,
@@ -31,8 +33,7 @@ pub const TokenType = enum(u8) {
 };
 
 pub const Token = struct {
-    row: usize,
-    col: usize,
+    pos: ParsePosition,
     token: TokenType,
     lexeme: []const u8,
 };
@@ -57,8 +58,7 @@ pub fn parse(buf: []const u8, token_list: *TokenList, allocator: std.mem.Allocat
         // Parse node name.
         if (pos.byte() != '@') continue;
         try token_list.append(allocator, .{
-            .row = pos.row,
-            .col = pos.col,
+            .pos = pos,
             .token = .at,
             .lexeme = buf[pos.idx .. pos.idx + 1],
         });
@@ -67,8 +67,7 @@ pub fn parse(buf: []const u8, token_list: *TokenList, allocator: std.mem.Allocat
         while (in_bounds and isValidSymbolChar(pos.byte())) : (in_bounds = pos.inc()) {}
         const name_end = pos;
         try token_list.append(allocator, .{
-            .row = name_start.row,
-            .col = name_start.col,
+            .pos = name_start,
             .token = .name,
             .lexeme = buf[name_start.idx..name_end.idx],
         });
@@ -85,13 +84,11 @@ pub fn parse(buf: []const u8, token_list: *TokenList, allocator: std.mem.Allocat
                 in_bounds = pos.inc();
                 const symbol_start = pos;
                 while (in_bounds and prev_byte != '\\' and pos.byte() != quote) : (in_bounds = pos.inc()) {
-                    std.debug.print("GETTING QUOTES\t{d}:{d}\t{s}\n", .{ pos.row, pos.col, buf[symbol_start.idx..pos.idx] });
                     prev_byte = pos.byte();
                 }
                 const symbol_end = pos;
                 try token_list.append(allocator, .{
-                    .row = symbol_start.row,
-                    .col = symbol_start.col,
+                    .pos = symbol_start,
                     .token = .string,
                     .lexeme = buf[symbol_start.idx..symbol_end.idx],
                 });
@@ -104,45 +101,48 @@ pub fn parse(buf: []const u8, token_list: *TokenList, allocator: std.mem.Allocat
                 while (in_bounds and isValidSymbolChar(pos.byte())) : (in_bounds = pos.inc()) {}
                 const symbol_end = pos;
                 try token_list.append(allocator, .{
-                    .row = symbol_start.row,
-                    .col = symbol_start.col,
+                    .pos = symbol_start,
                     .token = .unresolved,
                     .lexeme = buf[symbol_start.idx..symbol_end.idx],
                 });
-                continue :node;
             }
 
             if (!in_bounds) break;
 
             switch (pos.byte()) {
-                ';', '#', '.', ':', '(', ')', '[', ']' => |byte| {
+                ';', '#', '.', ':', '=', '(', ')', '[', ']' => |byte| {
                     try token_list.append(allocator, .{
-                        .row = pos.row,
-                        .col = pos.col,
+                        .pos = pos,
                         .token = @intToEnum(TokenType, byte),
                         .lexeme = buf[pos.idx .. pos.idx + 1],
                     });
                     if (byte == ';') continue :root;
                     continue :node;
                 },
+                // TODO: Some recursion needs to happen here.
                 '{' => {
                     try token_list.append(allocator, .{
-                        .row = pos.row,
-                        .col = pos.col,
+                        .pos = pos,
                         .token = .curly_left,
                         .lexeme = buf[pos.idx .. pos.idx + 1],
                     });
                     in_bounds = pos.inc();
                     while (in_bounds and pos.byte() != '}') : (in_bounds = pos.inc()) {}
                     if (pos.byte() == '}') try token_list.append(allocator, .{
-                        .row = pos.row,
-                        .col = pos.col,
+                        .pos = pos,
                         .token = .curly_right,
                         .lexeme = buf[pos.idx .. pos.idx + 1],
                     });
                     continue :node;
                 },
-                else => {},
+                else => |byte| {
+                    if (ascii.isWhitespace(byte)) continue :node;
+                    try token_list.append(allocator, .{
+                        .pos = pos,
+                        .token = .invalid,
+                        .lexeme = buf[pos.idx .. pos.idx + 1],
+                    });
+                },
             }
         }
 
@@ -170,15 +170,15 @@ const ParsePosition = struct {
         return true;
     }
     fn incSkipWhitespace(self: *ParsePosition) bool {
-        var in_bounds = self.inc(); // FIXME: This is why special chars are skipped if not whitespace-separated.
-        // var in_bounds = (self.idx < self.buf.len - 1);
+        var in_bounds = self.inc();
         while (in_bounds and ascii.isWhitespace(self.byte())) : (in_bounds = self.inc()) {}
         return in_bounds;
     }
-    // fn incToValidSymbolChar(self: *ParsePosition) bool {
-    //     var in_bounds = (self.idx < self.buf.len - 1);
-    //     while (in_bounds and !isValidSymbolChar)
-    // }
+    fn incToValidSymbolChar(self: *ParsePosition) bool {
+        var in_bounds = (self.idx < self.buf.len - 1);
+        while (in_bounds and !isValidSymbolChar(self.byte())) : (in_bounds = self.inc()) {}
+        return in_bounds;
+    }
     fn incToWhitespace(self: *ParsePosition) bool {
         var in_bounds = self.inc();
         while (in_bounds and !ascii.isWhitespace(self.byte())) : (in_bounds = self.inc()) {}

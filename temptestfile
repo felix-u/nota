@@ -1,6 +1,6 @@
 "@Not a node!;"
 
-@Test somefield {};
+@Test :str="somefield";
 
 @Test2 bug{};
 
@@ -8,6 +8,16 @@
 '@Also not;'
 `@Same here;`
 
-@Section "Name 1" date ## hey date#2000-01-01.20:00 done#false;
+@Section "Name 1" date:date=2000-01-01.20:00 done:=false;
 
-@Section "Name 2" date#2020-01-01 "This is the Section, with terrible whitespace." {};
+@Section "Name 2" date:date=2020-01-01 "This is the Section, with terrible whitespace." {};
+
+@Week shares(startdate:=2023-05-01) {
+    @Day "Mon" (startdate += 0d);
+    @Day "Tue" (startdate += 1d);
+    @Day "Wed" (startdate += 2d);
+    @Day "Thu" (startdate += 3d);
+    @Day "Fri" (startdate += 4d);
+    @Day "Sat" (startdate += 5d);
+    @Day "Sun" (startdate += 6d);
+};
