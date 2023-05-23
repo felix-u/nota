@@ -2,15 +2,9 @@
 
 @Test :str="somefield";
 
-@Test2 bug{};
-
-"@Not a node!;"
-'@Also not;'
-`@Same here;`
+@ Test2 thisshoulderror{};
 
 @Section "Name 1" date:date=2000-01-01.20:00 done:=false;
-
-@Section "Name 2" date:date=2020-01-01 "This is the Section, with terrible whitespace." {};
 
 @Week shares(startdate:=2023-05-01) {
     @Day "Mon" (startdate += 0d);

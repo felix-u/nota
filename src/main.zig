@@ -1,4 +1,5 @@
 const std = @import("std");
+const ast = @import("ast.zig");
 const token = @import("token.zig");
 
 pub fn main() !void {
@@ -7,11 +8,14 @@ pub fn main() !void {
     defer arena.deinit();
     const allocator = arena.allocator();
 
+    // Error writers will print to stdout.
+    const stdout = std.io.getStdOut().writer();
+
     // Args setup.
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
     if (args.len == 1) {
-        std.debug.print("nota: expected file\n", .{});
+        try stdout.print("nota: expected file\n", .{});
         std.os.exit(1);
     }
 
@@ -23,18 +27,29 @@ pub fn main() !void {
     defer allocator.free(filebuf);
 
     var token_list = token.TokenList{};
-    var pos: token.ParsePosition = .{ .buf = filebuf };
-    try token.parse(&pos, &token_list, allocator);
+    var token_pos: token.ParsePosition = .{ .buf = filebuf };
+    try token.parseFromBuf(&token_pos, &token_list, allocator);
 
     // Print tokens (for now).
+    try stdout.print("=== TOKENS: BEGIN ===\n", .{});
     for (0..token_list.len) |i| {
         const item = token_list.get(i);
         const position = item.filePosition(filebuf);
-        std.debug.print("{d}:{d}\t\"{s}\"\t{}\n", .{
+        try stdout.print("{d}:{d}\t\"{s}\"\t{}\n", .{
             position.line,
             position.col,
             item.lexeme(filebuf),
             item.token,
         });
     }
+    try stdout.print("=== TOKENS: END ===\n", .{});
+
+    var ast_set: ast.Set = .{};
+    var ast_pos: ast.ParsePosition = .{ .buf = filebuf, .token_list = token_list };
+    try ast.parseFromTokenList(&ast_pos, token_list, ast_set, allocator, stdout);
+
+    // Print AST (for now).
+    try stdout.print("=== AST: BEGIN ===\n", .{});
+
+    try stdout.print("=== AST: END ===\n", .{});
 }

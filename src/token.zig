@@ -61,7 +61,7 @@ pub const Token = struct {
 pub const TokenList = std.MultiArrayList(Token);
 
 const quote_pairs = "\"'`";
-pub fn parse(pos: *ParsePosition, token_list: *TokenList, allocator: std.mem.Allocator) !void {
+pub fn parseFromBuf(pos: *ParsePosition, token_list: *TokenList, allocator: std.mem.Allocator) !void {
     var in_bounds = true;
 
     root: while (in_bounds) : (in_bounds = pos.inc()) {
@@ -81,12 +81,14 @@ pub fn parse(pos: *ParsePosition, token_list: *TokenList, allocator: std.mem.All
             .token = .at,
         });
         in_bounds = pos.inc();
-        const name_start = pos.*.idx;
-        while (in_bounds and isValidSymbolChar(pos.byte())) : (in_bounds = pos.inc()) {}
-        try token_list.append(allocator, .{
-            .idx = name_start,
-            .token = .name,
-        });
+        if (isValidSymbolChar(pos.byte())) {
+            const name_start = pos.*.idx;
+            while (in_bounds and isValidSymbolChar(pos.byte())) : (in_bounds = pos.inc()) {}
+            try token_list.append(allocator, .{
+                .idx = name_start,
+                .token = .name,
+            });
+        }
 
         // Parse node contents.
         in_bounds = pos.incSkipWhitespace();
@@ -126,7 +128,7 @@ pub fn parse(pos: *ParsePosition, token_list: *TokenList, allocator: std.mem.All
                         .idx = pos.*.idx,
                         .token = @intToEnum(TokenType, byte),
                     });
-                    if (byte == '{') try parse(pos, token_list, allocator);
+                    if (byte == '{') try parseFromBuf(pos, token_list, allocator);
                     if (byte == '}') break :root;
                     if (byte == ';') continue :root;
                     continue :node;
