@@ -80,7 +80,7 @@ pub fn parseFromBuf(pos: *ParsePosition, token_list: *TokenList, allocator: std.
         }
 
         // Parse node contents.
-        in_bounds = pos.incSkipWhitespace();
+        in_bounds = pos.incToNonWhitespace();
         node: while (in_bounds) : (in_bounds = pos.incSkipWhitespace()) {
             // Symbols.
 
@@ -152,6 +152,11 @@ pub const ParsePosition = struct {
     }
     fn incSkipWhitespace(self: *ParsePosition) bool {
         var in_bounds = self.inc();
+        while (in_bounds and ascii.isWhitespace(self.byte())) : (in_bounds = self.inc()) {}
+        return in_bounds;
+    }
+    fn incToNonWhitespace(self: *ParsePosition) bool {
+        var in_bounds = (self.idx < self.buf.len - 1);
         while (in_bounds and ascii.isWhitespace(self.byte())) : (in_bounds = self.inc()) {}
         return in_bounds;
     }

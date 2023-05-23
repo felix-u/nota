@@ -44,16 +44,17 @@ pub fn parseFromTokenList(
     var in_bounds = pos.inc();
     while (in_bounds) : (in_bounds = pos.inc()) {
         if (tokens[pos.idx] != .name) {
-            const at = pos.prevToken();
-            const at_loc: log.;
-            try errorWriter.print("{s}:{d}:{d}: error: expected node name after initialiser\n", .{
-                pos.filepath,
-                at_loc.line,
-                at_loc.col,
-            });
-            return log.ParseError.NoNodeName;
+            var at_loc: log.filePosition = .{
+                .filepath = pos.filepath,
+                .buf = pos.buf,
+                .idx = pos.prevToken().idx,
+            };
+            at_loc.computeCoords();
+            return log.reportError(log.ParseError.NoNodeName, at_loc, errorWriter);
         }
+        while (in_bounds and tokens[pos.idx] != .at) : (in_bounds = pos.inc()) {}
     }
+    // DEBUG
     try errorWriter.print("{d}\n{d}\n", .{ set.node_list.len, set.expr_list.len });
 }
 

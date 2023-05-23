@@ -4,7 +4,7 @@
 
 @Test :str="somefield";
 
-@ Test2 thisshoulderror{};
+@Test2 cool{};
 
 @Section "Name 1" date:date=2000-01-01.20:00 done:=false;
 
