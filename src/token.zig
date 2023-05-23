@@ -16,10 +16,10 @@ pub const TokenType = enum(u8) {
     semicolon = ';',
     equals = '=',
 
-    invalid,
+    invalid = 128,
 
     // Types.
-    str = 128,
+    str,
     num,
     date,
 
