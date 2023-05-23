@@ -2,11 +2,6 @@ const std = @import("std");
 const log = @import("log.zig");
 const token = @import("./token.zig");
 
-pub const Set = struct {
-    node_list: NodeList = NodeList{},
-    expr_list: ExprList = ExprList{},
-};
-
 pub const Node = struct {
     name_idx: u32,
     expr_list: struct {
@@ -28,21 +23,26 @@ const Expr = struct {
 
 const ExprList = std.MultiArrayList(Expr);
 
+pub const Set = struct {
+    node_list: NodeList = NodeList{},
+    expr_list: ExprList = ExprList{},
+};
+
 pub fn parseFromTokenList(
     pos: *ParsePosition,
     token_list: token.TokenList,
-    set: Set,
+    set: *Set,
     allocator: std.mem.Allocator,
     errorWriter: std.fs.File.Writer,
 ) !void {
-    _ = allocator;
     const tokens = token_list.items(.token);
 
     // The tokeniser guarantees that the first token is `@`.
     // We can continue till we find ';' (correct usage), or '@' or EOF (syntax error).
 
     var in_bounds = pos.inc();
-    while (in_bounds) : (in_bounds = pos.inc()) {
+    root: while (in_bounds) : (in_bounds = pos.inc()) {
+        // No name after `@`.
         if (tokens[pos.idx] != .name) {
             var at_loc: log.filePosition = .{
                 .filepath = pos.filepath,
@@ -50,12 +50,55 @@ pub fn parseFromTokenList(
                 .idx = pos.prevToken().idx,
             };
             at_loc.computeCoords();
-            return log.reportError(log.ParseError.NoNodeName, at_loc, errorWriter);
+            return log.reportError(log.SyntaxError.NoNodeName, at_loc, errorWriter);
         }
-        while (in_bounds and tokens[pos.idx] != .at) : (in_bounds = pos.inc()) {}
-    }
-    // DEBUG
-    try errorWriter.print("{d}\n{d}\n", .{ set.node_list.len, set.expr_list.len });
+
+        // Get node expressions.
+        node: while (in_bounds) : (in_bounds = pos.inc()) {
+            const start_idx = pos.idx;
+
+            // TODO: Will process expressions here.
+            while (in_bounds and tokens[pos.idx] != .at) : (in_bounds = pos.inc()) {
+                // TODO: Recursion needs to happen here to process children.
+                if (tokens[pos.idx] == .curly_left) {
+                    while (in_bounds and tokens[pos.idx] != .curly_right) : (in_bounds = pos.inc()) {}
+                    const prev_token = pos.prevToken();
+                    if (prev_token.token != .semicolon and prev_token.token != .curly_left) {
+                        std.debug.print("{}\t{}\n", .{ prev_token.token, pos.getToken().token });
+                        var err_loc: log.filePosition = .{
+                            .filepath = pos.filepath,
+                            .buf = pos.buf,
+                            .idx = pos.getToken().idx,
+                        };
+                        err_loc.computeCoords();
+                        return log.reportError(log.SyntaxError.MissingSemicolon, err_loc, errorWriter);
+                    }
+                }
+            }
+            if (!in_bounds) break :root;
+
+            const prev_token = pos.prevToken();
+            if (prev_token.token != .semicolon) {
+                var err_loc: log.filePosition = .{
+                    .filepath = pos.filepath,
+                    .buf = pos.buf,
+                    .idx = pos.getToken().idx,
+                };
+                err_loc.computeCoords();
+                return log.reportError(log.SyntaxError.MisplacedNode, err_loc, errorWriter);
+            }
+            if (!in_bounds) break :node;
+
+            try set.node_list.append(allocator, .{
+                .name_idx = start_idx,
+                .expr_list = .{
+                    .start_idx = 0,
+                    .end_idx = 0,
+                },
+            });
+            continue :root;
+        } // :node
+    } // :root
 }
 
 pub const ParsePosition = struct {

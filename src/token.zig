@@ -15,6 +15,8 @@ pub const TokenType = enum(u8) {
     colon = ':',
     semicolon = ';',
     equals = '=',
+    plus = '+',
+    minus = '-',
 
     invalid = 128,
 
@@ -54,6 +56,15 @@ pub fn parseFromBuf(pos: *ParsePosition, token_list: *TokenList, allocator: std.
     var in_bounds = true;
 
     root: while (in_bounds) : (in_bounds = pos.inc()) {
+        // Break into upper level if we've reached the end of the body.
+        if (pos.byte() == '}') {
+            try token_list.append(allocator, .{
+                .idx = pos.*.idx,
+                .token = .curly_right,
+            });
+            break :root;
+        }
+
         // Don't parse quoted strings (@Node is a node, but not "@Node").
         for (quote_pairs) |quote| {
             if (pos.byte() != quote) continue;
@@ -112,13 +123,23 @@ pub fn parseFromBuf(pos: *ParsePosition, token_list: *TokenList, allocator: std.
 
             // Single-character syntax.
             switch (pos.byte()) {
-                ';', '#', '.', ':', '=', '(', ')', '[', ']', '{', '}' => |byte| {
+                // If '@' was detected in this branch, it means there's a syntax error,
+                // but as a favour to the AST we'll give it proper treatment anyway.
+                '@' => {
+                    in_bounds = pos.dec();
+                    continue :root;
+                },
+                ';', '#', '.', ':', '=', '(', ')', '[', ']', '{', '}', '+', '-' => |byte| {
                     try token_list.append(allocator, .{
                         .idx = pos.*.idx,
                         .token = @intToEnum(TokenType, byte),
                     });
-                    if (byte == '{') try parseFromBuf(pos, token_list, allocator);
-                    if (byte == '}') break :root;
+                    if (byte == '{') {
+                        try parseFromBuf(pos, token_list, allocator);
+                    }
+                    // If '}' was detected in this branch, it has no matching left curly bracket,
+                    // but as a favour to the AST we'll give it proper treatment anyway.
+                    if (byte == '}') continue :node;
                     if (byte == ';') continue :root;
                     continue :node;
                 },
@@ -139,6 +160,11 @@ pub const ParsePosition = struct {
     idx: u32 = 0,
     fn byte(self: *ParsePosition) u8 {
         return self.buf[self.idx];
+    }
+    fn dec(self: *ParsePosition) bool {
+        if (self.idx == 0) return false;
+        self.idx -= 1;
+        return true;
     }
     fn inc(self: *ParsePosition) bool {
         if (self.idx == self.buf.len - 1) return false;

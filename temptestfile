@@ -1,19 +1,8 @@
-@Node;
+@Test {};
 
-"@Not a node!;"
-
-@Test :str="somefield";
-
-@Test2 cool{};
-
-@Section "Name 1" date:date=2000-01-01.20:00 done:=false;
+@ThisCouldError {};
 
 @Week shares(startdate:=2023-05-01) {
-    @Day "Mon" (startdate += 0d);
+    @Day "Mon" (startdate += 0d)
     @Day "Tue" (startdate += 1d);
-    @Day "Wed" (startdate += 2d);
-    @Day "Thu" (startdate += 3d);
-    @Day "Fri" (startdate += 4d);
-    @Day "Sat" (startdate += 5d);
-    @Day "Sun" (startdate += 6d);
 };

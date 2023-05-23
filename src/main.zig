@@ -59,7 +59,7 @@ pub fn main() !void {
 
     var ast_set: ast.Set = .{};
     var ast_pos: ast.ParsePosition = .{ .filepath = absolute_filepath, .buf = filebuf, .token_list = token_list };
-    try ast.parseFromTokenList(&ast_pos, token_list, ast_set, allocator, stdout);
+    try ast.parseFromTokenList(&ast_pos, token_list, &ast_set, allocator, stdout);
 
     // Print AST (for now).
     try stdout.print("=== AST: BEGIN ===\n", .{});
