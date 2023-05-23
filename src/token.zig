@@ -18,7 +18,7 @@ pub const TokenType = enum(u8) {
     invalid,
 
     // Types.
-    string = 128,
+    str = 128,
     num,
     date,
 
@@ -86,7 +86,7 @@ pub fn parse(pos: *ParsePosition, token_list: *TokenList, allocator: std.mem.All
                 const symbol_end = pos.*;
                 try token_list.append(allocator, .{
                     .pos = symbol_start,
-                    .token = .string,
+                    .token = .str,
                     .lexeme = pos.buf[symbol_start.idx..symbol_end.idx],
                 });
                 continue :node;
@@ -119,22 +119,6 @@ pub fn parse(pos: *ParsePosition, token_list: *TokenList, allocator: std.mem.All
                     if (byte == ';') continue :root;
                     continue :node;
                 },
-                // // TODO: Some recursion needs to happen here.
-                // '{' => {
-                //     try token_list.append(allocator, .{
-                //         .pos = pos.*,
-                //         .token = .curly_left,
-                //         .lexeme = pos.buf[pos.idx .. pos.idx + 1],
-                //     });
-                //     in_bounds = pos.inc();
-                //     while (in_bounds and pos.byte() != '}') : (in_bounds = pos.inc()) {}
-                //     if (pos.byte() == '}') try token_list.append(allocator, .{
-                //         .pos = pos.*,
-                //         .token = .curly_right,
-                //         .lexeme = pos.buf[pos.idx .. pos.idx + 1],
-                //     });
-                //     continue :node;
-                // },
                 else => |byte| {
                     if (ascii.isWhitespace(byte)) continue :node;
                     try token_list.append(allocator, .{
@@ -143,12 +127,10 @@ pub fn parse(pos: *ParsePosition, token_list: *TokenList, allocator: std.mem.All
                         .lexeme = pos.buf[pos.idx .. pos.idx + 1],
                     });
                 },
-            }
-        }
-
-        if (!in_bounds) break;
-    }
-}
+            } // switch(pos.byte())
+        } // :node
+    } // :root
+} // parse()
 
 pub const ParsePosition = struct {
     buf: []const u8 = undefined,
@@ -159,7 +141,6 @@ pub const ParsePosition = struct {
         return self.buf[self.idx];
     }
     fn inc(self: *ParsePosition) bool {
-        // std.debug.print("{d}:{d}\t{d}\t'{c}'\n", .{ self.row, self.col, self.byte(), self.byte() });
         if (self.idx == self.buf.len - 1) return false;
         const prev_byte = self.byte();
         self.idx += 1;
