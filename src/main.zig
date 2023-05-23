@@ -30,9 +30,11 @@ pub fn main() !void {
     for (0..token_list.len) |i| {
         const item = token_list.get(i);
         const position = item.filePosition(filebuf);
-        const lexeme = item.lexeme(filebuf);
-        // std.debug.print("{d}:{d}\t{}\n", .{ position.line, position.col, item.token });
-        std.debug.print("{d}:{d}\t\"{s}\"\t{}\n", .{ position.line, position.col, lexeme, item.token });
-        // std.debug.print("{d}\t{}\n", .{ item.idx, item.token });
+        std.debug.print("{d}:{d}\t\"{s}\"\t{}\n", .{
+            position.line,
+            position.col,
+            item.lexeme(filebuf),
+            item.token,
+        });
     }
 }

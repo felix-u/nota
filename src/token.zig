@@ -52,10 +52,7 @@ pub const Token = struct {
         if (@enumToInt(self.token) <= @enumToInt(TokenType.invalid)) {
             return buf[self.idx .. self.idx + 1];
         }
-        var pos: ParsePosition = .{
-            .buf = buf,
-            .idx = self.idx,
-        };
+        var pos: ParsePosition = .{ .buf = buf, .idx = self.idx };
         _ = pos.incSkipSymbol();
         return buf[self.idx..pos.idx];
     }
