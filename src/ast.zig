@@ -1,4 +1,5 @@
 const std = @import("std");
+const log = @import("log.zig");
 const token = @import("./token.zig");
 
 pub const Set = struct {
@@ -43,13 +44,21 @@ pub fn parseFromTokenList(
     var in_bounds = pos.inc();
     while (in_bounds) : (in_bounds = pos.inc()) {
         if (tokens[pos.idx] != .name) {
-            try errorWriter.print("{d}:{d}: error: expected \n", .{ pos.getToken().lexeme(pos.buf), tokens[pos.idx] });
+            const at = pos.prevToken();
+            const at_loc: log.;
+            try errorWriter.print("{s}:{d}:{d}: error: expected node name after initialiser\n", .{
+                pos.filepath,
+                at_loc.line,
+                at_loc.col,
+            });
+            return log.ParseError.NoNodeName;
         }
     }
     try errorWriter.print("{d}\n{d}\n", .{ set.node_list.len, set.expr_list.len });
 }
 
 pub const ParsePosition = struct {
+    filepath: []const u8 = undefined,
     buf: []const u8 = undefined,
     token_list: token.TokenList = undefined,
     idx: u32 = 0,

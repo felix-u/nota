@@ -37,17 +37,6 @@ pub const Token = struct {
     token: TokenType,
     idx: u32,
 
-    pub fn filePosition(self: Token, buf: []const u8) struct { line: u32, col: u32 } {
-        var last_newline_idx: u32 = 0;
-        var line_num: u32 = 1;
-        var i: u32 = 0;
-        while (i < self.idx) : (i += 1) {
-            if (buf[i] != '\n') continue;
-            last_newline_idx = i;
-            line_num += 1;
-        }
-        return .{ .line = line_num, .col = self.idx - last_newline_idx };
-    }
     pub fn lexeme(self: Token, buf: []const u8) []const u8 {
         if (@enumToInt(self.token) <= @enumToInt(TokenType.invalid)) {
             return buf[self.idx .. self.idx + 1];

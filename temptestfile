@@ -1,3 +1,5 @@
+@Node;
+
 "@Not a node!;"
 
 @Test :str="somefield";

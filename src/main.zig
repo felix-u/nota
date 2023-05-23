@@ -1,5 +1,6 @@
 const std = @import("std");
 const ast = @import("ast.zig");
+const log = @import("log.zig");
 const token = @import("token.zig");
 
 pub fn main() !void {
@@ -21,10 +22,15 @@ pub fn main() !void {
 
     // Read file into buffer.
     const filepath = args[1];
-    const infile = try std.fs.cwd().openFile(filepath, .{ .mode = .read_only });
+    const cwd = std.fs.cwd();
+    const infile = try cwd.openFile(filepath, .{ .mode = .read_only });
     defer infile.close();
     const filebuf = try infile.readToEndAlloc(allocator, std.math.maxInt(u32));
     defer allocator.free(filebuf);
+    const absolute_filepath = try cwd.realpathAlloc(allocator, filepath);
+    defer allocator.free(absolute_filepath);
+
+    // Tokeniser.
 
     var token_list = token.TokenList{};
     var token_pos: token.ParsePosition = .{ .buf = filebuf };
@@ -34,7 +40,12 @@ pub fn main() !void {
     try stdout.print("=== TOKENS: BEGIN ===\n", .{});
     for (0..token_list.len) |i| {
         const item = token_list.get(i);
-        const position = item.filePosition(filebuf);
+        var position: log.filePosition = .{
+            .filepath = absolute_filepath,
+            .buf = filebuf,
+            .idx = item.idx,
+        };
+        position.computeCoords();
         try stdout.print("{d}:{d}\t\"{s}\"\t{}\n", .{
             position.line,
             position.col,
@@ -44,8 +55,10 @@ pub fn main() !void {
     }
     try stdout.print("=== TOKENS: END ===\n", .{});
 
+    // AST.
+
     var ast_set: ast.Set = .{};
-    var ast_pos: ast.ParsePosition = .{ .buf = filebuf, .token_list = token_list };
+    var ast_pos: ast.ParsePosition = .{ .filepath = absolute_filepath, .buf = filebuf, .token_list = token_list };
     try ast.parseFromTokenList(&ast_pos, token_list, ast_set, allocator, stdout);
 
     // Print AST (for now).
