@@ -19,7 +19,7 @@ pub fn main() !void {
     const filepath = args[1];
     const infile = try std.fs.cwd().openFile(filepath, .{ .mode = .read_only });
     defer infile.close();
-    const filebuf = try infile.readToEndAlloc(allocator, 10e6);
+    const filebuf = try infile.readToEndAlloc(allocator, std.math.maxInt(u32));
     defer allocator.free(filebuf);
 
     var token_list = token.TokenList{};
@@ -29,6 +29,10 @@ pub fn main() !void {
     // Print tokens (for now).
     for (0..token_list.len) |i| {
         const item = token_list.get(i);
-        std.debug.print("{d}:{d}\t\"{s}\"\t{}\n", .{ item.pos.row, item.pos.col, item.lexeme, item.token });
+        const position = item.filePosition(filebuf);
+        const lexeme = item.lexeme(filebuf);
+        // std.debug.print("{d}:{d}\t{}\n", .{ position.line, position.col, item.token });
+        std.debug.print("{d}:{d}\t\"{s}\"\t{}\n", .{ position.line, position.col, lexeme, item.token });
+        // std.debug.print("{d}\t{}\n", .{ item.idx, item.token });
     }
 }
