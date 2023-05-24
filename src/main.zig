@@ -32,12 +32,12 @@ pub fn main() !void {
 
     // Tokeniser.
 
+    try stdout.print("=== TOKENS: BEGIN ===\n", .{});
     var token_list = token.TokenList{};
     var token_pos: token.ParsePosition = .{ .buf = filebuf };
     try token.parseFromBuf(&token_pos, &token_list, allocator, false);
 
     // Print tokens (for now).
-    try stdout.print("=== TOKENS: BEGIN ===\n", .{});
     for (0..token_list.len) |i| {
         const item = token_list.get(i);
         var position: log.filePosition = .{
@@ -57,12 +57,43 @@ pub fn main() !void {
 
     // AST.
 
+    try stdout.print("=== AST: BEGIN ===\n", .{});
     var ast_set: ast.Set = .{};
     var ast_pos: ast.ParsePosition = .{ .filepath = absolute_filepath, .buf = filebuf, .token_list = token_list };
-    try ast.parseFromTokenList(&ast_pos, token_list, &ast_set, allocator, stdout);
+    try ast.parseFromTokenList(&ast_pos, &ast_set, allocator, stdout, false);
 
     // Print AST (for now).
-    try stdout.print("=== AST: BEGIN ===\n", .{});
+    for (0..ast_set.node_list.len) |i| {
+        const node = ast_set.node_list.get(i);
+        const node_token = token_list.get(node.name_idx);
+        const node_name = node_token.lexeme(filebuf);
+        var node_loc: log.filePosition = .{
+            .buf = filebuf,
+            .idx = node_token.idx,
+        };
+        node_loc.computeCoords();
+        try stdout.print("{d}:{d}\tBEGIN {s}\n", .{
+            node_loc.line,
+            node_loc.col,
+            node_name,
+        });
+        for (node.expr_list.start_idx..node.expr_list.end_idx + 1) |j| {
+            const item = token_list.get(j);
+            var position: log.filePosition = .{
+                .filepath = absolute_filepath,
+                .buf = filebuf,
+                .idx = item.idx,
+            };
+            position.computeCoords();
+            try stdout.print("{d}:{d}\t\"{s}\"\t{}\n", .{
+                position.line,
+                position.col,
+                item.lexeme(filebuf),
+                item.token,
+            });
+        }
+        try stdout.print("\tEND {s}\n", .{node_name});
+    }
 
     try stdout.print("=== AST: END ===\n", .{});
 }

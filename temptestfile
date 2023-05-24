@@ -1,11 +1,8 @@
-@Test;
-
-@ThisCouldError ;
+@Test field:str="somefield" };
 
 @Week shares(startdate:=2023-05-01) {
-    @Day "Mon" (startdate += 0d) {
-        @Somenode "hehey" 123;
-        @Yo
-    };
-    @Day "Tue" (startdate += 1d)
+    @Day name:="Mon" (startdate += 0d);
+    @Day name:="Tue" (startdate += 1d);
 };
+
+@Hey;

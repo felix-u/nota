@@ -206,3 +206,9 @@ pub const ParsePosition = struct {
 fn isValidSymbolChar(x: u8) bool {
     return ascii.isAlphanumeric(x) or (x == '_') or (x == '-');
 }
+
+pub fn getBytes(buf: []const u8, idx: u32) []const u8 {
+    var end_idx: u32 = idx;
+    while (end_idx < buf.len and isValidSymbolChar(buf[end_idx])) : (end_idx += 1) {}
+    return buf[idx..end_idx];
+}

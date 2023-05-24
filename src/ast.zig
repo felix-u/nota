@@ -3,22 +3,27 @@ const log = @import("log.zig");
 const token = @import("./token.zig");
 
 pub const Node = struct {
-    name_idx: u32,
+    name_idx: u32 = 0,
     expr_list: struct {
-        start_idx: u32,
-        end_idx: u32,
-    },
+        start_idx: u32 = 0,
+        end_idx: u32 = 0,
+    } = .{},
+    parent: u32 = undefined,
+    children: struct {
+        start_idx: u32 = undefined,
+        end_idx: u32 = undefined,
+    } = .{},
 };
 
 pub const NodeList = std.MultiArrayList(Node);
 
 const Expr = struct {
     type: enum(u8) { unresolved, str, num, date } = .unresolved,
-    evaluated: bool,
+    evaluated: bool = false,
     token_list: struct {
-        start_idx: u32,
-        end_idx: u32,
-    },
+        start_idx: u32 = 0,
+        end_idx: u32 = 0,
+    } = .{},
 };
 
 const ExprList = std.MultiArrayList(Expr);
@@ -30,86 +35,54 @@ pub const Set = struct {
 
 pub fn parseFromTokenList(
     pos: *ParsePosition,
-    token_list: token.TokenList,
     set: *Set,
     allocator: std.mem.Allocator,
     errorWriter: std.fs.File.Writer,
+    comptime in_body: bool,
 ) !void {
-    const tokens = token_list.items(.token);
+    var in_bounds = !pos.atEnd();
 
-    // The tokeniser guarantees that the first token is `@`.
-    // We can continue till we find ';' (correct usage), or '@' or EOF (syntax error).
+    node: while (in_bounds) : (in_bounds = pos.inc()) {
+        // First token in loop is guaranteed to be `@`.
 
-    var in_bounds = pos.inc();
-    root: while (in_bounds) : (in_bounds = pos.inc()) {
-        // No name after `@`.
-        if (tokens[pos.idx] != .name) {
-            var at_loc: log.filePosition = .{
+        // Error case: name doesn't immediately follow `@`.
+        if (pos.nextToken().token != .name) {
+            var err_loc: log.filePosition = .{
                 .filepath = pos.filepath,
                 .buf = pos.buf,
-                .idx = pos.prevToken().idx,
+                .idx = pos.idx,
             };
-            at_loc.computeCoords();
-            return log.reportError(log.SyntaxError.NoNodeName, at_loc, errorWriter);
+            err_loc.computeCoords();
+            if (log.reportError(log.SyntaxError.NoNodeName, err_loc, errorWriter) == log.SyntaxError.NoNodeName) {}
         }
 
-        // const start_idx = pos.idx;
-
-        // TODO: Parse expressions.
+        // Get node name.
         in_bounds = pos.inc();
-        while (in_bounds and tokens[pos.idx] != .at) : (in_bounds = pos.inc()) {
-            // Left curly bracket starts node body.
-            if (tokens[pos.idx] == .curly_left) {
-                // Recursion to parse body.
-                if (pos.nextToken().token != .curly_right) {
-                    in_bounds = pos.inc();
-                    try parseFromTokenList(pos, token_list, set, allocator, errorWriter);
-                    std.debug.print("{}\n", .{pos.getToken()});
-                }
+        var this_node: Node = .{ .name_idx = pos.idx };
+        in_bounds = pos.inc();
 
-                // Case: end of file.
-                if (pos.atEnd()) break :root;
+        // Go to `;` to process node.
+        this_node.expr_list.start_idx = pos.idx;
+        expr: while (in_bounds and pos.getToken().token != .semicolon) : (in_bounds = pos.inc()) {
 
-                const prev_token = pos.prevToken();
-                // Error case: missing semicolon before end of node body.
-                if (prev_token.token != .semicolon and prev_token.token != .curly_left) {
-                    var err_loc: log.filePosition = .{
-                        .filepath = pos.filepath,
-                        .buf = pos.buf,
-                        .idx = pos.getToken().idx,
-                    };
-                    err_loc.computeCoords();
-                    return log.reportError(log.SyntaxError.MissingSemicolon, err_loc, errorWriter);
-                }
-            } // node body
+            // `{`: Recurse in body.
+            if (pos.getToken().token == .curly_left and pos.nextToken().token != .curly_right) {
+                in_bounds = pos.inc();
+                try parseFromTokenList(pos, set, allocator, errorWriter, true);
+            }
 
-            if (pos.getToken().token == .curly_right) {}
+            // `}`: Body over, so we'll break the function.
+            if (in_body and pos.getToken().token == .curly_right) {
+                in_bounds = pos.inc();
+                break :expr;
+            }
 
-            // const prev_token = pos.prevToken();
-            // // Error case: no semicolon before new node.
-            // if (prev_token.token != .semicolon) {
-            //     var err_loc: log.filePosition = .{
-            //         .filepath = pos.filepath,
-            //         .buf = pos.buf,
-            //         .idx = pos.getToken().idx,
-            //     };
-            //     err_loc.computeCoords();
-            //     return log.reportError(log.SyntaxError.MisplacedNode, err_loc, errorWriter);
-            // }
-            // if (!in_bounds) break :node;
-
-            // try set.node_list.append(allocator, .{
-            //     .name_idx = start_idx,
-            //     .expr_list = .{
-            //         .start_idx = 0,
-            //         .end_idx = 0,
-            //     },
-            // });
-        } // :node
-
-        // Case: end of file.
-        if (!in_bounds) break :root;
-    } // :root
+            // `;`: Node over, so we'll continue the node loop.
+            if (pos.getToken().token == .semicolon) continue :node;
+        } // :expr
+        this_node.expr_list.end_idx = pos.idx;
+        try set.node_list.append(allocator, this_node);
+    } // :node
 }
 
 pub const ParsePosition = struct {
