@@ -44,7 +44,6 @@ pub fn parseFromTokenList(
     root: while (in_bounds) : (in_bounds = pos.inc()) {
         // No name after `@`.
         if (tokens[pos.idx] != .name) {
-            std.debug.print("{}\n", .{pos.getToken()});
             var at_loc: log.filePosition = .{
                 .filepath = pos.filepath,
                 .buf = pos.buf,
@@ -54,58 +53,62 @@ pub fn parseFromTokenList(
             return log.reportError(log.SyntaxError.NoNodeName, at_loc, errorWriter);
         }
 
-        // Get node expressions.
-        node: while (in_bounds) : (in_bounds = pos.inc()) {
-            const start_idx = pos.idx;
+        // const start_idx = pos.idx;
 
-            // TODO: Will parse expressions here.
-            while (in_bounds and tokens[pos.idx] != .at) : (in_bounds = pos.inc()) {
-                // TODO: Recursion needs to happen here to process children.
-                if (tokens[pos.idx] == .curly_left) {
-                    // while (in_bounds and tokens[pos.idx] != .curly_right) : (in_bounds = pos.inc()) {}
-                    if (pos.nextToken().token != .curly_right) {
-                        in_bounds = pos.inc();
-                        try parseFromTokenList(pos, token_list, set, allocator, errorWriter);
-                    }
-                    if (pos.atEnd()) break :root;
-                    const prev_token = pos.prevToken();
-                    // Error case: missing semicolon.
-                    if (prev_token.token != .semicolon and prev_token.token != .curly_left) {
-                        std.debug.print("{}\t{}\n", .{ prev_token.token, pos.getToken().token });
-                        var err_loc: log.filePosition = .{
-                            .filepath = pos.filepath,
-                            .buf = pos.buf,
-                            .idx = pos.getToken().idx,
-                        };
-                        err_loc.computeCoords();
-                        return log.reportError(log.SyntaxError.MissingSemicolon, err_loc, errorWriter);
-                    }
+        // TODO: Parse expressions.
+        in_bounds = pos.inc();
+        while (in_bounds and tokens[pos.idx] != .at) : (in_bounds = pos.inc()) {
+            // Left curly bracket starts node body.
+            if (tokens[pos.idx] == .curly_left) {
+                // Recursion to parse body.
+                if (pos.nextToken().token != .curly_right) {
+                    in_bounds = pos.inc();
+                    try parseFromTokenList(pos, token_list, set, allocator, errorWriter);
+                    std.debug.print("{}\n", .{pos.getToken()});
                 }
-            }
-            std.debug.print("{}\t{}\n", .{ pos.prevToken(), pos.getToken() });
-            if (!in_bounds) break :root;
 
-            const prev_token = pos.prevToken();
-            if (prev_token.token != .semicolon) {
-                var err_loc: log.filePosition = .{
-                    .filepath = pos.filepath,
-                    .buf = pos.buf,
-                    .idx = pos.getToken().idx,
-                };
-                err_loc.computeCoords();
-                return log.reportError(log.SyntaxError.MisplacedNode, err_loc, errorWriter);
-            }
-            if (!in_bounds) break :node;
+                // Case: end of file.
+                if (pos.atEnd()) break :root;
 
-            try set.node_list.append(allocator, .{
-                .name_idx = start_idx,
-                .expr_list = .{
-                    .start_idx = 0,
-                    .end_idx = 0,
-                },
-            });
-            continue :root;
+                const prev_token = pos.prevToken();
+                // Error case: missing semicolon before end of node body.
+                if (prev_token.token != .semicolon and prev_token.token != .curly_left) {
+                    var err_loc: log.filePosition = .{
+                        .filepath = pos.filepath,
+                        .buf = pos.buf,
+                        .idx = pos.getToken().idx,
+                    };
+                    err_loc.computeCoords();
+                    return log.reportError(log.SyntaxError.MissingSemicolon, err_loc, errorWriter);
+                }
+            } // node body
+
+            if (pos.getToken().token == .curly_right) {}
+
+            // const prev_token = pos.prevToken();
+            // // Error case: no semicolon before new node.
+            // if (prev_token.token != .semicolon) {
+            //     var err_loc: log.filePosition = .{
+            //         .filepath = pos.filepath,
+            //         .buf = pos.buf,
+            //         .idx = pos.getToken().idx,
+            //     };
+            //     err_loc.computeCoords();
+            //     return log.reportError(log.SyntaxError.MisplacedNode, err_loc, errorWriter);
+            // }
+            // if (!in_bounds) break :node;
+
+            // try set.node_list.append(allocator, .{
+            //     .name_idx = start_idx,
+            //     .expr_list = .{
+            //         .start_idx = 0,
+            //         .end_idx = 0,
+            //     },
+            // });
         } // :node
+
+        // Case: end of file.
+        if (!in_bounds) break :root;
     } // :root
 }
 
