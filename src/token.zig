@@ -52,12 +52,17 @@ pub const Token = struct {
 pub const TokenList = std.MultiArrayList(Token);
 
 const quote_pairs = "\"'`";
-pub fn parseFromBuf(pos: *ParsePosition, token_list: *TokenList, allocator: std.mem.Allocator) !void {
+pub fn parseFromBuf(
+    pos: *ParsePosition,
+    token_list: *TokenList,
+    allocator: std.mem.Allocator,
+    comptime in_node_body: bool,
+) !void {
     var in_bounds = true;
 
     root: while (in_bounds) : (in_bounds = pos.inc()) {
         // Break into upper level if we've reached the end of the body.
-        if (pos.byte() == '}') {
+        if (in_node_body and pos.byte() == '}') {
             try token_list.append(allocator, .{
                 .idx = pos.*.idx,
                 .token = .curly_right,
@@ -135,7 +140,7 @@ pub fn parseFromBuf(pos: *ParsePosition, token_list: *TokenList, allocator: std.
                         .token = @intToEnum(TokenType, byte),
                     });
                     if (byte == '{') {
-                        try parseFromBuf(pos, token_list, allocator);
+                        try parseFromBuf(pos, token_list, allocator, true);
                     }
                     // If '}' was detected in this branch, it has no matching left curly bracket,
                     // but as a favour to the AST we'll give it proper treatment anyway.

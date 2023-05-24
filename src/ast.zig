@@ -44,6 +44,7 @@ pub fn parseFromTokenList(
     root: while (in_bounds) : (in_bounds = pos.inc()) {
         // No name after `@`.
         if (tokens[pos.idx] != .name) {
+            std.debug.print("{}\n", .{pos.getToken()});
             var at_loc: log.filePosition = .{
                 .filepath = pos.filepath,
                 .buf = pos.buf,
@@ -57,12 +58,18 @@ pub fn parseFromTokenList(
         node: while (in_bounds) : (in_bounds = pos.inc()) {
             const start_idx = pos.idx;
 
-            // TODO: Will process expressions here.
+            // TODO: Will parse expressions here.
             while (in_bounds and tokens[pos.idx] != .at) : (in_bounds = pos.inc()) {
                 // TODO: Recursion needs to happen here to process children.
                 if (tokens[pos.idx] == .curly_left) {
-                    while (in_bounds and tokens[pos.idx] != .curly_right) : (in_bounds = pos.inc()) {}
+                    // while (in_bounds and tokens[pos.idx] != .curly_right) : (in_bounds = pos.inc()) {}
+                    if (pos.nextToken().token != .curly_right) {
+                        in_bounds = pos.inc();
+                        try parseFromTokenList(pos, token_list, set, allocator, errorWriter);
+                    }
+                    if (pos.atEnd()) break :root;
                     const prev_token = pos.prevToken();
+                    // Error case: missing semicolon.
                     if (prev_token.token != .semicolon and prev_token.token != .curly_left) {
                         std.debug.print("{}\t{}\n", .{ prev_token.token, pos.getToken().token });
                         var err_loc: log.filePosition = .{
@@ -75,6 +82,7 @@ pub fn parseFromTokenList(
                     }
                 }
             }
+            std.debug.print("{}\t{}\n", .{ pos.prevToken(), pos.getToken() });
             if (!in_bounds) break :root;
 
             const prev_token = pos.prevToken();
@@ -106,6 +114,9 @@ pub const ParsePosition = struct {
     buf: []const u8 = undefined,
     token_list: token.TokenList = undefined,
     idx: u32 = 0,
+    fn atEnd(self: *ParsePosition) bool {
+        return (self.idx == self.token_list.len - 1);
+    }
     fn getToken(self: *ParsePosition) token.Token {
         return self.token_list.get(self.idx);
     }

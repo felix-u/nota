@@ -34,7 +34,7 @@ pub fn main() !void {
 
     var token_list = token.TokenList{};
     var token_pos: token.ParsePosition = .{ .buf = filebuf };
-    try token.parseFromBuf(&token_pos, &token_list, allocator);
+    try token.parseFromBuf(&token_pos, &token_list, allocator, false);
 
     // Print tokens (for now).
     try stdout.print("=== TOKENS: BEGIN ===\n", .{});

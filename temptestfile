@@ -1,8 +1,8 @@
-@Test {};
+@Test ;
 
-@ThisCouldError {};
+@ThisCouldError ;
 
 @Week shares(startdate:=2023-05-01) {
-    @Day "Mon" (startdate += 0d)
-    @Day "Tue" (startdate += 1d);
+    @Day "Mon" (startdate += 0d);
+    @Day "Tue" (startdate += 1d)
 };
