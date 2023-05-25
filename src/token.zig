@@ -10,32 +10,23 @@ pub const TokenType = enum(u8) {
     curly_left = '{',
     curly_right = '}',
     at = '@',
-    hash = '#',
-    dot = '.',
     colon = ':',
     semicolon = ';',
     equals = '=',
-    plus = '+',
-    minus = '-',
+    // plus = '+',
+    // minus = '-',
+    // hash = '#',
+    // dot = '.',
 
     invalid = 128,
 
-    // Types.
+    // Literal types.
     str,
     str_no_closing_quote,
-    num,
-    date,
 
     // Symbols.
-    node_name,
     unresolved,
-    expr_name,
-    func_name,
-
-    // Directives.
-    mods,
-    provides,
-    shares,
+    node_name,
 
     eof,
 };
@@ -143,7 +134,7 @@ pub fn parseFromBuf(
                     in_bounds = pos.dec();
                     continue :root;
                 },
-                ';', '#', '.', ':', '=', '(', ')', '[', ']', '{', '}', '+', '-' => |byte| {
+                ';', ':', '=', '(', ')', '[', ']', '{', '}' => |byte| {
                     try token_list.append(allocator, .{
                         .idx = pos.*.idx,
                         .token = @intToEnum(TokenType, byte),

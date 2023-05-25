@@ -1,2 +1,3 @@
-@Node text:="oops, there should be a semicolon to end this node"
-@AnotherNode;
+@Week greeting:str="yo" {
+    @Day;
+};

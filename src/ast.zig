@@ -3,13 +3,20 @@ const log = @import("log.zig");
 const token = @import("./token.zig");
 
 pub const Node = struct {
+    parent_idx: u32 = 0,
     name_idx: u32 = 0,
-    parent: u32 = undefined,
-    expr_list_start_idx: u32 = 0,
-    children_start_idx: u32 = undefined,
+    expr_list_idx: u32 = 0,
+    children_idx: u32 = 0,
 };
 
 pub const NodeList = std.MultiArrayList(Node);
+
+const SymbolType = enum(u8) { str, num, date };
+const symbol_type = std.ComptimeStringMap(token.TokenType, .{
+    .{ "str", SymbolType.str },
+    .{ "num", SymbolType.num },
+    .{ "date", SymbolType.date },
+});
 
 const Expr = struct {
     type: enum(u8) { unresolved, str, num, date } = .unresolved,
@@ -29,7 +36,6 @@ pub fn parseFromTokenList(
     set: *Set,
     allocator: std.mem.Allocator,
     errorWriter: std.fs.File.Writer,
-    // comptime in_body: bool,
 ) !void {
     var in_bounds = !pos.atEnd();
 
@@ -57,8 +63,13 @@ pub fn parseFromTokenList(
         in_bounds = pos.inc();
 
         // Go to `;` to process node.
-        this_node.expr_list_start_idx = pos.idx;
+        this_node.expr_list_idx = pos.idx;
         while (in_bounds and pos.getToken().token != .semicolon) : (in_bounds = pos.inc()) {
+            // Case: name:maybe_type=expression
+            if (pos.getToken().token == .unresolved) in_bounds = parseExpression();
+
+            if (!in_bounds) break;
+
             // `{`: Recurse in body.
             if (pos.getToken().token == .curly_left and pos.nextToken().token != .curly_right) {
                 in_bounds = pos.inc();
@@ -79,7 +90,6 @@ pub fn parseFromTokenList(
                     return log.reportError(log.SyntaxError.NoSemicolonAfterBody, err_loc, errorWriter);
                 }
                 // Node over (node has body), so we'll continue the outer loop.
-                // this_node.expr_list.end_idx = pos.idx;
                 try set.node_list.append(allocator, this_node);
                 continue :node;
             }
@@ -106,7 +116,6 @@ pub fn parseFromTokenList(
         }
 
         // Node over (node has no body), so we'll continue the outer loop.
-        // this_node.expr_list.end_idx = pos.idx;
         try set.node_list.append(allocator, this_node);
     } // :node
 
@@ -120,6 +129,34 @@ pub fn parseFromTokenList(
         err_loc.computeCoords();
         return log.reportError(log.SyntaxError.NoSemicolonAfterNode, err_loc, errorWriter);
     }
+}
+
+fn parseExpression(
+    pos: *ParsePosition,
+    set: *Set,
+    allocator: std.mem.Allocator,
+    errorWriter: std.fs.File.Writer,
+) bool {
+    _ = errorWriter;
+    const expr_start_idx = pos.idx;
+
+    var in_bounds = pos.inc();
+    expr: while (in_bounds) : (in_bounds = pos.inc()) {
+        switch (pos.getToken().token) {
+            .colon => {
+                in_bounds = pos.inc();
+                if (pos.getToken().token == .equals) continue :expr;
+                if (pos.getToken().token == .unresolved) {}
+            },
+            .equals => {},
+            .unresolved => {},
+        } // switch (pos.getToken().token)
+    } // :expr
+
+    try set.expr_list.append(allocator, .{
+        .type = .unresolved,
+        .token_start_idx = expr_start_idx,
+    });
 }
 
 pub const ParsePosition = struct {
