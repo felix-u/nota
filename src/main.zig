@@ -70,34 +70,13 @@ pub fn main() !void {
     // Print AST (for now).
     for (0..ast_set.node_list.len) |i| {
         const node = ast_set.node_list.get(i);
-        const node_token = token_list.get(node.name_idx);
-        const node_name = node_token.lexeme(filebuf);
-        var node_loc: log.filePosition = .{
-            .buf = filebuf,
-            .idx = node_token.idx,
+        const node_name = ast_set.token_list.get(node.name_idx).lexeme(ast_pos.buf);
+        var node_position: log.filePosition = .{
+            .buf = ast_pos.buf,
+            .idx = ast_set.token_list.get(node.name_idx).idx,
         };
-        node_loc.computeCoords();
-        try stdout.print("{d}:{d}\tBEGIN {s}\n", .{
-            node_loc.line,
-            node_loc.col,
-            node_name,
-        });
-        for (node.expr_list.start_idx..node.expr_list.end_idx) |j| {
-            const item = token_list.get(j);
-            var position: log.filePosition = .{
-                .filepath = absolute_filepath,
-                .buf = filebuf,
-                .idx = item.idx,
-            };
-            position.computeCoords();
-            try stdout.print("{d}:{d}\t\"{s}\"\t{}\n", .{
-                position.line,
-                position.col,
-                item.lexeme(filebuf),
-                item.token,
-            });
-        }
-        try stdout.print("\tEND {s}\n", .{node_name});
+        node_position.computeCoords();
+        try stdout.print("{d}:{d}\t{s}\t{}\n", .{ node_position.line, node_position.col, node_name, node });
     }
 
     try stdout.print("=== AST: END ===\n", .{});

@@ -4,15 +4,9 @@ const token = @import("./token.zig");
 
 pub const Node = struct {
     name_idx: u32 = 0,
-    expr_list: struct {
-        start_idx: u32 = 0,
-        end_idx: u32 = 0,
-    } = .{},
     parent: u32 = undefined,
-    children: struct {
-        start_idx: u32 = undefined,
-        end_idx: u32 = undefined,
-    } = .{},
+    expr_list_start_idx: u32 = 0,
+    children_start_idx: u32 = undefined,
 };
 
 pub const NodeList = std.MultiArrayList(Node);
@@ -63,7 +57,7 @@ pub fn parseFromTokenList(
         in_bounds = pos.inc();
 
         // Go to `;` to process node.
-        this_node.expr_list.start_idx = pos.idx;
+        this_node.expr_list_start_idx = pos.idx;
         while (in_bounds and pos.getToken().token != .semicolon) : (in_bounds = pos.inc()) {
             // `{`: Recurse in body.
             if (pos.getToken().token == .curly_left and pos.nextToken().token != .curly_right) {
@@ -85,7 +79,7 @@ pub fn parseFromTokenList(
                     return log.reportError(log.SyntaxError.NoSemicolonAfterBody, err_loc, errorWriter);
                 }
                 // Node over (node has body), so we'll continue the outer loop.
-                this_node.expr_list.end_idx = pos.idx;
+                // this_node.expr_list.end_idx = pos.idx;
                 try set.node_list.append(allocator, this_node);
                 continue :node;
             }
@@ -112,7 +106,7 @@ pub fn parseFromTokenList(
         }
 
         // Node over (node has no body), so we'll continue the outer loop.
-        this_node.expr_list.end_idx = pos.idx;
+        // this_node.expr_list.end_idx = pos.idx;
         try set.node_list.append(allocator, this_node);
     } // :node
 
