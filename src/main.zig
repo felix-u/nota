@@ -46,9 +46,10 @@ pub fn main() !void {
             .idx = item.idx,
         };
         position.computeCoords();
-        try stdout.print("{d}:{d}\t\"{s}\"\t{}\n", .{
+        try stdout.print("{d}:{d}\t{d}\t\"{s}\"\t{}\n", .{
             position.line,
             position.col,
+            i,
             item.lexeme(filebuf),
             item.token,
         });
@@ -58,8 +59,12 @@ pub fn main() !void {
     // AST.
 
     try stdout.print("=== AST: BEGIN ===\n", .{});
-    var ast_set: ast.Set = .{};
-    var ast_pos: ast.ParsePosition = .{ .filepath = absolute_filepath, .buf = filebuf, .token_list = token_list };
+    var ast_set: ast.Set = .{ .token_list = token_list };
+    var ast_pos: ast.ParsePosition = .{
+        .filepath = absolute_filepath,
+        .buf = filebuf,
+        .token_list = ast_set.token_list,
+    };
     try ast.parseFromTokenList(&ast_pos, &ast_set, allocator, stdout, false);
 
     // Print AST (for now).

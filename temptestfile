@@ -1,8 +1,3 @@
-@Test field:str="somefield" };
-
-@Week shares(startdate:=2023-05-01) {
-    @Day name:="Mon" (startdate += 0d);
-    @Day name:="Tue" (startdate += 1d);
+@Week {
+    @Day;
 };
-
-@Hey;

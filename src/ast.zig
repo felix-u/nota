@@ -29,6 +29,7 @@ const Expr = struct {
 const ExprList = std.MultiArrayList(Expr);
 
 pub const Set = struct {
+    token_list: token.TokenList = token.TokenList{},
     node_list: NodeList = NodeList{},
     expr_list: ExprList = ExprList{},
 };
@@ -42,15 +43,23 @@ pub fn parseFromTokenList(
 ) !void {
     var in_bounds = !pos.atEnd();
 
+    var prevtok = pos.prevToken();
+    var heretok = pos.getToken();
+    var nexttok = pos.nextToken();
+
     node: while (in_bounds) : (in_bounds = pos.inc()) {
         // First token in loop is guaranteed to be `@`.
+
+        heretok = pos.getToken();
+        prevtok = pos.prevToken();
+        nexttok = pos.nextToken();
 
         // Error case: name doesn't immediately follow `@`.
         if (pos.nextToken().token != .name) {
             var err_loc: log.filePosition = .{
                 .filepath = pos.filepath,
                 .buf = pos.buf,
-                .idx = pos.idx,
+                .idx = pos.getToken().idx,
             };
             err_loc.computeCoords();
             if (log.reportError(log.SyntaxError.NoNodeName, err_loc, errorWriter) == log.SyntaxError.NoNodeName) {}
@@ -73,7 +82,6 @@ pub fn parseFromTokenList(
 
             // `}`: Body over, so we'll break the function.
             if (in_body and pos.getToken().token == .curly_right) {
-                in_bounds = pos.inc();
                 break :expr;
             }
 
