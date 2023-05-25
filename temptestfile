@@ -1,3 +1,7 @@
 @Week {
-    @Day;
+    @Day{};
+    @Hey my:=friend;
+    @Wassup num:=123;
 };
+
+@Hey name:type="something" {};

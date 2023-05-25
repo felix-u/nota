@@ -33,6 +33,8 @@ pub const TokenType = enum(u8) {
     mods,
     provides,
     shares,
+
+    eof,
 };
 
 pub const Token = struct {
@@ -46,6 +48,9 @@ pub const Token = struct {
         var pos: ParsePosition = .{ .buf = buf, .idx = self.idx };
         _ = pos.incSkipSymbol();
         return buf[self.idx..pos.idx];
+    }
+    pub fn lastByteIdx(self: Token, buf: []const u8) u32 {
+        return self.idx + std.math.lossyCast(u32, self.lexeme(buf).len) - 1;
     }
 };
 

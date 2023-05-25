@@ -65,7 +65,7 @@ pub fn main() !void {
         .buf = filebuf,
         .token_list = ast_set.token_list,
     };
-    try ast.parseFromTokenList(&ast_pos, &ast_set, allocator, stdout, false);
+    try ast.parseFromTokenList(&ast_pos, &ast_set, allocator, stdout);
 
     // Print AST (for now).
     for (0..ast_set.node_list.len) |i| {
@@ -82,7 +82,7 @@ pub fn main() !void {
             node_loc.col,
             node_name,
         });
-        for (node.expr_list.start_idx..node.expr_list.end_idx + 1) |j| {
+        for (node.expr_list.start_idx..node.expr_list.end_idx) |j| {
             const item = token_list.get(j);
             var position: log.filePosition = .{
                 .filepath = absolute_filepath,

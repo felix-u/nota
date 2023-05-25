@@ -39,20 +39,16 @@ pub fn parseFromTokenList(
     set: *Set,
     allocator: std.mem.Allocator,
     errorWriter: std.fs.File.Writer,
-    comptime in_body: bool,
+    // comptime in_body: bool,
 ) !void {
     var in_bounds = !pos.atEnd();
 
-    var prevtok = pos.prevToken();
-    var heretok = pos.getToken();
-    var nexttok = pos.nextToken();
-
     node: while (in_bounds) : (in_bounds = pos.inc()) {
-        // First token in loop is guaranteed to be `@`.
-
-        heretok = pos.getToken();
-        prevtok = pos.prevToken();
-        nexttok = pos.nextToken();
+        // First token in loop is guaranteed to be either `@` or `}`.
+        if (pos.getToken().token == .curly_right) {
+            in_bounds = pos.inc();
+            break;
+        }
 
         // Error case: name doesn't immediately follow `@`.
         if (pos.nextToken().token != .name) {
@@ -62,7 +58,7 @@ pub fn parseFromTokenList(
                 .idx = pos.getToken().idx,
             };
             err_loc.computeCoords();
-            if (log.reportError(log.SyntaxError.NoNodeName, err_loc, errorWriter) == log.SyntaxError.NoNodeName) {}
+            return log.reportError(log.SyntaxError.NoNodeName, err_loc, errorWriter);
         }
 
         // Get node name.
@@ -72,25 +68,63 @@ pub fn parseFromTokenList(
 
         // Go to `;` to process node.
         this_node.expr_list.start_idx = pos.idx;
-        expr: while (in_bounds and pos.getToken().token != .semicolon) : (in_bounds = pos.inc()) {
-
+        while (in_bounds and pos.getToken().token != .semicolon) : (in_bounds = pos.inc()) {
             // `{`: Recurse in body.
             if (pos.getToken().token == .curly_left and pos.nextToken().token != .curly_right) {
+                // while (in_bounds and pos.getToken().token != .curly_right) : (in_bounds = pos.inc()) {}
                 in_bounds = pos.inc();
-                try parseFromTokenList(pos, set, allocator, errorWriter, true);
+                try parseFromTokenList(pos, set, allocator, errorWriter);
+                if (pos.getToken().token != .semicolon) {
+                    var err_loc: log.filePosition = .{
+                        .filepath = pos.filepath,
+                        .buf = pos.buf,
+                        .idx = pos.getToken().idx,
+                    };
+                    err_loc.computeCoords();
+                    if (pos.getToken().token == .at) {
+                        return log.reportError(log.SyntaxError.NoSemicolonAfterNode, err_loc, errorWriter);
+                    }
+                    return log.reportError(log.SyntaxError.NoSemicolonAfterBody, err_loc, errorWriter);
+                }
+                // Node over (node has body), so we'll continue the outer loop.
+                this_node.expr_list.end_idx = pos.idx;
+                try set.node_list.append(allocator, this_node);
+                continue :node;
+            }
+            // Ignore empty body.
+            else if (pos.getToken().token == .curly_left and pos.nextToken().token == .curly_right) {
+                in_bounds = pos.inc();
             }
 
-            // `}`: Body over, so we'll break the function.
-            if (in_body and pos.getToken().token == .curly_right) {
-                break :expr;
+            // The semicolon required before a new node or body end would've ended this loop, so:
+            // `}` shouldn't be here if previous node wasn't `{` (empty body);
+            // `@` shouldn't be here.
+            if ((pos.getToken().token == .curly_right and pos.prevToken().token != .curly_left) or pos.getToken().token == .at) {
+                var err_loc: log.filePosition = .{
+                    .filepath = pos.filepath,
+                    .buf = pos.buf,
+                    .idx = pos.getToken().idx,
+                };
+                err_loc.computeCoords();
+                return log.reportError(log.SyntaxError.NoSemicolonAfterNode, err_loc, errorWriter);
             }
+        }
 
-            // `;`: Node over, so we'll continue the node loop.
-            if (pos.getToken().token == .semicolon) continue :node;
-        } // :expr
+        // Node over (node has no body), so we'll continue the outer loop.
         this_node.expr_list.end_idx = pos.idx;
         try set.node_list.append(allocator, this_node);
     } // :node
+
+    // End of file and no semicolon.
+    if (!in_bounds and pos.nextToken().token != .semicolon) {
+        var err_loc: log.filePosition = .{
+            .filepath = pos.filepath,
+            .buf = pos.buf,
+            .idx = pos.getToken().lastByteIdx(pos.buf),
+        };
+        err_loc.computeCoords();
+        return log.reportError(log.SyntaxError.NoSemicolonAfterNode, err_loc, errorWriter);
+    }
 }
 
 pub const ParsePosition = struct {

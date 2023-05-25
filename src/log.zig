@@ -3,7 +3,8 @@ const std = @import("std");
 pub const SyntaxError = error{
     NoNodeName,
     MisplacedNode,
-    MissingSemicolon,
+    NoSemicolonAfterBody,
+    NoSemicolonAfterNode,
 };
 
 pub const filePosition = struct {
@@ -36,7 +37,7 @@ pub const filePosition = struct {
     }
 };
 
-pub fn reportError(comptime err: anyerror, file_pos: filePosition, errorWriter: std.fs.File.Writer) anyerror {
+pub fn reportError(comptime err: SyntaxError, file_pos: filePosition, errorWriter: std.fs.File.Writer) anyerror {
     var pos = file_pos;
     try errorWriter.print("{s}:{d}:{d}: error: ", .{ pos.filepath, pos.line, pos.col });
     switch (err) {
@@ -46,11 +47,11 @@ pub fn reportError(comptime err: anyerror, file_pos: filePosition, errorWriter: 
         SyntaxError.MisplacedNode => {
             try errorWriter.print("expected ';' or '{c}' before node declaration\n", .{'{'});
         },
-        SyntaxError.MissingSemicolon => {
-            try errorWriter.print("expected ';' before end of non-empty node body\n", .{});
+        SyntaxError.NoSemicolonAfterBody => {
+            try errorWriter.print("expected ';' to end node (expressions disallowed after body end)\n", .{});
         },
-        else => {
-            try errorWriter.print("invalid\n", .{});
+        SyntaxError.NoSemicolonAfterNode => {
+            try errorWriter.print("expected ';' to end previous node\n", .{});
         },
     }
     try errorWriter.print("\t{s}\n\t", .{pos.getLine()});
