@@ -19,11 +19,7 @@ pub const NodeList = std.MultiArrayList(Node);
 
 const Expr = struct {
     type: enum(u8) { unresolved, str, num, date } = .unresolved,
-    evaluated: bool = false,
-    token_list: struct {
-        start_idx: u32 = 0,
-        end_idx: u32 = 0,
-    } = .{},
+    token_start_idx: u32 = 0,
 };
 
 const ExprList = std.MultiArrayList(Expr);
@@ -51,7 +47,7 @@ pub fn parseFromTokenList(
         }
 
         // Error case: name doesn't immediately follow `@`.
-        if (pos.nextToken().token != .name) {
+        if (pos.nextToken().token != .node_name) {
             var err_loc: log.filePosition = .{
                 .filepath = pos.filepath,
                 .buf = pos.buf,
@@ -71,7 +67,6 @@ pub fn parseFromTokenList(
         while (in_bounds and pos.getToken().token != .semicolon) : (in_bounds = pos.inc()) {
             // `{`: Recurse in body.
             if (pos.getToken().token == .curly_left and pos.nextToken().token != .curly_right) {
-                // while (in_bounds and pos.getToken().token != .curly_right) : (in_bounds = pos.inc()) {}
                 in_bounds = pos.inc();
                 try parseFromTokenList(pos, set, allocator, errorWriter);
                 if (pos.getToken().token != .semicolon) {
@@ -82,6 +77,9 @@ pub fn parseFromTokenList(
                     };
                     err_loc.computeCoords();
                     if (pos.getToken().token == .at) {
+                        if (pos.prevToken().token == .str_no_closing_quote) {
+                            return log.reportError(log.SyntaxError.StrNoClosingQuote, err_loc, errorWriter);
+                        }
                         return log.reportError(log.SyntaxError.NoSemicolonAfterNode, err_loc, errorWriter);
                     }
                     return log.reportError(log.SyntaxError.NoSemicolonAfterBody, err_loc, errorWriter);
@@ -106,6 +104,9 @@ pub fn parseFromTokenList(
                     .idx = pos.getToken().idx,
                 };
                 err_loc.computeCoords();
+                if (pos.prevToken().token == .str_no_closing_quote) {
+                    return log.reportError(log.SyntaxError.StrNoClosingQuote, err_loc, errorWriter);
+                }
                 return log.reportError(log.SyntaxError.NoSemicolonAfterNode, err_loc, errorWriter);
             }
         }

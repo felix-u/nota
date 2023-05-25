@@ -22,12 +22,15 @@ pub const TokenType = enum(u8) {
 
     // Types.
     str,
+    str_no_closing_quote,
     num,
     date,
 
     // Symbols.
-    name,
+    node_name,
     unresolved,
+    expr_name,
+    func_name,
 
     // Directives.
     mods,
@@ -46,7 +49,7 @@ pub const Token = struct {
             return buf[self.idx .. self.idx + 1];
         }
         var pos: ParsePosition = .{ .buf = buf, .idx = self.idx };
-        _ = pos.incSkipSymbol();
+        _ = if (self.token == .str) pos.incSkipString() else pos.incSkipSymbol();
         return buf[self.idx..pos.idx];
     }
     pub fn lastByteIdx(self: Token, buf: []const u8) u32 {
@@ -96,7 +99,7 @@ pub fn parseFromBuf(
             while (in_bounds and isValidSymbolChar(pos.byte())) : (in_bounds = pos.inc()) {}
             try token_list.append(allocator, .{
                 .idx = name_start,
-                .token = .name,
+                .token = .node_name,
             });
         }
 
@@ -111,10 +114,11 @@ pub fn parseFromBuf(
                 if (pos.byte() != quote) continue;
                 in_bounds = pos.inc();
                 const symbol_start = pos.*.idx;
-                while (in_bounds and pos.byte() != quote) : (in_bounds = pos.inc()) {}
+                while (in_bounds and pos.byte() != quote and pos.byte() != '\n') : (in_bounds = pos.inc()) {}
+                const str_type: TokenType = if (pos.byte() == '\n') .str_no_closing_quote else .str;
                 try token_list.append(allocator, .{
                     .idx = symbol_start,
-                    .token = .str,
+                    .token = str_type,
                 });
                 continue :node;
             }
@@ -180,6 +184,13 @@ pub const ParsePosition = struct {
         if (self.idx == self.buf.len - 1) return false;
         self.idx += 1;
         return true;
+    }
+    fn incSkipString(self: *ParsePosition) bool {
+        var in_bounds = self.inc();
+        while (in_bounds and (isValidSymbolChar(self.byte()) or self.byte() == ' ' or self.byte() == '\t')) {
+            in_bounds = self.inc();
+        }
+        return in_bounds;
     }
     fn incSkipSymbol(self: *ParsePosition) bool {
         var in_bounds = self.inc();

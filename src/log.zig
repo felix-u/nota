@@ -1,10 +1,11 @@
 const std = @import("std");
 
 pub const SyntaxError = error{
-    NoNodeName,
     MisplacedNode,
+    NoNodeName,
     NoSemicolonAfterBody,
     NoSemicolonAfterNode,
+    StrNoClosingQuote,
 };
 
 pub const filePosition = struct {
@@ -52,6 +53,9 @@ pub fn reportError(comptime err: SyntaxError, file_pos: filePosition, errorWrite
         },
         SyntaxError.NoSemicolonAfterNode => {
             try errorWriter.print("expected ';' to end previous node\n", .{});
+        },
+        SyntaxError.StrNoClosingQuote => {
+            try errorWriter.print("expected quote to close previous string\n", .{});
         },
     }
     try errorWriter.print("\t{s}\n\t", .{pos.getLine()});

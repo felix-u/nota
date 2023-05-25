@@ -1,6 +1,6 @@
-@Week {
+@Week "yo" {
     @Day{};
-    @Hey my:=friend;
+    @Hey my:="friend";
     @Wassup num:=123;
 };
 
