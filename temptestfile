@@ -1,7 +1,2 @@
-@Week "yo" {
-    @Day{};
-    @Hey my:="friend";
-    @Wassup num:=123;
-};
-
-@Hey name:type="something" {};
+@Node text:="oops, there should be a semicolon to end this node"
+@AnotherNode;

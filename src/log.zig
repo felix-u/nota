@@ -43,22 +43,22 @@ pub fn reportError(comptime err: SyntaxError, file_pos: filePosition, errorWrite
     try errorWriter.print("{s}:{d}:{d}: error: ", .{ pos.filepath, pos.line, pos.col });
     switch (err) {
         SyntaxError.NoNodeName => {
-            try errorWriter.print("expected node name after initialiser\n", .{});
+            try errorWriter.print("expected node name after initialiser", .{});
         },
         SyntaxError.MisplacedNode => {
-            try errorWriter.print("expected ';' or '{c}' before node declaration\n", .{'{'});
+            try errorWriter.print("expected ';' or '{c}' before node declaration", .{'{'});
         },
         SyntaxError.NoSemicolonAfterBody => {
-            try errorWriter.print("expected ';' to end node (expressions disallowed after body end)\n", .{});
+            try errorWriter.print("expected ';' to end node (expressions disallowed after body end)", .{});
         },
         SyntaxError.NoSemicolonAfterNode => {
-            try errorWriter.print("expected ';' to end previous node\n", .{});
+            try errorWriter.print("expected ';' to end previous node", .{});
         },
         SyntaxError.StrNoClosingQuote => {
-            try errorWriter.print("expected quote to close previous string\n", .{});
+            try errorWriter.print("expected quote to close previous string", .{});
         },
     }
-    try errorWriter.print("\t{s}\n\t", .{pos.getLine()});
+    try errorWriter.print("\n\t{s}\n\t", .{pos.getLine()});
     for (1..pos.col) |_| try errorWriter.print(" ", .{});
     try errorWriter.print("^\n", .{});
     return err;
