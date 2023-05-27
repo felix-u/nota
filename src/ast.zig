@@ -67,7 +67,7 @@ pub fn parseFromTokenList(
             // Case: name:maybe_type=expression
             if (pos.getToken().token == .unresolved) in_bounds = try parseDeclaration(pos, set, allocator, errorWriter);
 
-            if (!in_bounds) break;
+            if (!in_bounds or pos.getToken().token == .semicolon) break;
 
             // `{`: Recurse in body.
             if (pos.getToken().token == .curly_left and pos.nextToken().token != .curly_right) {
@@ -143,15 +143,13 @@ fn parseDeclaration(
     expr: while (in_bounds) : (in_bounds = pos.inc()) {
         switch (pos.getToken().token) {
             // Expression name: `name:...`
-            .unresolved => {
-                in_bounds = pos.inc();
-                continue :expr;
-            },
+            .unresolved => continue :expr,
+            // Type syntax: `name : type`
             .colon => {
-                in_bounds = pos.inc();
                 // Inferred type: `...:=...`
-                if (pos.getToken().token == .equals) continue :expr;
+                if (pos.nextToken().token == .equals) continue :expr;
                 // Resolve type in '...:type=...'.
+                in_bounds = pos.inc();
                 if (pos.getToken().token == .unresolved) {
                     const type_string = pos.getToken().lexeme(pos.buf);
                     expr_type = type_map.get(type_string) orelse .unresolved;
@@ -170,6 +168,7 @@ fn parseDeclaration(
                         .token = expr_type,
                         .idx = this_token.idx,
                     });
+                    continue :expr;
                 }
             },
             .equals => {
@@ -215,7 +214,7 @@ fn parseExpression(
     _ = allocator;
     _ = errorWriter;
     // Placeholder.
-    return pos.atEnd();
+    return pos.inc();
 }
 
 pub const ParsePosition = struct {
