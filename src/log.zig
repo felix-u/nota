@@ -3,6 +3,7 @@ const std = @import("std");
 pub const SyntaxError = error{
     InvalidTypeSpecifier,
     MisplacedNode,
+    NoExprName,
     NoNodeName,
     NoSemicolonAfterBody,
     NoSemicolonAfterNode,
@@ -49,6 +50,9 @@ pub fn reportError(comptime err: SyntaxError, file_pos: filePosition, errorWrite
         },
         SyntaxError.MisplacedNode => {
             try errorWriter.print("expected ';' or '{c}' before node declaration", .{'{'});
+        },
+        SyntaxError.NoExprName => {
+            try errorWriter.print("expected expression name before type specifier", .{});
         },
         SyntaxError.NoNodeName => {
             try errorWriter.print("expected node name after initialiser", .{});

@@ -38,7 +38,7 @@ pub fn parseFromTokenList(
 ) !void {
     var in_bounds = !pos.atEnd();
 
-    node: while (in_bounds) : (in_bounds = pos.inc()) {
+    root: while (in_bounds) : (in_bounds = pos.inc()) {
         // First token in loop is guaranteed to be either `@` or `}`.
         if (pos.getToken().token == .curly_right) {
             in_bounds = pos.inc();
@@ -63,11 +63,25 @@ pub fn parseFromTokenList(
 
         // Go to `;` to process node.
         this_node.expr_list_idx = pos.idx;
-        while (in_bounds and pos.getToken().token != .semicolon) : (in_bounds = pos.inc()) {
-            // Case: name:maybe_type=expression
-            if (pos.getToken().token == .unresolved) in_bounds = try parseDeclaration(pos, set, allocator, errorWriter);
+        node: while (in_bounds and pos.getToken().token != .semicolon) : (in_bounds = pos.inc()) {
 
-            if (!in_bounds or pos.getToken().token == .semicolon) break;
+            // Error case: `:maybe_type=expression`
+            if (pos.getToken().token == .colon) {
+                var err_loc: log.filePosition = .{
+                    .filepath = pos.filepath,
+                    .buf = pos.buf,
+                    .idx = pos.getToken().idx,
+                };
+                err_loc.computeCoords();
+                return log.reportError(log.SyntaxError.NoExprName, err_loc, errorWriter);
+            }
+
+            // Case: `name:maybe_type=expression`
+            if (pos.getToken().token == .unresolved) {
+                std.debug.print("Starting at {}\n", .{pos.getToken()});
+                in_bounds = try parseDeclaration(pos, set, allocator, errorWriter);
+                continue :node;
+            }
 
             // `{`: Recurse in body.
             if (pos.getToken().token == .curly_left and pos.nextToken().token != .curly_right) {
@@ -90,7 +104,7 @@ pub fn parseFromTokenList(
                 }
                 // Node over (node has body), so we'll continue the outer loop.
                 try set.node_list.append(allocator, this_node);
-                continue :node;
+                continue :root;
             }
             // Ignore empty body.
             else if (pos.getToken().token == .curly_left and pos.nextToken().token == .curly_right) {
@@ -138,6 +152,7 @@ fn parseDeclaration(
 ) !bool {
     const expr_start_idx = pos.idx;
     var expr_type: token.TokenType = .unresolved;
+    std.debug.print("Expr parse at {}\n", .{pos.getToken()});
 
     var in_bounds = pos.inc();
     expr: while (in_bounds) : (in_bounds = pos.inc()) {
@@ -146,6 +161,7 @@ fn parseDeclaration(
             .unresolved => continue :expr,
             // Type syntax: `name : type`
             .colon => {
+                std.debug.print("Got colon at {}\n", .{pos.getToken()});
                 // Inferred type: `...:=...`
                 if (pos.nextToken().token == .equals) continue :expr;
                 // Resolve type in '...:type=...'.
@@ -172,14 +188,14 @@ fn parseDeclaration(
                 }
             },
             .equals => {
-                in_bounds = pos.inc();
                 // Expression is `...=unresolved`, where `unresolved` is either
                 // an expression name, a date, or a number.
-                if (pos.getToken().token == .unresolved) {
+                if (pos.nextToken().token == .unresolved) {
+                    in_bounds = pos.inc();
                     in_bounds = try parseExpression(pos, set, allocator, errorWriter);
                     break :expr;
                 }
-                if (pos.getToken().token == .str) {
+                if (pos.nextToken().token == .str) {
                     in_bounds = pos.inc();
                     break :expr;
                 }
@@ -201,6 +217,7 @@ fn parseDeclaration(
         .token_start_idx = expr_start_idx,
     });
 
+    std.debug.print("Broke at {}\n", .{pos.getToken()});
     return in_bounds;
 }
 
@@ -214,7 +231,7 @@ fn parseExpression(
     _ = allocator;
     _ = errorWriter;
     // Placeholder.
-    return pos.inc();
+    return pos.atEnd();
 }
 
 pub const ParsePosition = struct {
