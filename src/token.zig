@@ -25,9 +25,9 @@ pub const TokenType = enum(u8) {
     str_no_closing_quote,
 
     // Type specifier as provided by the user.
-    type_str, // Resolved in AST stage.
-    type_num, // Resolved in AST stage.
     type_date, // Resolved in AST stage.
+    type_num, // Resolved in AST stage.
+    type_str, // Resolved in AST stage.
 
     // Symbols.
     unresolved,

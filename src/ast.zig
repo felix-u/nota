@@ -12,9 +12,9 @@ pub const Node = struct {
 pub const NodeList = std.MultiArrayList(Node);
 
 const type_map = std.ComptimeStringMap(token.TokenType, .{
-    .{ "str", token.TokenType.type_str },
-    .{ "num", token.TokenType.type_num },
     .{ "date", token.TokenType.type_date },
+    .{ "num", token.TokenType.type_num },
+    .{ "str", token.TokenType.type_str },
 });
 
 const Expr = struct {
@@ -65,7 +65,7 @@ pub fn parseFromTokenList(
         this_node.expr_list_idx = pos.idx;
         node: while (in_bounds and pos.getToken().token != .semicolon) : (in_bounds = pos.inc()) {
 
-            // Error case: `:maybe_type=expression`
+            // Error case: floating `:`
             if (pos.getToken().token == .colon) {
                 var err_loc: log.filePosition = .{
                     .filepath = pos.filepath,
@@ -76,9 +76,19 @@ pub fn parseFromTokenList(
                 return log.reportError(log.SyntaxError.NoExprName, err_loc, errorWriter);
             }
 
+            // Error case: floating `=`
+            if (pos.getToken().token == .equals) {
+                var err_loc: log.filePosition = .{
+                    .filepath = pos.filepath,
+                    .buf = pos.buf,
+                    .idx = pos.getToken().idx,
+                };
+                err_loc.computeCoords();
+                return log.reportError(log.SyntaxError.AssignmentToNothing, err_loc, errorWriter);
+            }
+
             // Case: `name:maybe_type=expression`
             if (pos.getToken().token == .unresolved) {
-                std.debug.print("Starting at {}\n", .{pos.getToken()});
                 in_bounds = try parseDeclaration(pos, set, allocator, errorWriter);
                 continue :node;
             }
@@ -152,7 +162,6 @@ fn parseDeclaration(
 ) !bool {
     const expr_start_idx = pos.idx;
     var expr_type: token.TokenType = .unresolved;
-    std.debug.print("Expr parse at {}\n", .{pos.getToken()});
 
     var in_bounds = pos.inc();
     expr: while (in_bounds) : (in_bounds = pos.inc()) {
@@ -161,7 +170,6 @@ fn parseDeclaration(
             .unresolved => continue :expr,
             // Type syntax: `name : type`
             .colon => {
-                std.debug.print("Got colon at {}\n", .{pos.getToken()});
                 // Inferred type: `...:=...`
                 if (pos.nextToken().token == .equals) continue :expr;
                 // Resolve type in '...:type=...'.
@@ -199,6 +207,14 @@ fn parseDeclaration(
                     in_bounds = pos.inc();
                     break :expr;
                 }
+                // Error case: no valid expression after `=`
+                var err_loc: log.filePosition = .{
+                    .filepath = pos.filepath,
+                    .buf = pos.buf,
+                    .idx = pos.getToken().idx,
+                };
+                err_loc.computeCoords();
+                return log.reportError(log.SyntaxError.NoExpr, err_loc, errorWriter);
             },
             else => {
                 var err_loc: log.filePosition = .{
@@ -217,7 +233,6 @@ fn parseDeclaration(
         .token_start_idx = expr_start_idx,
     });
 
-    std.debug.print("Broke at {}\n", .{pos.getToken()});
     return in_bounds;
 }
 

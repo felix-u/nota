@@ -1,3 +1,1 @@
-@Node hmm:str="hey" :=error;
-
-`@Week text:str="yo" :="ooo" { @Day somefield:date=1; };`
+@Node hmm:str="hey" m:num=something ;

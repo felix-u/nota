@@ -1,8 +1,10 @@
 const std = @import("std");
 
 pub const SyntaxError = error{
+    AssignmentToNothing,
     InvalidTypeSpecifier,
     MisplacedNode,
+    NoExpr,
     NoExprName,
     NoNodeName,
     NoSemicolonAfterBody,
@@ -45,11 +47,17 @@ pub fn reportError(comptime err: SyntaxError, file_pos: filePosition, errorWrite
     var pos = file_pos;
     try errorWriter.print("{s}:{d}:{d}: error: ", .{ pos.filepath, pos.line, pos.col });
     switch (err) {
+        SyntaxError.AssignmentToNothing => {
+            try errorWriter.print("assignment to nothing", .{});
+        },
         SyntaxError.InvalidTypeSpecifier => {
-            try errorWriter.print("invalid type specifier", .{});
+            try errorWriter.print("invalid type specifier: not one of 'date', 'num', 'str'", .{});
         },
         SyntaxError.MisplacedNode => {
             try errorWriter.print("expected ';' or '{c}' before node declaration", .{'{'});
+        },
+        SyntaxError.NoExpr => {
+            try errorWriter.print("expected expression after '='", .{});
         },
         SyntaxError.NoExprName => {
             try errorWriter.print("expected expression name before type specifier", .{});
