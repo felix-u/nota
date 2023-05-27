@@ -18,7 +18,7 @@ const type_map = std.ComptimeStringMap(token.TokenType, .{
 });
 
 const Expr = struct {
-    type: enum(u8) { unresolved, str, num, date } = .unresolved,
+    type: token.TokenType = .unresolved,
     token_start_idx: u32 = 0,
 };
 
@@ -65,7 +65,7 @@ pub fn parseFromTokenList(
         this_node.expr_list_idx = pos.idx;
         while (in_bounds and pos.getToken().token != .semicolon) : (in_bounds = pos.inc()) {
             // Case: name:maybe_type=expression
-            if (pos.getToken().token == .unresolved) in_bounds = parseExpression(pos, set, allocator, errorWriter);
+            if (pos.getToken().token == .unresolved) in_bounds = try parseDeclaration(pos, set, allocator, errorWriter);
 
             if (!in_bounds) break;
 
@@ -130,31 +130,44 @@ pub fn parseFromTokenList(
     }
 }
 
-fn parseExpression(
+fn parseDeclaration(
     pos: *ParsePosition,
     set: *Set,
     allocator: std.mem.Allocator,
     errorWriter: std.fs.File.Writer,
-) bool {
-    _ = errorWriter;
+) !bool {
     const expr_start_idx = pos.idx;
+    var expr_type: token.TokenType = .unresolved;
 
     var in_bounds = pos.inc();
     expr: while (in_bounds) : (in_bounds = pos.inc()) {
         switch (pos.getToken().token) {
+            // Expression name: `name:...`
+            .unresolved => {
+                in_bounds = pos.inc();
+                continue :expr;
+            },
             .colon => {
                 in_bounds = pos.inc();
                 // Inferred type: `...:=...`
                 if (pos.getToken().token == .equals) continue :expr;
                 // Resolve type in '...:type=...'.
                 if (pos.getToken().token == .unresolved) {
-                    const type_string = pos.getToken().lexeme(set.buf);
-                    const this_type = type_map.get(type_string) orelse .unresolved;
+                    const type_string = pos.getToken().lexeme(pos.buf);
+                    expr_type = type_map.get(type_string) orelse .unresolved;
                     // Error case: invalid type specifier.
-                    if (this_type == .unresolved) {}
+                    if (expr_type == .unresolved) {
+                        var err_loc: log.filePosition = .{
+                            .filepath = pos.filepath,
+                            .buf = pos.buf,
+                            .idx = pos.getToken().idx,
+                        };
+                        err_loc.computeCoords();
+                        return log.reportError(log.SyntaxError.InvalidTypeSpecifier, err_loc, errorWriter);
+                    }
                     var this_token = pos.getToken();
                     set.token_list.set(pos.idx, .{
-                        .token = this_token.token,
+                        .token = expr_type,
                         .idx = this_token.idx,
                     });
                 }
@@ -163,17 +176,46 @@ fn parseExpression(
                 in_bounds = pos.inc();
                 // Expression is `...=unresolved`, where `unresolved` is either
                 // an expression name, a date, or a number.
-                if (pos.getToken().token == .unresolved) {}
+                if (pos.getToken().token == .unresolved) {
+                    in_bounds = try parseExpression(pos, set, allocator, errorWriter);
+                    break :expr;
+                }
+                if (pos.getToken().token == .str) {
+                    in_bounds = pos.inc();
+                    break :expr;
+                }
             },
-            .unresolved => {},
-            else => {},
+            else => {
+                var err_loc: log.filePosition = .{
+                    .filepath = pos.filepath,
+                    .buf = pos.buf,
+                    .idx = pos.getToken().idx,
+                };
+                err_loc.computeCoords();
+                return log.reportError(log.SyntaxError.Unimplemented, err_loc, errorWriter);
+            },
         } // switch (pos.getToken().token)
     } // :expr
 
     try set.expr_list.append(allocator, .{
-        .type = .unresolved,
+        .type = expr_type,
         .token_start_idx = expr_start_idx,
     });
+
+    return in_bounds;
+}
+
+fn parseExpression(
+    pos: *ParsePosition,
+    set: *Set,
+    allocator: std.mem.Allocator,
+    errorWriter: std.fs.File.Writer,
+) !bool {
+    _ = set;
+    _ = allocator;
+    _ = errorWriter;
+    // Placeholder.
+    return pos.atEnd();
 }
 
 pub const ParsePosition = struct {

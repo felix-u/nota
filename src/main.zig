@@ -31,11 +31,19 @@ pub fn main() !void {
     defer allocator.free(absolute_filepath);
 
     // Tokeniser.
-
     try stdout.print("=== TOKENS: BEGIN ===\n", .{});
     var token_list = token.TokenList{};
     var token_pos: token.ParsePosition = .{ .buf = filebuf };
     try token.parseFromBuf(&token_pos, &token_list, allocator, false);
+
+    // AST.
+    var ast_set: ast.Set = .{ .token_list = token_list };
+    var ast_pos: ast.ParsePosition = .{
+        .filepath = absolute_filepath,
+        .buf = filebuf,
+        .token_list = ast_set.token_list,
+    };
+    try ast.parseFromTokenList(&ast_pos, &ast_set, allocator, stdout);
 
     // Print tokens (for now).
     for (0..token_list.len) |i| {
@@ -56,18 +64,8 @@ pub fn main() !void {
     }
     try stdout.print("=== TOKENS: END ===\n", .{});
 
-    // AST.
-
-    try stdout.print("=== AST: BEGIN ===\n", .{});
-    var ast_set: ast.Set = .{ .token_list = token_list };
-    var ast_pos: ast.ParsePosition = .{
-        .filepath = absolute_filepath,
-        .buf = filebuf,
-        .token_list = ast_set.token_list,
-    };
-    try ast.parseFromTokenList(&ast_pos, &ast_set, allocator, stdout);
-
     // Print AST (for now).
+    try stdout.print("=== AST: BEGIN ===\n", .{});
     for (0..ast_set.node_list.len) |i| {
         const node = ast_set.node_list.get(i);
         const node_name = ast_set.token_list.get(node.name_idx).lexeme(ast_pos.buf);
@@ -78,6 +76,5 @@ pub fn main() !void {
         node_position.computeCoords();
         try stdout.print("{d}:{d}\t{s}\t{}\n", .{ node_position.line, node_position.col, node_name, node });
     }
-
     try stdout.print("=== AST: END ===\n", .{});
 }

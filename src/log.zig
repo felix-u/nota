@@ -1,11 +1,13 @@
 const std = @import("std");
 
 pub const SyntaxError = error{
+    InvalidTypeSpecifier,
     MisplacedNode,
     NoNodeName,
     NoSemicolonAfterBody,
     NoSemicolonAfterNode,
     StrNoClosingQuote,
+    Unimplemented,
 };
 
 pub const filePosition = struct {
@@ -42,11 +44,14 @@ pub fn reportError(comptime err: SyntaxError, file_pos: filePosition, errorWrite
     var pos = file_pos;
     try errorWriter.print("{s}:{d}:{d}: error: ", .{ pos.filepath, pos.line, pos.col });
     switch (err) {
-        SyntaxError.NoNodeName => {
-            try errorWriter.print("expected node name after initialiser", .{});
+        SyntaxError.InvalidTypeSpecifier => {
+            try errorWriter.print("invalid type specifier", .{});
         },
         SyntaxError.MisplacedNode => {
             try errorWriter.print("expected ';' or '{c}' before node declaration", .{'{'});
+        },
+        SyntaxError.NoNodeName => {
+            try errorWriter.print("expected node name after initialiser", .{});
         },
         SyntaxError.NoSemicolonAfterBody => {
             try errorWriter.print("expected ';' to end node (expressions disallowed after body end)", .{});
@@ -56,6 +61,9 @@ pub fn reportError(comptime err: SyntaxError, file_pos: filePosition, errorWrite
         },
         SyntaxError.StrNoClosingQuote => {
             try errorWriter.print("expected quote to close previous string", .{});
+        },
+        SyntaxError.Unimplemented => {
+            try errorWriter.print("unimplemented", .{});
         },
     }
     try errorWriter.print("\n\t{s}\n\t", .{pos.getLine()});
