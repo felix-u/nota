@@ -11,11 +11,10 @@ pub const Node = struct {
 
 pub const NodeList = std.MultiArrayList(Node);
 
-const SymbolType = enum(u8) { str, num, date };
-const symbol_type = std.ComptimeStringMap(token.TokenType, .{
-    .{ "str", SymbolType.str },
-    .{ "num", SymbolType.num },
-    .{ "date", SymbolType.date },
+const type_map = std.ComptimeStringMap(token.TokenType, .{
+    .{ "str", token.TokenType.type_str },
+    .{ "num", token.TokenType.type_num },
+    .{ "date", token.TokenType.type_date },
 });
 
 const Expr = struct {
@@ -66,7 +65,7 @@ pub fn parseFromTokenList(
         this_node.expr_list_idx = pos.idx;
         while (in_bounds and pos.getToken().token != .semicolon) : (in_bounds = pos.inc()) {
             // Case: name:maybe_type=expression
-            if (pos.getToken().token == .unresolved) in_bounds = parseExpression();
+            if (pos.getToken().token == .unresolved) in_bounds = parseExpression(pos, set, allocator, errorWriter);
 
             if (!in_bounds) break;
 
@@ -145,11 +144,29 @@ fn parseExpression(
         switch (pos.getToken().token) {
             .colon => {
                 in_bounds = pos.inc();
+                // Inferred type: `...:=...`
                 if (pos.getToken().token == .equals) continue :expr;
+                // Resolve type in '...:type=...'.
+                if (pos.getToken().token == .unresolved) {
+                    const type_string = pos.getToken().lexeme(set.buf);
+                    const this_type = type_map.get(type_string) orelse .unresolved;
+                    // Error case: invalid type specifier.
+                    if (this_type == .unresolved) {}
+                    var this_token = pos.getToken();
+                    set.token_list.set(pos.idx, .{
+                        .token = this_token.token,
+                        .idx = this_token.idx,
+                    });
+                }
+            },
+            .equals => {
+                in_bounds = pos.inc();
+                // Expression is `...=unresolved`, where `unresolved` is either
+                // an expression name, a date, or a number.
                 if (pos.getToken().token == .unresolved) {}
             },
-            .equals => {},
             .unresolved => {},
+            else => {},
         } // switch (pos.getToken().token)
     } // :expr
 
