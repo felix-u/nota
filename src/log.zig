@@ -9,6 +9,7 @@ pub const SyntaxError = error{
     NoNodeName,
     NoSemicolonAfterBody,
     NoSemicolonAfterNode,
+    NoTypeAfterColon,
     StrNoClosingQuote,
     Unimplemented,
 };
@@ -51,7 +52,7 @@ pub fn reportError(comptime err: SyntaxError, file_pos: filePosition, errorWrite
             try errorWriter.print("assignment to nothing", .{});
         },
         SyntaxError.InvalidTypeSpecifier => {
-            try errorWriter.print("invalid type specifier: not one of 'date', 'num', 'str'", .{});
+            try errorWriter.print("invalid type specifier: not one of 'bool', 'date', 'num', 'str'", .{});
         },
         SyntaxError.MisplacedNode => {
             try errorWriter.print("expected ';' or '{c}' before node declaration", .{'{'});
@@ -70,6 +71,10 @@ pub fn reportError(comptime err: SyntaxError, file_pos: filePosition, errorWrite
         },
         SyntaxError.NoSemicolonAfterNode => {
             try errorWriter.print("expected ';' to end previous node", .{});
+        },
+        SyntaxError.NoTypeAfterColon => {
+            try errorWriter.print("expected type: one of 'bool', 'date', 'num', 'str'" ++
+                "(type inference uses '=', not ':=')", .{});
         },
         SyntaxError.StrNoClosingQuote => {
             try errorWriter.print("expected quote to close previous string", .{});

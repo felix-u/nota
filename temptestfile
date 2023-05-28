@@ -1,1 +1,4 @@
-@Node hmm:str="hey" m:num=something ;
+@Week startdate=2000-01-01 {
+    @Day name="Monday";
+    @Day name="Tuesday";
+};

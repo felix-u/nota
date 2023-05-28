@@ -12,6 +12,7 @@ pub const Node = struct {
 pub const NodeList = std.MultiArrayList(Node);
 
 const type_map = std.ComptimeStringMap(token.TokenType, .{
+    .{ "bool", token.TokenType.type_bool },
     .{ "date", token.TokenType.type_date },
     .{ "num", token.TokenType.type_num },
     .{ "str", token.TokenType.type_str },
@@ -163,15 +164,20 @@ fn parseDeclaration(
     const expr_start_idx = pos.idx;
     var expr_type: token.TokenType = .unresolved;
 
-    var in_bounds = pos.inc();
+    var in_bounds = !pos.atEnd();
     expr: while (in_bounds) : (in_bounds = pos.inc()) {
         switch (pos.getToken().token) {
             // Expression name: `name:...`
-            .unresolved => continue :expr,
+            .unresolved => {
+                var this_token = pos.getToken();
+                set.token_list.set(pos.idx, .{
+                    .token = .expr_name,
+                    .idx = this_token.idx,
+                });
+                continue :expr;
+            },
             // Type syntax: `name : type`
             .colon => {
-                // Inferred type: `...:=...`
-                if (pos.nextToken().token == .equals) continue :expr;
                 // Resolve type in '...:type=...'.
                 in_bounds = pos.inc();
                 if (pos.getToken().token == .unresolved) {
@@ -193,6 +199,16 @@ fn parseDeclaration(
                         .idx = this_token.idx,
                     });
                     continue :expr;
+                }
+                // Error case: inferred type uses `=`, not `:=`
+                if (pos.getToken().token == .equals) {
+                    var err_loc: log.filePosition = .{
+                        .filepath = pos.filepath,
+                        .buf = pos.buf,
+                        .idx = pos.getToken().idx,
+                    };
+                    err_loc.computeCoords();
+                    return log.reportError(log.SyntaxError.NoTypeAfterColon, err_loc, errorWriter);
                 }
             },
             .equals => {
@@ -246,7 +262,7 @@ fn parseExpression(
     _ = allocator;
     _ = errorWriter;
     // Placeholder.
-    return pos.atEnd();
+    return !pos.atEnd();
 }
 
 pub const ParsePosition = struct {
