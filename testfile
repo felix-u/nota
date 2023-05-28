@@ -1,66 +1,63 @@
 @Test field:str="somefield";
 
-@Section name:="Name 1" date:date=2000-01-01.20:00 done:=false;
+@Section name="Name 1" time:date=2000-01-01.20:00 done=false;
 
-@Section name:="Name 2" date:date=2020-01-01 moretext:="This is the Section, with terrible whitespace." {};
+@Section name="Name 2" time:date=2020-01-01 moretext="This is the Section, with terrible whitespace." {};
 
-@Section name:="Name 3" {
-    @Subsection text:="wow, a subsection!";
-    @Subsection name:="A Name" date:date=1990-01-01.12:00 done:=false meaningoflife:=42
+@Section name="Name 3" {
+    @Subsection text="wow, a subsection!";
+    @Subsection name="A Name" time:date=1990-01-01.12:00 done=false meaningoflife=42
     {
-        Ooh, another!
-        More filler.
-        Filler     again.
-        @Subsubsection done:=true (inherits(date) + 25d7h) {
+        @Subsubsection done=true (^.time + 25d7h) {
             A subsection of a subsection. Stunning.
         };
     };
 };
 
 
-@Week shares(startdate:=2023-05-01) {
-    @Day name:="Mon" (startdate += 0d);
-    @Day name:="Tue" (startdate += 1d);
-    @Day name:="Wed" (startdate += 2d);
-    @Day name:="Thu" (startdate += 3d);
-    @Day name:="Fri" (startdate += 4d);
-    @Day name:="Sat" (startdate += 5d);
-    @Day name:="Sun" (startdate += 6d);
+@Week shares(startdate=2023-05-01) {
+    @Day name="Mon" mods(startdate, + 0d);
+    @Day name="Tue" mods(startdate, + 1d);
+    @Day name="Wed" mods(startdate, + 2d);
+    @Day name="Thu" mods(startdate, + 3d);
+    @Day name="Fri" mods(startdate, + 4d);
+    @Day name="Sat" mods(startdate, + 5d);
+    @Day name="Sun" mods(startdate, + 6d);
 };
 
 @Books {
     @Series 
-        title:="Harry Potter" 
+        title="Harry Potter" 
         shares( 
-            author:="J. K. Rowling"
-            genres:=["fiction" "fantasy" "magic"]
+            author="J. K. Rowling",
+            genres=["fiction", "fantasy", "magic"]
         )
     {
-        @Book title:="Harry Potter and the Philosopher's Stone"
-              status:="Read";  
+        @Book title="Harry Potter and the Philosopher's Stone"
+              status="Read";  
     };
-    @Book title:="The Catcher in the Rye" 
-          author:="J.D. Salinger" 
-          pages:=277 
-          status:="Read"
-          genres:=["fiction" "coming-of-age"];
-    @Book title:="To Kill a Mockingbird" 
-          author:="Harper Lee" pages:=324 
-          status:="Read"
-          genres:=["fiction" "classic" "social-issues"];
-    @Book title:="Dune" 
-          author:="Frank Herbert" 
-          pages:=896 
-          status:="Reading"
-          genres:=["science-fiction" "fantasy" "adventure"];
-    @Book title:="1984" 
-          author:="George Orwell" 
-          pages:=328 
-          status:="To Read" 
-          genres:=["fiction" "dystopian" "social-criticism"];
-    @Book title:="Brave New World" 
-          author:="Aldous Huxley" 
-          pages:=268 
-          status:="To Read" 
-          genres:=["fiction" "dystopian" "philosophy"];
+    @Book title="The Catcher in the Rye" 
+          author="J.D. Salinger" 
+          pages=277 
+          status="Read"
+          genres=["fiction", "coming-of-age"];
+    @Book title="To Kill a Mockingbird" 
+          author="Harper Lee" pages=324 
+          status="Read"
+          genres=["fiction", "classic", "social-issues"];
+    @Book title="Dune" 
+          author="Frank Herbert" 
+          pages=896 
+          status="Reading"
+          genres=["science-fiction", "fantasy", "adventure"];
+    @Book title="1984" 
+          author="George Orwell" 
+          pages=328 
+          status="To Read" 
+          genres=["fiction", "dystopian", "social-criticism"];
+    @Book title="Brave New World" 
+          author="Aldous Huxley" 
+          pages=268 
+          status="To Read" 
+          genres=["fiction", "dystopian", "philosophy"];
 };
