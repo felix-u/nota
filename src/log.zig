@@ -2,6 +2,7 @@ const std = @import("std");
 
 pub const SyntaxError = error{
     AssignmentToNothing,
+    InvalidSyntax,
     InvalidTypeSpecifier,
     MisplacedNode,
     NoExpr,
@@ -50,6 +51,9 @@ pub fn reportError(comptime err: SyntaxError, file_pos: filePosition, errorWrite
     switch (err) {
         SyntaxError.AssignmentToNothing => {
             try errorWriter.print("assignment to nothing", .{});
+        },
+        SyntaxError.InvalidSyntax => {
+            try errorWriter.print("invalid syntax", .{});
         },
         SyntaxError.InvalidTypeSpecifier => {
             try errorWriter.print("invalid type specifier: not one of 'bool', 'date', 'num', 'str'", .{});

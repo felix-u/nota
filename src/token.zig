@@ -1,5 +1,6 @@
 const std = @import("std");
 const ascii = std.ascii;
+const log = @import("log.zig");
 
 pub const TokenType = enum(u8) {
     // Single-character syntax.
@@ -18,11 +19,10 @@ pub const TokenType = enum(u8) {
     // hash = '#',
     // dot = '.',
 
-    invalid = 128,
+    characters = 128,
 
     // Type of literals.
     str,
-    str_no_closing_quote,
 
     // Type specifier as provided by the user.
     type_bool, // Resolved in AST stage.
@@ -43,7 +43,7 @@ pub const Token = struct {
     idx: u32,
 
     pub fn lexeme(self: Token, buf: []const u8) []const u8 {
-        if (@enumToInt(self.token) <= @enumToInt(TokenType.invalid)) {
+        if (@enumToInt(self.token) <= @enumToInt(TokenType.characters)) {
             return buf[self.idx .. self.idx + 1];
         }
         var pos: ParsePosition = .{ .buf = buf, .idx = self.idx };
@@ -62,6 +62,7 @@ pub fn parseFromBuf(
     pos: *ParsePosition,
     token_list: *TokenList,
     allocator: std.mem.Allocator,
+    errorWriter: std.fs.File.Writer,
     comptime in_node_body: bool,
 ) !void {
     var in_bounds = true;
@@ -112,11 +113,19 @@ pub fn parseFromBuf(
                 if (pos.byte() != quote) continue;
                 in_bounds = pos.inc();
                 const symbol_start = pos.*.idx;
-                while (in_bounds and pos.byte() != quote and pos.byte() != '\n') : (in_bounds = pos.inc()) {}
-                const str_type: TokenType = if (pos.byte() == '\n') .str_no_closing_quote else .str;
+                while (in_bounds and pos.nextByte() != quote and pos.nextByte() != '\n') : (in_bounds = pos.inc()) {}
+                if (pos.nextByte() == '\n') {
+                    var err_loc: log.filePosition = .{
+                        .filepath = pos.filepath,
+                        .buf = pos.buf,
+                        .idx = pos.idx,
+                    };
+                    err_loc.computeCoords();
+                    return log.reportError(log.SyntaxError.StrNoClosingQuote, err_loc, errorWriter);
+                }
                 try token_list.append(allocator, .{
                     .idx = symbol_start,
-                    .token = str_type,
+                    .token = .str,
                 });
                 continue :node;
             }
@@ -147,7 +156,7 @@ pub fn parseFromBuf(
                         .token = @intToEnum(TokenType, byte),
                     });
                     if (byte == '{') {
-                        try parseFromBuf(pos, token_list, allocator, true);
+                        try parseFromBuf(pos, token_list, allocator, errorWriter, true);
                     }
                     // If '}' was detected in this branch, it has no matching left curly bracket,
                     // but as a favour to the AST we'll give it proper treatment anyway.
@@ -157,10 +166,13 @@ pub fn parseFromBuf(
                 },
                 else => |byte| {
                     if (ascii.isWhitespace(byte)) continue :node;
-                    try token_list.append(allocator, .{
-                        .idx = pos.*.idx,
-                        .token = .invalid,
-                    });
+                    var err_loc: log.filePosition = .{
+                        .filepath = pos.filepath,
+                        .buf = pos.buf,
+                        .idx = pos.idx,
+                    };
+                    err_loc.computeCoords();
+                    return log.reportError(log.SyntaxError.InvalidSyntax, err_loc, errorWriter);
                 },
             } // switch(pos.byte())
         } // :node
@@ -168,6 +180,7 @@ pub fn parseFromBuf(
 } // parse()
 
 pub const ParsePosition = struct {
+    filepath: []const u8 = undefined,
     buf: []const u8 = undefined,
     idx: u32 = 0,
     fn byte(self: *ParsePosition) u8 {
@@ -214,6 +227,9 @@ pub const ParsePosition = struct {
         var in_bounds = self.inc();
         while (in_bounds and !ascii.isWhitespace(self.byte())) : (in_bounds = self.inc()) {}
         return in_bounds;
+    }
+    fn nextByte(self: *ParsePosition) bool {
+        if ()
     }
 };
 

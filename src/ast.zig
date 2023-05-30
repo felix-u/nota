@@ -1,6 +1,6 @@
 const std = @import("std");
 const log = @import("log.zig");
-const token = @import("./token.zig");
+const token = @import("token.zig");
 
 pub const Node = struct {
     parent_idx: u32 = 0,
@@ -26,6 +26,8 @@ const Expr = struct {
 const ExprList = std.MultiArrayList(Expr);
 
 pub const Set = struct {
+    filepath: []const u8 = undefined,
+    buf: []const u8 = undefined,
     token_list: token.TokenList = token.TokenList{},
     node_list: NodeList = NodeList{},
     expr_list: ExprList = ExprList{},
@@ -49,8 +51,8 @@ pub fn parseFromTokenList(
         // Error case: name doesn't immediately follow `@`.
         if (pos.nextToken().token != .node_name) {
             var err_loc: log.filePosition = .{
-                .filepath = pos.filepath,
-                .buf = pos.buf,
+                .filepath = set.filepath,
+                .buf = set.buf,
                 .idx = pos.getToken().idx,
             };
             err_loc.computeCoords();
@@ -69,8 +71,8 @@ pub fn parseFromTokenList(
             // Error case: floating `:`
             if (pos.getToken().token == .colon) {
                 var err_loc: log.filePosition = .{
-                    .filepath = pos.filepath,
-                    .buf = pos.buf,
+                    .filepath = set.filepath,
+                    .buf = set.buf,
                     .idx = pos.getToken().idx,
                 };
                 err_loc.computeCoords();
@@ -80,8 +82,8 @@ pub fn parseFromTokenList(
             // Error case: floating `=`
             if (pos.getToken().token == .equals) {
                 var err_loc: log.filePosition = .{
-                    .filepath = pos.filepath,
-                    .buf = pos.buf,
+                    .filepath = set.filepath,
+                    .buf = set.buf,
                     .idx = pos.getToken().idx,
                 };
                 err_loc.computeCoords();
@@ -100,15 +102,12 @@ pub fn parseFromTokenList(
                 try parseFromTokenList(pos, set, allocator, errorWriter);
                 if (pos.getToken().token != .semicolon) {
                     var err_loc: log.filePosition = .{
-                        .filepath = pos.filepath,
-                        .buf = pos.buf,
+                        .filepath = set.filepath,
+                        .buf = set.buf,
                         .idx = pos.getToken().idx,
                     };
                     err_loc.computeCoords();
                     if (pos.getToken().token == .at) {
-                        if (pos.prevToken().token == .str_no_closing_quote) {
-                            return log.reportError(log.SyntaxError.StrNoClosingQuote, err_loc, errorWriter);
-                        }
                         return log.reportError(log.SyntaxError.NoSemicolonAfterNode, err_loc, errorWriter);
                     }
                     return log.reportError(log.SyntaxError.NoSemicolonAfterBody, err_loc, errorWriter);
@@ -127,14 +126,11 @@ pub fn parseFromTokenList(
             // `@` shouldn't be here.
             if ((pos.getToken().token == .curly_right and pos.prevToken().token != .curly_left) or pos.getToken().token == .at) {
                 var err_loc: log.filePosition = .{
-                    .filepath = pos.filepath,
-                    .buf = pos.buf,
+                    .filepath = set.filepath,
+                    .buf = set.buf,
                     .idx = pos.getToken().idx,
                 };
                 err_loc.computeCoords();
-                if (pos.prevToken().token == .str_no_closing_quote) {
-                    return log.reportError(log.SyntaxError.StrNoClosingQuote, err_loc, errorWriter);
-                }
                 return log.reportError(log.SyntaxError.NoSemicolonAfterNode, err_loc, errorWriter);
             }
         }
@@ -146,9 +142,9 @@ pub fn parseFromTokenList(
     // End of file and no semicolon.
     if (!in_bounds and pos.nextToken().token != .semicolon) {
         var err_loc: log.filePosition = .{
-            .filepath = pos.filepath,
-            .buf = pos.buf,
-            .idx = pos.getToken().lastByteIdx(pos.buf),
+            .filepath = set.filepath,
+            .buf = set.buf,
+            .idx = pos.getToken().lastByteIdx(set.buf),
         };
         err_loc.computeCoords();
         return log.reportError(log.SyntaxError.NoSemicolonAfterNode, err_loc, errorWriter);
@@ -181,13 +177,13 @@ fn parseDeclaration(
                 // Resolve type in '...:type=...'.
                 in_bounds = pos.inc();
                 if (pos.getToken().token == .unresolved) {
-                    const type_string = pos.getToken().lexeme(pos.buf);
+                    const type_string = pos.getToken().lexeme(set.buf);
                     expr_type = type_map.get(type_string) orelse .unresolved;
                     // Error case: invalid type specifier.
                     if (expr_type == .unresolved) {
                         var err_loc: log.filePosition = .{
-                            .filepath = pos.filepath,
-                            .buf = pos.buf,
+                            .filepath = set.filepath,
+                            .buf = set.buf,
                             .idx = pos.getToken().idx,
                         };
                         err_loc.computeCoords();
@@ -203,8 +199,8 @@ fn parseDeclaration(
                 // Error case: inferred type uses `=`, not `:=`
                 if (pos.getToken().token == .equals) {
                     var err_loc: log.filePosition = .{
-                        .filepath = pos.filepath,
-                        .buf = pos.buf,
+                        .filepath = set.filepath,
+                        .buf = set.buf,
                         .idx = pos.getToken().idx,
                     };
                     err_loc.computeCoords();
@@ -225,8 +221,8 @@ fn parseDeclaration(
                 }
                 // Error case: no valid expression after `=`
                 var err_loc: log.filePosition = .{
-                    .filepath = pos.filepath,
-                    .buf = pos.buf,
+                    .filepath = set.filepath,
+                    .buf = set.buf,
                     .idx = pos.getToken().idx,
                 };
                 err_loc.computeCoords();
@@ -234,8 +230,8 @@ fn parseDeclaration(
             },
             else => {
                 var err_loc: log.filePosition = .{
-                    .filepath = pos.filepath,
-                    .buf = pos.buf,
+                    .filepath = set.filepath,
+                    .buf = set.buf,
                     .idx = pos.getToken().idx,
                 };
                 err_loc.computeCoords();
@@ -266,27 +262,25 @@ fn parseExpression(
 }
 
 pub const ParsePosition = struct {
-    filepath: []const u8 = undefined,
-    buf: []const u8 = undefined,
-    token_list: token.TokenList = undefined,
+    set: Set = .{},
     idx: u32 = 0,
     fn atEnd(self: *ParsePosition) bool {
-        return (self.idx == self.token_list.len - 1);
+        return (self.idx == self.set.token_list.len - 1);
     }
     fn getToken(self: *ParsePosition) token.Token {
-        return self.token_list.get(self.idx);
+        return self.set.token_list.get(self.idx);
     }
     fn inc(self: *ParsePosition) bool {
-        if (self.idx == self.token_list.len - 1) return false;
+        if (self.idx == self.set.token_list.len - 1) return false;
         self.idx += 1;
         return true;
     }
     fn nextToken(self: *ParsePosition) token.Token {
-        if (self.idx == self.token_list.len - 1) return self.getToken();
-        return self.token_list.get(self.idx + 1);
+        if (self.idx == self.set.token_list.len - 1) return self.getToken();
+        return self.set.token_list.get(self.idx + 1);
     }
     fn prevToken(self: *ParsePosition) token.Token {
         if (self.idx == 0) return self.getToken();
-        return self.token_list.get(self.idx - 1);
+        return self.set.token_list.get(self.idx - 1);
     }
 };
