@@ -1,16 +1,8 @@
 const std = @import("std");
+const cast = std.math.lossyCast;
 const log = @import("log.zig");
 const resolver = @import("resolver.zig");
 const token = @import("token.zig");
-
-pub const Node = struct {
-    parent_idx: u32 = 0,
-    name_idx: u32 = 0,
-    expr_list_idx: u32 = 0,
-    children_idx: u32 = 0,
-};
-
-pub const NodeList = std.MultiArrayList(Node);
 
 const type_map = std.ComptimeStringMap(token.TokenType, .{
     .{ "bool", token.TokenType.type_bool },
@@ -19,11 +11,20 @@ const type_map = std.ComptimeStringMap(token.TokenType, .{
     .{ "str", token.TokenType.type_str },
 });
 
+pub const Node = struct {
+    token_name_idx: u32 = 0,
+    expr_start_idx: u32 = 0,
+    expr_end_idx: u32 = 0,
+    node_children_start_idx: u32 = 0,
+    node_children_end_idx: u32 = 0,
+};
+pub const NodeList = std.MultiArrayList(Node);
+
 const Expr = struct {
     type: token.TokenType = .unresolved,
+    token_name_idx: u32 = 0,
     token_start_idx: u32 = 0,
 };
-
 const ExprList = std.MultiArrayList(Expr);
 
 pub const Set = struct {
@@ -62,12 +63,14 @@ pub fn parseFromTokenList(
 
         // Get node name.
         in_bounds = pos.inc();
-        var this_node: Node = .{ .name_idx = pos.idx };
+        var this_node: Node = .{
+            .token_name_idx = pos.idx,
+        };
         in_bounds = pos.inc();
 
         // Go to `;` to process node.
-        this_node.expr_list_idx = pos.idx;
-        node: while (in_bounds and pos.getToken().token != .semicolon) : (in_bounds = pos.inc()) {
+        this_node.expr_start_idx = cast(u32, set.expr_list.len);
+        node: while (in_bounds and pos.getToken().token != .semicolon) {
 
             // Error case: floating `:`
             if (pos.getToken().token == .colon) {
@@ -100,7 +103,9 @@ pub fn parseFromTokenList(
             // `{`: Recurse in body.
             if (pos.getToken().token == .curly_left and pos.nextToken().token != .curly_right) {
                 in_bounds = pos.inc();
+                this_node.node_children_start_idx = cast(u32, set.node_list.len);
                 try parseFromTokenList(pos, set, allocator, errorWriter);
+                this_node.node_children_end_idx = cast(u32, set.node_list.len);
                 if (pos.getToken().token != .semicolon) {
                     var err_loc: log.filePosition = .{
                         .filepath = set.filepath,
@@ -113,9 +118,8 @@ pub fn parseFromTokenList(
                     }
                     return log.reportError(log.SyntaxError.NoSemicolonAfterBody, err_loc, errorWriter);
                 }
-                // Node over (node has body), so we'll continue the outer loop.
-                try set.node_list.append(allocator, this_node);
-                continue :root;
+                // Node over.
+                break :node;
             }
             // Ignore empty body.
             else if (pos.getToken().token == .curly_left and pos.nextToken().token == .curly_right) {
@@ -134,11 +138,13 @@ pub fn parseFromTokenList(
                 err_loc.computeCoords();
                 return log.reportError(log.SyntaxError.NoSemicolonAfterNode, err_loc, errorWriter);
             }
-        }
+        } // :node
 
-        // Node over (node has no body), so we'll continue the outer loop.
+        // Node over, so continue the outer loop.
+        this_node.expr_end_idx = cast(u32, set.expr_list.len);
         try set.node_list.append(allocator, this_node);
-    } // :node
+        continue :root;
+    } // :root
 
     // End of file and no semicolon.
     if (!in_bounds and pos.nextToken().token != .semicolon) {
@@ -158,8 +164,10 @@ fn parseDeclaration(
     allocator: std.mem.Allocator,
     errorWriter: std.fs.File.Writer,
 ) !bool {
-    const expr_start_idx = pos.idx;
-    var expr_type: token.TokenType = .unresolved;
+    var this_expr: Expr = .{
+        .type = .unresolved,
+        .token_name_idx = pos.idx,
+    };
 
     var in_bounds = !pos.atEnd();
     expr: while (in_bounds) : (in_bounds = pos.inc()) {
@@ -191,9 +199,8 @@ fn parseDeclaration(
                 in_bounds = pos.inc();
                 if (pos.getToken().token == .unresolved) {
                     const type_string = pos.getToken().lexeme(set.buf);
-                    expr_type = type_map.get(type_string) orelse .unresolved;
-                    // Error case: invalid type specifier.
-                    if (expr_type == .unresolved) {
+                    this_expr.type = type_map.get(type_string) orelse {
+                        // Error case: invalid type specifier.
                         var err_loc: log.filePosition = .{
                             .filepath = set.filepath,
                             .buf = set.buf,
@@ -201,10 +208,10 @@ fn parseDeclaration(
                         };
                         err_loc.computeCoords();
                         return log.reportError(log.SyntaxError.InvalidTypeSpecifier, err_loc, errorWriter);
-                    }
+                    };
                     var this_token = pos.getToken();
                     set.token_list.set(pos.idx, .{
-                        .token = expr_type,
+                        .token = this_expr.type,
                         .idx = this_token.idx,
                     });
                     continue :expr;
@@ -221,14 +228,16 @@ fn parseDeclaration(
                 }
             },
             .equals => {
+                in_bounds = pos.inc();
                 // Expression is `...=unresolved`, where `unresolved` is either
                 // an expression name, a date, or a number.
-                if (pos.nextToken().token == .unresolved) {
-                    in_bounds = pos.inc();
-                    in_bounds = try parseExpression(pos, set, allocator, errorWriter);
+                if (pos.getToken().token == .unresolved) {
+                    if (this_expr.type == .unresolved) this_expr.type = .type_infer;
+                    in_bounds = try parseExpression(pos, set, &this_expr, allocator, errorWriter);
                     break :expr;
                 }
-                if (pos.nextToken().token == .str) {
+                if (pos.getToken().token == .str) {
+                    this_expr.type = .type_str;
                     in_bounds = pos.inc();
                     break :expr;
                 }
@@ -253,21 +262,17 @@ fn parseDeclaration(
         } // switch (pos.getToken().token)
     } // :expr
 
-    try set.expr_list.append(allocator, .{
-        .type = expr_type,
-        .token_start_idx = expr_start_idx,
-    });
-
     return in_bounds;
 }
 
+// TODO: Actually parse anything.
 fn parseExpression(
     pos: *ParsePosition,
     set: *Set,
+    expr: *Expr,
     allocator: std.mem.Allocator,
     errorWriter: std.fs.File.Writer,
 ) !bool {
-    _ = allocator;
     var loc: log.filePosition = .{
         .filepath = set.filepath,
         .buf = set.buf,
@@ -280,8 +285,11 @@ fn parseExpression(
         &loc,
         errorWriter,
     );
-    // Placeholder.
-    return !pos.atEnd();
+
+    expr.token_start_idx = pos.idx;
+    var in_bounds = pos.inc();
+    try set.expr_list.append(allocator, expr.*);
+    return in_bounds;
 }
 
 pub const ParsePosition = struct {
