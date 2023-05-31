@@ -102,8 +102,13 @@ pub fn parseFromBuf(
                 .buf = pos.buf,
                 .idx = name_start,
             };
-            loc.computeCoords();
-            try resolver.ensureNotKeyword(pos.buf[name_start..pos.idx], loc, errorWriter);
+            try resolver.ensureNotKeyword(
+                &resolver.reserved_all,
+                log.SyntaxError.NameIsKeyword,
+                pos.buf[name_start..pos.idx],
+                &loc,
+                errorWriter,
+            );
             try token_list.append(allocator, .{
                 .idx = name_start,
                 .token = .node_name,

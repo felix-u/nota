@@ -171,8 +171,13 @@ fn parseDeclaration(
                     .buf = set.buf,
                     .idx = pos.getToken().idx,
                 };
-                loc.computeCoords();
-                try resolver.ensureNotKeyword(pos.getToken().lexeme(set.buf), loc, errorWriter);
+                try resolver.ensureNotKeyword(
+                    &resolver.reserved_all,
+                    log.SyntaxError.NameIsKeyword,
+                    pos.getToken().lexeme(set.buf),
+                    &loc,
+                    errorWriter,
+                );
                 var this_token = pos.getToken();
                 set.token_list.set(pos.idx, .{
                     .token = .expr_name,
@@ -262,9 +267,19 @@ fn parseExpression(
     allocator: std.mem.Allocator,
     errorWriter: std.fs.File.Writer,
 ) !bool {
-    _ = set;
     _ = allocator;
-    _ = errorWriter;
+    var loc: log.filePosition = .{
+        .filepath = set.filepath,
+        .buf = set.buf,
+        .idx = pos.getToken().idx,
+    };
+    try resolver.ensureNotKeyword(
+        &resolver.reserved_types,
+        log.SyntaxError.ExprIsTypeName,
+        pos.getToken().lexeme(set.buf),
+        &loc,
+        errorWriter,
+    );
     // Placeholder.
     return !pos.atEnd();
 }

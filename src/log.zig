@@ -2,6 +2,7 @@ const std = @import("std");
 
 pub const SyntaxError = error{
     AssignmentToNothing,
+    ExprIsTypeName,
     InvalidSyntax,
     InvalidTypeSpecifier,
     MisplacedNode,
@@ -52,6 +53,9 @@ pub fn reportError(comptime err: SyntaxError, file_pos: filePosition, errorWrite
     switch (err) {
         SyntaxError.AssignmentToNothing => {
             try errorWriter.print("assignment to nothing", .{});
+        },
+        SyntaxError.ExprIsTypeName => {
+            try errorWriter.print("type names are not expressions", .{});
         },
         SyntaxError.InvalidSyntax => {
             try errorWriter.print("invalid syntax", .{});
