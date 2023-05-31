@@ -96,9 +96,11 @@ pub fn main() !void {
     //     node_position.computeCoords();
     //     try stdout.print("{d}:{d}\t{s}\t{}\n", .{ node_position.line, node_position.col, node_name, node });
     // }
+    try stdout.print("{} nodes\n", .{ast_set.node_list.len});
     for (0..ast_set.node_list.len) |i| {
         try stdout.print("{}\n", .{ast_set.node_list.get(i)});
     }
+    try stdout.print("{} expressions\n", .{ast_set.expr_list.len});
     for (0..ast_set.expr_list.len) |i| {
         try stdout.print("{}\n", .{ast_set.expr_list.get(i)});
     }

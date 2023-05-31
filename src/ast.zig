@@ -138,6 +138,7 @@ pub fn parseFromTokenList(
                 err_loc.computeCoords();
                 return log.reportError(log.SyntaxError.NoSemicolonAfterNode, err_loc, errorWriter);
             }
+            in_bounds = pos.inc();
         } // :node
 
         // Node over, so continue the outer loop.
@@ -231,14 +232,11 @@ fn parseDeclaration(
                 in_bounds = pos.inc();
                 // Expression is `...=unresolved`, where `unresolved` is either
                 // an expression name, a date, or a number.
-                if (pos.getToken().token == .unresolved) {
-                    if (this_expr.type == .unresolved) this_expr.type = .type_infer;
+                if (this_expr.type == .unresolved) this_expr.type = .type_infer;
+                const this_token_type = pos.getToken().token;
+                if (this_token_type == .unresolved or this_token_type == .str) {
+                    if (this_token_type == .str) this_expr.type = .type_str;
                     in_bounds = try parseExpression(pos, set, &this_expr, allocator, errorWriter);
-                    break :expr;
-                }
-                if (pos.getToken().token == .str) {
-                    this_expr.type = .type_str;
-                    in_bounds = pos.inc();
                     break :expr;
                 }
                 // Error case: no valid expression after `=`
@@ -287,9 +285,9 @@ fn parseExpression(
     );
 
     expr.token_start_idx = pos.idx;
-    var in_bounds = pos.inc();
+    _ = pos.inc();
     try set.expr_list.append(allocator, expr.*);
-    return in_bounds;
+    return !pos.atEnd();
 }
 
 pub const ParsePosition = struct {
