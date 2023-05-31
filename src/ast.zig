@@ -1,5 +1,6 @@
 const std = @import("std");
 const log = @import("log.zig");
+const resolver = @import("resolver.zig");
 const token = @import("token.zig");
 
 pub const Node = struct {
@@ -165,6 +166,13 @@ fn parseDeclaration(
         switch (pos.getToken().token) {
             // Expression name: `name:...`
             .unresolved => {
+                var loc: log.filePosition = .{
+                    .filepath = set.filepath,
+                    .buf = set.buf,
+                    .idx = pos.getToken().idx,
+                };
+                loc.computeCoords();
+                try resolver.ensureNotKeyword(pos.getToken().lexeme(set.buf), loc, errorWriter);
                 var this_token = pos.getToken();
                 set.token_list.set(pos.idx, .{
                     .token = .expr_name,

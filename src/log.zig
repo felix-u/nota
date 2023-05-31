@@ -5,6 +5,7 @@ pub const SyntaxError = error{
     InvalidSyntax,
     InvalidTypeSpecifier,
     MisplacedNode,
+    NameIsKeyword,
     NoExpr,
     NoExprName,
     NoNodeName,
@@ -60,6 +61,9 @@ pub fn reportError(comptime err: SyntaxError, file_pos: filePosition, errorWrite
         },
         SyntaxError.MisplacedNode => {
             try errorWriter.print("expected ';' or '{c}' before node declaration", .{'{'});
+        },
+        SyntaxError.NameIsKeyword => {
+            try errorWriter.print("cannot use keyword as name", .{});
         },
         SyntaxError.NoExpr => {
             try errorWriter.print("expected expression after '='", .{});

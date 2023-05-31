@@ -1,6 +1,7 @@
 const std = @import("std");
 const ascii = std.ascii;
 const log = @import("log.zig");
+const resolver = @import("resolver.zig");
 
 pub const TokenType = enum(u8) {
     // Single-character syntax.
@@ -96,6 +97,13 @@ pub fn parseFromBuf(
         if (isValidSymbolChar(pos.byte())) {
             const name_start = pos.*.idx;
             while (in_bounds and isValidSymbolChar(pos.byte())) : (in_bounds = pos.inc()) {}
+            var loc: log.filePosition = .{
+                .filepath = pos.filepath,
+                .buf = pos.buf,
+                .idx = name_start,
+            };
+            loc.computeCoords();
+            try resolver.ensureNotKeyword(pos.buf[name_start..pos.idx], loc, errorWriter);
             try token_list.append(allocator, .{
                 .idx = name_start,
                 .token = .node_name,
@@ -113,7 +121,7 @@ pub fn parseFromBuf(
                 if (pos.byte() != quote) continue;
                 in_bounds = pos.inc();
                 const symbol_start = pos.*.idx;
-                while (in_bounds and pos.nextByte() != quote and pos.nextByte() != '\n') : (in_bounds = pos.inc()) {}
+                while (in_bounds and pos.byte() != quote and pos.nextByte() != '\n') : (in_bounds = pos.inc()) {}
                 if (pos.nextByte() == '\n') {
                     var err_loc: log.filePosition = .{
                         .filepath = pos.filepath,
@@ -228,8 +236,9 @@ pub const ParsePosition = struct {
         while (in_bounds and !ascii.isWhitespace(self.byte())) : (in_bounds = self.inc()) {}
         return in_bounds;
     }
-    fn nextByte(self: *ParsePosition) bool {
-        if ()
+    fn nextByte(self: *ParsePosition) u8 {
+        if (self.buf[self.idx + 1] == self.buf.len) return self.byte();
+        return self.buf[self.idx + 1];
     }
 };
 
