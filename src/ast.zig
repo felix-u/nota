@@ -65,6 +65,7 @@ pub fn parseFromTokenList(
         in_bounds = pos.inc();
         var this_node: Node = .{
             .token_name_idx = pos.idx,
+            .node_children_start_idx = cast(u32, set.node_list.len),
         };
         in_bounds = pos.inc();
 
@@ -97,6 +98,7 @@ pub fn parseFromTokenList(
             // Case: `name:maybe_type=expression`
             if (pos.getToken().token == .unresolved) {
                 in_bounds = try parseDeclaration(pos, set, allocator, errorWriter);
+                this_node.expr_end_idx = cast(u32, set.expr_list.len);
                 continue :node;
             }
 
@@ -142,7 +144,6 @@ pub fn parseFromTokenList(
         } // :node
 
         // Node over, so continue the outer loop.
-        this_node.expr_end_idx = cast(u32, set.expr_list.len);
         try set.node_list.append(allocator, this_node);
         continue :root;
     } // :root
