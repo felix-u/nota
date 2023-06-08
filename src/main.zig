@@ -1,4 +1,5 @@
 const std = @import("std");
+const args = @import("args.zig");
 const ast = @import("ast.zig");
 const log = @import("log.zig");
 const token = @import("token.zig");
@@ -13,15 +14,34 @@ pub fn main() !void {
     const stdout = std.io.getStdOut().writer();
 
     // Args setup.
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
-    if (args.len == 1) {
+    const argv = try std.process.argsAlloc(allocator);
+    defer std.process.argsFree(allocator, argv);
+
+    try args.parse(allocator, stdout, argv, .{
+        .commands = &.{
+            args.Command{
+                .name = "print",
+                .description = "parse nota file and print its structure",
+                .flags = &.{
+                    args.Flag{
+                        .short_form = 'd',
+                        .long_form = "debug",
+                    },
+                },
+                .kind = .single_positional_required,
+            },
+        },
+        .description = "general purpose declarative notation",
+        .version = "0.4-dev",
+    });
+
+    if (argv.len == 1) {
         try stdout.print("nota: expected file\n", .{});
         std.os.exit(1);
     }
 
     // Read file into buffer.
-    const filepath = args[1];
+    const filepath = argv[1];
     const cwd = std.fs.cwd();
     const infile = try cwd.openFile(filepath, .{ .mode = .read_only });
     defer infile.close();
