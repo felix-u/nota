@@ -348,7 +348,7 @@ pub fn printDebugView(
             const expr = set.expr_list.get(expr_idx);
 
             for (level) |_| try writer.print("\t", .{});
-            try writer.print("{s}\n", .{set.token_list.get(expr.token_name_idx).lexeme(set.buf)});
+            try writer.print("{s} = ", .{set.token_list.get(expr.token_name_idx).lexeme(set.buf)});
 
             for (level) |_| try writer.print("\t", .{});
             try writer.print("{}\n", .{expr});
