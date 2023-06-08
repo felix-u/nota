@@ -323,26 +323,45 @@ pub const ParsePosition = struct {
     }
 };
 
-pub fn printDebugView(set: *Set, level: usize, node_list_start: u32, node_list_end: u32, writer: std.fs.File.Writer) !void {
-    for (node_list_start..node_list_end) |node_list_idx| {
+pub fn printDebugView(
+    set: *Set,
+    level: usize,
+    node_list_start: u32,
+    node_list_end: u32,
+    writer: std.fs.File.Writer,
+) !void {
+    var node_list_idx = node_list_start;
+    while (node_list_idx < node_list_end) : (node_list_idx += 1) {
         const node = set.node_list.get(node_list_idx);
         const node_name = set.token_list.get(node.token_name_idx).lexeme(set.buf);
 
         for (level) |_| try writer.print("\t", .{});
-        try writer.print("BEGIN: {s}\n", .{node_name});
+        try writer.print("{s} <<<\n", .{node_name});
 
         for (level) |_| try writer.print("\t", .{});
         try writer.print("{}\n", .{node});
 
         for (level) |_| try writer.print("\t", .{});
-        try writer.print("EXPRS:\n", .{});
-        for (node.expr_start_idx..node.expr_end_idx) |expr_idx| {
+        try writer.print("EXPR <\n", .{});
+        var expr_idx = node.expr_start_idx;
+        while (expr_idx < node.expr_end_idx) : (expr_idx += 1) {
             const expr = set.expr_list.get(expr_idx);
+
+            for (level) |_| try writer.print("\t", .{});
+            try writer.print("{s}\n", .{set.token_list.get(expr.token_name_idx).lexeme(set.buf)});
+
             for (level) |_| try writer.print("\t", .{});
             try writer.print("{}\n", .{expr});
         }
+        for (level) |_| try writer.print("\t", .{});
+        try writer.print(">\n", .{});
+
+        try printDebugView(set, level + 1, node.node_children_start_idx, node.node_children_end_idx, writer);
+        if (node.node_children_end_idx > node.node_children_start_idx) {
+            node_list_idx = node.node_children_end_idx - 1;
+        }
 
         for (level) |_| try writer.print("\t", .{});
-        try writer.print("END: {s}\n", .{node_name});
+        try writer.print(">>> {s}\n", .{node_name});
     }
 }
