@@ -6,23 +6,23 @@
 
 @Section name="Name 3" {
     @Subsection text="wow, a subsection!";
-    @Subsection name="A Name" time:date=1990-01-01.12:00 done=false meaningoflife=42
+    @Subsection name="A Name" time=1990-01-01.12:00 done=false meaningoflife=42
     {
-        @Subsubsection done=true (^.time + 25d7h) {
+        @Subsubsection done=true (up 1).time+25d7h {
             A subsection of a subsection. Stunning.
         };
     };
 };
 
 
-@Week shares(startdate=2023-05-01) {
-    @Day name="Mon" mods(startdate, + 0d);
-    @Day name="Tue" mods(startdate, + 1d);
-    @Day name="Wed" mods(startdate, + 2d);
-    @Day name="Thu" mods(startdate, + 3d);
-    @Day name="Fri" mods(startdate, + 4d);
-    @Day name="Sat" mods(startdate, + 5d);
-    @Day name="Sun" mods(startdate, + 6d);
+@Week start=2023-05-01 {
+    @Day name="Mon" (up 1).start + 0d;
+    @Day name="Tue" (up 1).start + 1d;
+    @Day name="Wed" (up 1).start + 2d;
+    @Day name="Thu" (up 1).start + 3d;
+    @Day name="Fri" (up 1).start + 4d;
+    @Day name="Sat" (up 1).start + 5d;
+    @Day name="Sun" (up 1).start + 6d;
 };
 
 @Books {

@@ -40,8 +40,9 @@ pub fn parseFromTokenList(
     set: *Set,
     allocator: std.mem.Allocator,
     errorWriter: std.fs.File.Writer,
-) !void {
+) !u32 {
     var in_bounds = !pos.atEnd();
+    var appended_this = false;
 
     root: while (in_bounds) : (in_bounds = pos.inc()) {
         // First token in loop is guaranteed to be either `@` or `}`.
@@ -65,7 +66,7 @@ pub fn parseFromTokenList(
         in_bounds = pos.inc();
         var this_node: Node = .{
             .token_name_idx = pos.idx,
-            .node_children_start_idx = cast(u32, set.node_list.len),
+            .node_children_start_idx = cast(u32, set.node_list.len + 1),
         };
         in_bounds = pos.inc();
 
@@ -105,9 +106,15 @@ pub fn parseFromTokenList(
             // `{`: Recurse in body.
             if (pos.getToken().token == .curly_left and pos.nextToken().token != .curly_right) {
                 in_bounds = pos.inc();
-                this_node.node_children_start_idx = cast(u32, set.node_list.len);
-                try parseFromTokenList(pos, set, allocator, errorWriter);
-                this_node.node_children_end_idx = cast(u32, set.node_list.len);
+
+                try set.node_list.append(allocator, this_node);
+                appended_this = true;
+                const this_node_idx = set.node_list.len - 1;
+                var this_node_again = set.node_list.get(set.node_list.len - 1);
+                this_node_again.node_children_end_idx = try parseFromTokenList(pos, set, allocator, errorWriter);
+                set.node_list.set(this_node_idx, this_node_again);
+
+                // Error case: token after body end is not a semicolon.
                 if (pos.getToken().token != .semicolon) {
                     var err_loc: log.filePosition = .{
                         .filepath = set.filepath,
@@ -144,7 +151,7 @@ pub fn parseFromTokenList(
         } // :node
 
         // Node over, so continue the outer loop.
-        try set.node_list.append(allocator, this_node);
+        if (!appended_this) try set.node_list.append(allocator, this_node);
         continue :root;
     } // :root
 
@@ -158,6 +165,8 @@ pub fn parseFromTokenList(
         err_loc.computeCoords();
         return log.reportError(log.SyntaxError.NoSemicolonAfterNode, err_loc, errorWriter);
     }
+
+    return cast(u32, set.node_list.len);
 }
 
 fn parseDeclaration(
@@ -264,7 +273,6 @@ fn parseDeclaration(
     return in_bounds;
 }
 
-// TODO: Actually parse anything.
 fn parseExpression(
     pos: *ParsePosition,
     set: *Set,
@@ -314,3 +322,27 @@ pub const ParsePosition = struct {
         return self.set.token_list.get(self.idx - 1);
     }
 };
+
+pub fn printDebugView(set: *Set, level: usize, node_list_start: u32, node_list_end: u32, writer: std.fs.File.Writer) !void {
+    for (node_list_start..node_list_end) |node_list_idx| {
+        const node = set.node_list.get(node_list_idx);
+        const node_name = set.token_list.get(node.token_name_idx).lexeme(set.buf);
+
+        for (level) |_| try writer.print("\t", .{});
+        try writer.print("BEGIN: {s}\n", .{node_name});
+
+        for (level) |_| try writer.print("\t", .{});
+        try writer.print("{}\n", .{node});
+
+        for (level) |_| try writer.print("\t", .{});
+        try writer.print("EXPRS:\n", .{});
+        for (node.expr_start_idx..node.expr_end_idx) |expr_idx| {
+            const expr = set.expr_list.get(expr_idx);
+            for (level) |_| try writer.print("\t", .{});
+            try writer.print("{}\n", .{expr});
+        }
+
+        for (level) |_| try writer.print("\t", .{});
+        try writer.print("END: {s}\n", .{node_name});
+    }
+}

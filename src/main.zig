@@ -63,46 +63,36 @@ pub fn main() !void {
         .token_list = token_list,
     };
     var ast_pos: ast.ParsePosition = .{ .set = ast_set };
-    try ast.parseFromTokenList(&ast_pos, &ast_set, allocator, stdout);
+    const node_list_len = try ast.parseFromTokenList(&ast_pos, &ast_set, allocator, stdout);
 
-    // Print tokens (for now).
-    try stdout.print("=== TOKENS 2: BEGIN ===\n", .{});
-    for (0..token_list.len) |i| {
-        const item = token_list.get(i);
-        var position: log.filePosition = .{
-            .filepath = absolute_filepath,
-            .buf = filebuf,
-            .idx = item.idx,
-        };
-        position.computeCoords();
-        try stdout.print("{d}:{d}\t{d}\t\"{s}\"\t{}\n", .{
-            position.line,
-            position.col,
-            i,
-            item.lexeme(filebuf),
-            item.token,
-        });
-    }
-    try stdout.print("=== TOKENS 2: END ===\n", .{});
-
-    // Print AST (for now).
-    // for (0..ast_set.node_list.len) |i| {
-    //     const node = ast_set.node_list.get(i);
-    //     const node_name = ast_set.token_list.get(node.token_name_idx).lexeme(ast_set.buf);
-    //     var node_position: log.filePosition = .{
-    //         .buf = ast_set.buf,
-    //         .idx = ast_set.token_list.get(node.token_name_idx).idx,
+    // try stdout.print("=== TOKENS 2: BEGIN ===\n", .{});
+    // for (0..token_list.len) |i| {
+    //     const item = token_list.get(i);
+    //     var position: log.filePosition = .{
+    //         .filepath = absolute_filepath,
+    //         .buf = filebuf,
+    //         .idx = item.idx,
     //     };
-    //     node_position.computeCoords();
-    //     try stdout.print("{d}:{d}\t{s}\t{}\n", .{ node_position.line, node_position.col, node_name, node });
+    //     position.computeCoords();
+    //     try stdout.print("{d}:{d}\t{d}\t\"{s}\"\t{}\n", .{
+    //         position.line,
+    //         position.col,
+    //         i,
+    //         item.lexeme(filebuf),
+    //         item.token,
+    //     });
     // }
-    try stdout.print("{} nodes\n", .{ast_set.node_list.len});
-    for (0..ast_set.node_list.len) |i| {
-        try stdout.print("{}\n", .{ast_set.node_list.get(i)});
-    }
-    try stdout.print("{} expressions\n", .{ast_set.expr_list.len});
-    for (0..ast_set.expr_list.len) |i| {
-        try stdout.print("{}\n", .{ast_set.expr_list.get(i)});
-    }
-    try stdout.print("=== AST: END ===\n", .{});
+    // try stdout.print("=== TOKENS 2: END ===\n", .{});
+
+    // try stdout.print("{} nodes\n", .{ast_set.node_list.len});
+    // for (0..ast_set.node_list.len) |i| {
+    //     try stdout.print("{}\n", .{ast_set.node_list.get(i)});
+    // }
+    // try stdout.print("{} expressions\n", .{ast_set.expr_list.len});
+    // for (0..ast_set.expr_list.len) |i| {
+    //     try stdout.print("{}\n", .{ast_set.expr_list.get(i)});
+    // }
+    // try stdout.print("=== AST: END ===\n", .{});
+
+    try ast.printDebugView(&ast_set, 0, 0, node_list_len, stdout);
 }
