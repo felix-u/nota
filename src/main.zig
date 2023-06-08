@@ -29,6 +29,7 @@ pub fn main() !void {
                     args.Flag{
                         .short_form = 'd',
                         .long_form = "debug",
+                        .description = "Enable debugging-oriented formatting",
                     },
                 },
             },

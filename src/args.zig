@@ -16,6 +16,7 @@ pub const Kind = enum(u8) {
 pub const Flag = struct {
     short_form: ?u8 = null,
     long_form: []const u8,
+    description: []const u8,
     kind: Kind = .boolean_optional,
     positional_type: ?[]const u8 = null,
 };
@@ -30,9 +31,11 @@ pub const Command = struct {
 pub const help_flag = Flag{
     .short_form = 'h',
     .long_form = "help",
+    .description = "Print this help and exit",
 };
 pub const version_flag = Flag{
     .long_form = "version",
+    .description = "Print version information and exit",
 };
 
 pub const ParseParams = struct {
@@ -54,30 +57,38 @@ pub fn parse(
     }
 }
 
+const indent = "  ";
+const indent_required = "* ";
+
 pub fn printHelp(
     writer: std.fs.File.Writer,
     name: []const u8,
     comptime p: ParseParams,
 ) !void {
+    // Error case: `commands` is an empty slice.
+    if (p.commands.len == 0) @compileError("at least one command must be provided");
+
     // Error case: a command with .name = null is the root command - the binary itself, with no subcommands.
     // There cannot be other commands.
     if (p.commands.len > 1) {
         inline for (p.commands) |cmd| {
-            if (cmd.name == null) @compileError("a command with .name = null indicates an absence of subcommands" ++
-                " and must be the only command.");
+            if (cmd.name == null or cmd.description == null) {
+                @compileError("a command with .name = null or .description = null indicates an" ++
+                    " absence of subcommands and must be the only command");
+            }
         }
     }
 
     // Error case: there is 1 command only, and it is named. Why? This should be the root command, with .name = null.
     if (p.commands.len == 1 and p.commands[0].name != null) {
         @compileError("a named command implies the existence of several others, but there is only 1;\n" ++
-            "leave .name = null.");
+            "leave .name = null");
     }
 
     // Error case: the root command has a description. The `description` passed to parse() should be used instead.
     if (p.commands[0].name == null and p.commands[0].description != null) {
         @compileError("the root command takes no description; " ++
-            "use ParseParams.description instead and leave command.description = null.");
+            "use ParseParams.description instead and leave command.description = null");
     }
 
     try writer.print("{s}", .{name});
@@ -85,7 +96,7 @@ pub fn printHelp(
     if (p.version) |ver| try writer.print(" (version {s})", .{ver});
     try writer.print("\n", .{});
 
-    try writer.print("\nSYNOPSIS\n\t{s}", .{name});
+    try writer.print("\nUSAGE:\n{s}{s}", .{ indent, name });
     if (p.commands.len > 1) try writer.print(" <command>", .{});
 
     comptime var brackets = "[]";
@@ -123,4 +134,38 @@ pub fn printHelp(
     if (max_positional_expected > @enumToInt(Kind.single_positional_required)) try writer.print("...", .{});
 
     try writer.print("\n", .{});
+
+    if (p.commands.len == 1 and p.commands[0].flags != null) {
+        try writer.print("\nFLAGS:\n", .{});
+        const flags = p.commands[0].flags.? ++ (if (p.version == null) .{help_flag} else .{ help_flag, version_flag });
+        inline for (flags) |flag| {
+            try printFlag(writer, flag);
+        }
+    } else {
+        try writer.print("\nCOMMANDS:\n", .{});
+        inline for (p.commands) |cmd| {
+            try writer.print("{s}{s}\t\t{s}\n", .{ indent, cmd.name.?, cmd.description.? });
+        }
+    }
+}
+
+pub fn printFlag(writer: std.fs.File.Writer, comptime flag: Flag) !void {
+    const indent_str = if (comptime flag.kind.isRequired()) indent_required else indent;
+    try writer.print("{s}", .{indent_str});
+
+    if (flag.short_form) |char| {
+        try writer.print("-{c}, ", .{char});
+    } else try writer.print("    ", .{});
+
+    try writer.print("--{s}", .{flag.long_form});
+
+    if (@enumToInt(flag.kind) > @enumToInt(Kind.boolean_required)) {
+        const pos_type = if (flag.positional_type != null) flag.positional_type.? else "arg";
+        const maybe_ellipses = if (@enumToInt(flag.kind) > @enumToInt(Kind.single_positional_required)) "..." else "";
+        try writer.print(" <{s}>{s}", .{ pos_type, maybe_ellipses });
+    }
+
+    try writer.print("\n", .{});
+
+    try writer.print("\t{s}\n", .{flag.description});
 }
