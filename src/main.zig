@@ -18,21 +18,21 @@ pub fn main() !void {
     defer std.process.argsFree(allocator, argv);
 
     try args.parse(allocator, stdout, argv, .{
+        .description = "general-purpose declarative notation",
+        .version = "0.4-dev",
         .commands = &.{
             args.Command{
-                .name = "print",
-                .description = "parse nota file and print its structure",
+                // .name = "print",
+                // .description = "parse nota file and print its structure",
+                .kind = .single_positional_required,
                 .flags = &.{
                     args.Flag{
                         .short_form = 'd',
                         .long_form = "debug",
                     },
                 },
-                .kind = .single_positional_required,
             },
         },
-        .description = "general purpose declarative notation",
-        .version = "0.4-dev",
     });
 
     if (argv.len == 1) {

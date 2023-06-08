@@ -3,7 +3,7 @@ const ascii = std.ascii;
 const log = @import("log.zig");
 const resolver = @import("resolver.zig");
 
-pub const TokenType = enum(u8) {
+pub const Kind = enum(u8) {
     // Single-character syntax.
     paren_left = '(',
     paren_right = ')',
@@ -41,11 +41,11 @@ pub const TokenType = enum(u8) {
 };
 
 pub const Token = struct {
-    token: TokenType,
+    token: Kind,
     idx: u32,
 
     pub fn lexeme(self: Token, buf: []const u8) []const u8 {
-        if (@enumToInt(self.token) <= @enumToInt(TokenType.characters)) {
+        if (@enumToInt(self.token) <= @enumToInt(Kind.characters)) {
             return buf[self.idx .. self.idx + 1];
         }
         var pos: ParsePosition = .{ .buf = buf, .idx = self.idx };
@@ -167,7 +167,7 @@ pub fn parseFromBuf(
                 ';', ':', '=', '(', ')', '[', ']', '{', '}' => |byte| {
                     try token_list.append(allocator, .{
                         .idx = pos.*.idx,
-                        .token = @intToEnum(TokenType, byte),
+                        .token = @intToEnum(Kind, byte),
                     });
                     if (byte == '{') {
                         try parseFromBuf(pos, token_list, allocator, errorWriter, true);

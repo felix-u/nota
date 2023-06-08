@@ -4,11 +4,11 @@ const log = @import("log.zig");
 const resolver = @import("resolver.zig");
 const token = @import("token.zig");
 
-const type_map = std.ComptimeStringMap(token.TokenType, .{
-    .{ "bool", token.TokenType.type_bool },
-    .{ "date", token.TokenType.type_date },
-    .{ "num", token.TokenType.type_num },
-    .{ "str", token.TokenType.type_str },
+const type_map = std.ComptimeStringMap(token.Kind, .{
+    .{ "bool", token.Kind.type_bool },
+    .{ "date", token.Kind.type_date },
+    .{ "num", token.Kind.type_num },
+    .{ "str", token.Kind.type_str },
 });
 
 pub const Node = struct {
@@ -21,7 +21,7 @@ pub const Node = struct {
 pub const NodeList = std.MultiArrayList(Node);
 
 const Expr = struct {
-    type: token.TokenType = .unresolved,
+    type: token.Kind = .unresolved,
     token_name_idx: u32 = 0,
     token_start_idx: u32 = 0,
 };
