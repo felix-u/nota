@@ -1,12 +1,19 @@
 const std = @import("std");
 
+const Error = error{
+    InvalidFlag,
+    NoArgument,
+};
+
 pub const Kind = enum(u8) {
-    boolean_optional = 0,
-    boolean_required = 1,
-    single_positional_optional = 2,
-    single_positional_required = 3,
-    multi_positional_optional = 4,
-    multi_positional_required = 5,
+    help = 0,
+    version = 2,
+    boolean_optional = 4,
+    boolean_required = 5,
+    single_positional_optional = 6,
+    single_positional_required = 7,
+    multi_positional_optional = 8,
+    multi_positional_required = 9,
 
     pub fn isRequired(comptime self: *const @This()) bool {
         return @enumToInt(self.*) % 2 == 1;
@@ -23,17 +30,15 @@ pub const Flag = struct {
     fn resultType(comptime self: *const @This()) type {
         if (@enumToInt(self.kind) <= @enumToInt(Kind.single_positional_required)) return bool;
 
-        comptime var field_name = "positional";
         comptime var field_type = ?u8;
-        if (@enumToInt(self.kind) >= @enumToInt(Kind.multi_positional_optional)) {
-            field_name = field_name ++ "s";
+        if (self.kind == .multi_positional_optional or self.kind == .multi_positional_required) {
             field_type = ?[]const []const u8;
         }
 
         return @Type(.{ .Struct = .{
             .layout = .Auto,
             .fields = .{
-                .name = field_name,
+                .name = "received",
                 .type = field_type,
                 .default_value = null,
                 .is_comptime = false,
@@ -70,29 +75,13 @@ pub const Command = struct {
             .is_tuple = false,
         } });
     }
-};
 
-pub const help_flag = Flag{
-    .short_form = 'h',
-    .long_form = "help",
-    .description = "Print this help and exit",
-};
-pub const version_flag = Flag{
-    .long_form = "version",
-    .description = "Print version information and exit",
-};
-
-pub const ParseParams = struct {
-    description: ?[]const u8 = null,
-    version: ?[]const u8 = null,
-    commands: []const Command = &.{.{}},
-
-    fn resultType(comptime self: *const @This()) type {
-        if (self.commands.len == 0) return void;
-        comptime var fields: [self.commands.len]std.builtin.Type.StructField = undefined;
-        inline for (&fields, self.commands) |*field, cmd| {
+    fn listResultType(comptime cmds: []const @This()) type {
+        if (cmds.len == 0) return void;
+        comptime var fields: [cmds.len]std.builtin.Type.StructField = undefined;
+        inline for (&fields, cmds) |*field, cmd| {
             field.* = .{
-                .name = if (cmd.name != null) cmd.name.? else "no_command",
+                .name = cmd.name orelse "no_command",
                 .type = ?cmd.resultType(),
                 .default_value = null,
                 .is_comptime = false,
@@ -108,13 +97,37 @@ pub const ParseParams = struct {
     }
 };
 
+pub const help_flag = Flag{
+    .short_form = 'h',
+    .long_form = "help",
+    .description = "Print this help and exit",
+    .kind = .help,
+};
+pub const version_flag = Flag{
+    .long_form = "version",
+    .description = "Print version information and exit",
+    .kind = .version,
+};
+
+pub const ParseParams = struct {
+    description: ?[]const u8 = null,
+    version: ?[]const u8 = null,
+    commands: []const Command = &.{.{}},
+};
+
 pub fn parse(
     allocator: std.mem.Allocator,
     writer: std.fs.File.Writer,
     argv: [][]const u8,
     comptime p: ParseParams,
-) !p.resultType() {
+) !Command.listResultType(p.commands) {
     _ = allocator;
+
+    const Result = Command.listResultType(p.commands);
+    var result: Result = undefined;
+    inline for (@typeInfo(Result).Struct.fields) |field| {
+        @field(result, field.name) = null;
+    }
 
     // Error case: `commands` is an empty slice.
     if (p.commands.len == 0) @compileError("at least one command must be provided");
@@ -174,12 +187,12 @@ pub fn parse(
 
     // Runtime
 
-    std.debug.print("{}\n", .{p.resultType()});
-
+    // Case: binary called with no arguments.
     if (argv.len == 1) {
         try printHelp(writer, argv[0], p);
-        return;
     }
+
+    return result;
 }
 
 const indent = "  ";
@@ -236,8 +249,7 @@ pub fn printHelp(
 
     if (p.commands.len == 1 and p.commands[0].flags != null) {
         try writer.print("\nFLAGS:\n", .{});
-        const flags = p.commands[0].flags.? ++ (if (p.version == null) .{help_flag} else .{ help_flag, version_flag });
-        inline for (flags) |flag| {
+        inline for (p.commands[0].flags.?) |flag| {
             try printFlag(writer, flag);
         }
     } else {
