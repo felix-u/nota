@@ -135,6 +135,9 @@ pub fn parseAlloc(
         }
     }
 
+    var arg_kind_list = try allocator.alloc(ArgKind, argv.len);
+    defer allocator.free(arg_kind_list);
+
     // Error case: `commands` is an empty slice.
     if (p.commands.len == 0) @compileError("at least one command must be provided");
 
@@ -207,27 +210,64 @@ pub fn parseAlloc(
     _ = general_flags;
 
     if (p.commands.len == 1) {
-        cmd_arg: for (argv, 0..) |arg, idx| {
-            const arg_kind = argKind(arg);
+        const cmd = p.commands[0];
+        procArgKindList(&arg_kind_list, argv);
+        var got_pos = false;
+        cmd_arg: for (arg_kind_list[1..], 1..) |arg_kind, idx| {
+            const arg = argv[idx];
             switch (arg_kind) {
+                .command => unreachable,
                 .positional => {
-                    switch (p.commands[0].kind) {
-                        .boolean_required => return Error.UnexpectedArgument,
-                        .single_positional_required => result.no_command.pos = idx,
-                        .multi_positional_required => result.no_command.pos.appendAssumeCapacity(idx),
-                        else => unreachable,
+                    switch (cmd.kind) {
+                        inline .boolean_required => return Error.UnexpectedArgument,
+                        inline .single_positional_required => {
+                            if (got_pos) return Error.UnexpectedArgument;
+                            result.no_command.pos = idx;
+                            got_pos = true;
+                        },
+                        inline .multi_positional_required => {
+                            result.no_command.pos.appendAssumeCapacity(idx);
+                            got_pos = true;
+                        },
+                        inline else => unreachable,
                     }
                 },
                 .positional_marker => continue :cmd_arg,
-                .short_flag => {},
-                .long_flag => {},
+                .short_flag => {
+                    match: for (arg[1..]) |short| {
+                        if (short == help_flag.short_form) {
+                            try printHelp(writer, argv[0], p);
+                            return null;
+                        }
+                        if (cmd.flags) |flags| {
+                            for (flags) |flag| {
+                                if (flag.short_form) |flag_short| {
+                                    if (short == flag_short) {
+                                        break :match;
+                                    }
+                                }
+                            }
+                        }
+                    } else return Error.InvalidFlag;
+                },
+                .long_flag => {
+                    if (std.mem.eql(u8, arg[2..], help_flag.long_form)) {
+                        try printHelp(writer, argv[0], p);
+                        return null;
+                    }
+                    if (p.version != null and std.mem.eql(u8, arg[2..], version_flag.long_form)) {
+                        try printVersion(writer, argv[0], p);
+                        return null;
+                    }
+                    if (cmd.flags == null) return Error.InvalidFlag;
+                    match: for (cmd.flags.?) |flag| {
+                        if (std.mem.eql(u8, arg[2..], flag.long_form)) {
+                            break :match;
+                        }
+                    } else return Error.InvalidFlag;
+                },
             }
         }
-    }
-
-    if (std.mem.eql(u8, argv[1], "--help")) {
-        try printHelp(writer, argv[0], p);
-        return null;
     }
 
     // Case: binary expected arguments but got none.
@@ -240,22 +280,32 @@ pub fn parseAlloc(
     return result;
 }
 
-const ArgKind = enum { positional, positional_marker, short_flag, long_flag };
-fn argKind(arg: []const u8) ArgKind {
-    var arg_kind: ArgKind = .positional;
-    kind: {
-        if (arg.len == 1) break :kind;
-        if (arg[0] == '-' and arg[1] != '-') {
-            arg_kind = .short_flag;
-            break :kind;
-        }
-        if (arg.len == 2) return .positional_marker;
-        if (arg[0] == '-' and arg[1] == '-') {
-            arg_kind = .long_flag;
-            break :kind;
-        }
+const ArgKind = enum { command, positional, positional_marker, short_flag, long_flag };
+fn procArgKindList(arg_kind_list: *[]ArgKind, argv: []const []const u8) void {
+    var list = arg_kind_list.*;
+    var only_positionals = false;
+    var got_command = false;
+    for (argv, 0..) |arg, idx| {
+        if (only_positionals) {
+            list[idx] = .positional;
+        } else if (arg.len == 1) {
+            if (got_command) {
+                list[idx] = .command;
+                got_command = true;
+            } else list[idx] = .positional;
+        } else if (arg[0] == '-' and arg[1] != '-') {
+            list[idx] = .short_flag;
+        } else if (arg.len == 2) {
+            list[idx] = .positional_marker;
+            only_positionals = true;
+        } else if (arg[0] == '-' and arg[1] == '-') {
+            list[idx] = .long_flag;
+        } else if (got_command) {
+            list[idx] = .command;
+            got_command = true;
+        } else list[idx] = .positional;
     }
-    return arg_kind;
+    arg_kind_list.* = list;
 }
 
 const indent = "  ";
@@ -325,6 +375,17 @@ pub fn printHelp(
         try printFlag(writer, help_flag);
         if (p.version != null) try printFlag(writer, version_flag);
     }
+}
+
+pub fn printVersion(
+    writer: std.fs.File.Writer,
+    name: []const u8,
+    comptime p: ParseParams,
+) !void {
+    if (p.version == null) return;
+    try writer.print("{s}", .{name});
+    try writer.print(" (version {s})", .{p.version.?});
+    try writer.print("\n", .{});
 }
 
 pub fn printFlag(writer: std.fs.File.Writer, comptime flag: Flag) !void {
