@@ -125,6 +125,8 @@ pub fn parseAlloc(
     argv: [][]const u8,
     comptime p: ParseParams,
 ) !?*Command.listResultType(p.commands) {
+    var requested_help = false;
+    var requested_version = false;
 
     // Initialise and pre-allocate.
     const Result = Command.listResultType(p.commands);
@@ -234,30 +236,30 @@ pub fn parseAlloc(
                 },
                 .positional_marker => continue :cmd_arg,
                 .short_flag => {
-                    match: for (arg[1..]) |short| {
+                    for (arg[1..]) |short| {
+                        var match = false;
                         if (short == help_flag.short_form) {
-                            try printHelp(writer, argv[0], p);
-                            return null;
+                            requested_help = true;
+                            continue;
                         }
-                        if (cmd.flags) |flags| {
-                            for (flags) |flag| {
-                                if (flag.short_form) |flag_short| {
-                                    if (short == flag_short) {
-                                        break :match;
-                                    }
-                                }
+                        if (cmd.flags == null) return Error.InvalidFlag;
+                        for (cmd.flags.?) |flag| {
+                            if (flag.short_form == null) continue;
+                            if (short == flag.short_form.?) {
+                                match = true;
                             }
                         }
-                    } else return Error.InvalidFlag;
+                        if (!match) return Error.InvalidFlag;
+                    }
                 },
                 .long_flag => {
                     if (std.mem.eql(u8, arg[2..], help_flag.long_form)) {
-                        try printHelp(writer, argv[0], p);
-                        return null;
+                        requested_help = true;
+                        continue :cmd_arg;
                     }
                     if (p.version != null and std.mem.eql(u8, arg[2..], version_flag.long_form)) {
-                        try printVersion(writer, argv[0], p);
-                        return null;
+                        requested_version = true;
+                        continue :cmd_arg;
                     }
                     if (cmd.flags == null) return Error.InvalidFlag;
                     match: for (cmd.flags.?) |flag| {
@@ -267,6 +269,14 @@ pub fn parseAlloc(
                     } else return Error.InvalidFlag;
                 },
             }
+        } // :cmd_arg
+        if (requested_help) {
+            try printHelp(writer, argv[0], p);
+            return null;
+        }
+        if (requested_version) {
+            try printVersion(writer, argv[0], p);
+            return null;
         }
     }
 
