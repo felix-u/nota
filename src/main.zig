@@ -17,7 +17,7 @@ pub fn main() !void {
     const argv = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, argv);
 
-    _ = try args.parse(allocator, stdout, argv, .{
+    _ = args.parse(allocator, stdout, argv, .{
         .description = "general-purpose declarative notation",
         .version = "0.4-dev",
         .commands = &.{
@@ -31,12 +31,13 @@ pub fn main() !void {
                         .long_form = "debug",
                         .description = "Enable debugging-oriented formatting",
                     },
-                    args.help_flag,
-                    args.version_flag,
                 },
             },
         },
-    });
+    }) catch |err| switch (err) {
+        args.Error.Help => return,
+        else => return err,
+    };
 
     if (argv.len == 1) {
         try stdout.print("nota: expected file\n", .{});

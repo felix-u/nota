@@ -1,8 +1,11 @@
 const std = @import("std");
 
-const Error = error{
+pub const Error = error{
+    Help,
+    InvalidArgument,
     InvalidFlag,
-    NoArgument,
+    MissingArgument,
+    MissingFlag,
 };
 
 pub const Kind = enum(u8) {
@@ -187,11 +190,33 @@ pub fn parse(
 
     // Runtime
 
-    // Case: binary called with no arguments.
-    if (argv.len == 1) {
+    const add_flags = if (p.version != null) .{ help_flag, version_flag } else .{help_flag};
+    const general_flags = if (p.commands.len > 1) add_flags else (p.commands[0].flags orelse .{}) ++ add_flags;
+    _ = general_flags;
+
+    // for (p.commands) |cmd| {
+    // }
+
+    // for (argv) |arg| {
+    //     var arg_kind: enum { positional, short_flag, long_flag } = .positional;
+    //     if (arg.len == 1) continue;
+    //     if (arg[0] == '-' and arg[1] != '-') {
+    //         arg_kind = .short_flag;
+    //         for (arg[1..]) |c| {
+    //         }
+    //     }
+    //     else if (arg[0] == '-' and arg[1] == '-') {
+    //         arg_kind = .long_flag;
+    //     }
+    // }
+
+    // Case: binary expected arguments but got none.
+    if (p.commands.len == 1 and @enumToInt(p.commands[0].kind) > @enumToInt(Kind.boolean_required) and argv.len == 1) {
         try printHelp(writer, argv[0], p);
+        return Error.MissingArgument;
     }
 
+    try writer.print("{}\n", .{result});
     return result;
 }
 
@@ -231,7 +256,7 @@ pub fn printHelp(
             }
         }
     }
-    if (max_flag_num > 0) try writer.print(" {c}flag{c}", .{ brackets[0], brackets[1] });
+    if (max_flag_num > 0) try writer.print(" {c}option{c}", .{ brackets[0], brackets[1] });
     if (max_flag_num > 1) try writer.print("...", .{});
 
     comptime var max_positional_expected = @enumToInt(Kind.boolean_required);
@@ -248,15 +273,19 @@ pub fn printHelp(
     try writer.print("\n", .{});
 
     if (p.commands.len == 1 and p.commands[0].flags != null) {
-        try writer.print("\nFLAGS:\n", .{});
-        inline for (p.commands[0].flags.?) |flag| {
+        try writer.print("\nOPTIONS:\n", .{});
+        const all_flags = p.commands[0].flags.? ++ (if (p.version != null) .{ help_flag, version_flag } else .{help_flag});
+        inline for (all_flags) |flag| {
             try printFlag(writer, flag);
         }
     } else {
         try writer.print("\nCOMMANDS:\n", .{});
         inline for (p.commands) |cmd| {
-            try writer.print("{s}{s}\t\t{s}\n", .{ indent, cmd.name.?, cmd.description.? });
+            if (cmd.name != null) try writer.print("{s}{s}\t\t{s}\n", .{ indent, cmd.name.?, cmd.description.? });
         }
+        try writer.print("\nGENERAL OPTIONS:\n", .{});
+        try printFlag(writer, help_flag);
+        if (p.version != null) try printFlag(writer, version_flag);
     }
 }
 
