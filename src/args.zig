@@ -1,7 +1,6 @@
 const std = @import("std");
 
 pub const Error = error{
-    Help,
     InvalidArgument,
     InvalidFlag,
     MissingArgument,
@@ -18,8 +17,8 @@ pub const Kind = enum(u8) {
     multi_positional_optional = 8,
     multi_positional_required = 9,
 
-    pub fn isRequired(comptime self: *const @This()) bool {
-        return @enumToInt(self.*) % 2 == 1;
+    pub fn isRequired(comptime self: @This()) bool {
+        return @enumToInt(self) % 2 == 1;
     }
 };
 
@@ -31,25 +30,11 @@ pub const Flag = struct {
     positional_type: ?[]const u8 = null,
 
     fn resultType(comptime self: *const @This()) type {
-        if (@enumToInt(self.kind) <= @enumToInt(Kind.single_positional_required)) return bool;
-
-        comptime var field_type = ?u8;
-        if (self.kind == .multi_positional_optional or self.kind == .multi_positional_required) {
-            field_type = ?[]const []const u8;
-        }
-
-        return @Type(.{ .Struct = .{
-            .layout = .Auto,
-            .fields = .{
-                .name = "received",
-                .type = field_type,
-                .default_value = null,
-                .is_comptime = false,
-                .alignment = 0,
-            },
-            .decls = &.{},
-            .is_tuple = false,
-        } });
+        return switch (self.kind) {
+            inline .help, .version, .boolean_optional, .boolean_required => bool,
+            inline .single_positional_optional, .single_positional_required => usize,
+            inline .multi_positional_optional, .multi_positional_required => std.ArrayList(usize),
+        };
     }
 };
 
@@ -60,12 +45,27 @@ pub const Command = struct {
     flags: ?[]const Flag = null,
 
     fn resultType(comptime self: *const @This()) type {
-        if (self.flags == null) return void;
-        comptime var fields: [self.flags.?.len]std.builtin.Type.StructField = undefined;
-        inline for (&fields, self.flags.?) |*field, flag| {
+        if (self.flags == null) return switch (self.kind) {
+            inline .single_positional_optional, .single_positional_required => usize,
+            inline .multi_positional_optional, .multi_positional_required => std.ArrayList(usize),
+            inline else => bool,
+        };
+        comptime var fields: [self.flags.?.len + 1]std.builtin.Type.StructField = undefined;
+        fields[0] = .{
+            .name = "pos",
+            .type = switch (self.kind) {
+                inline .single_positional_optional, .single_positional_required => usize,
+                inline .multi_positional_optional, .multi_positional_required => std.ArrayList(usize),
+                inline else => bool,
+            },
+            .default_value = null,
+            .is_comptime = false,
+            .alignment = 0,
+        };
+        inline for (fields[1..], self.flags.?) |*field, flag| {
             field.* = .{
                 .name = flag.long_form,
-                .type = ?flag.resultType(),
+                .type = flag.resultType(),
                 .default_value = null,
                 .is_comptime = false,
                 .alignment = 0,
@@ -85,7 +85,7 @@ pub const Command = struct {
         inline for (&fields, cmds) |*field, cmd| {
             field.* = .{
                 .name = cmd.name orelse "no_command",
-                .type = ?cmd.resultType(),
+                .type = if (cmd.name == null) cmd.resultType() else ?cmd.resultType(),
                 .default_value = null,
                 .is_comptime = false,
                 .alignment = 0,
@@ -118,18 +118,20 @@ pub const ParseParams = struct {
     commands: []const Command = &.{.{}},
 };
 
-pub fn parse(
+pub fn parseAlloc(
     allocator: std.mem.Allocator,
     writer: std.fs.File.Writer,
     argv: [][]const u8,
     comptime p: ParseParams,
-) !Command.listResultType(p.commands) {
-    _ = allocator;
+) !?*Command.listResultType(p.commands) {
 
+    // Initialise and pre-allocate.
     const Result = Command.listResultType(p.commands);
-    var result: Result = undefined;
-    inline for (@typeInfo(Result).Struct.fields) |field| {
-        @field(result, field.name) = null;
+    var result = try allocator.create(Result);
+    inline for (@typeInfo(Result).Struct.fields, 0..) |field, idx| {
+        if (@enumToInt(p.commands[idx].kind) >= @enumToInt(Kind.multi_positional_optional)) {
+            @field(result, field.name) = allocator.alloc(usize, argv.len);
+        }
     }
 
     // Error case: `commands` is an empty slice.
@@ -150,6 +152,15 @@ pub fn parse(
     if (p.commands.len == 1 and p.commands[0].name != null) {
         @compileError("a named command implies the existence of several others, but there is only 1;\n" ++
             "leave .name = null");
+    }
+
+    // Error case: the root command is of optional kind, or .help or .version.
+    if (p.commands.len == 1) {
+        if (!comptime p.commands[0].kind.isRequired()) @compileError("the root command cannot be optional");
+        if (p.commands[0].kind == .help or p.commands[0].kind == .version) {
+            @compileError("the root command cannot have .kind = .help or .version, " ++
+                " because the root command is not a help or version flag.");
+        }
     }
 
     // Error case: the root command has a description. The `description` passed to parse() should be used instead.
@@ -194,6 +205,35 @@ pub fn parse(
     const general_flags = if (p.commands.len > 1) add_flags else (p.commands[0].flags orelse .{}) ++ add_flags;
     _ = general_flags;
 
+    if (p.commands.len == 1) {
+        arg: for (argv, 0..) |arg, idx| {
+            var arg_kind: enum { positional, short_flag, long_flag } = .positional;
+            kind: {
+                if (arg.len == 1) break :kind;
+                if (arg[0] == '-' and arg[1] != '-') {
+                    arg_kind = .short_flag;
+                    break :kind;
+                }
+                if (arg.len == 2) continue :arg;
+                if (arg[0] == '-' and arg[1] == '-') {
+                    arg_kind = .long_flag;
+                    break :kind;
+                }
+            }
+            if (arg_kind == .positional) {
+                switch (p.commands[0].kind) {
+                    .single_positional_optional, .single_positional_required => {
+                        result.no_command.pos = idx;
+                    },
+                    .multi_positional_optional, .multi_positional_required => {
+                        result.no_command.pos.appendAssumeCapacity(idx);
+                    },
+                    else => {},
+                }
+            }
+        }
+    }
+
     // for (p.commands) |cmd| {
     // }
 
@@ -209,6 +249,11 @@ pub fn parse(
     //         arg_kind = .long_flag;
     //     }
     // }
+
+    if (std.mem.eql(u8, argv[1], "--help")) {
+        try printHelp(writer, argv[0], p);
+        return null;
+    }
 
     // Case: binary expected arguments but got none.
     if (p.commands.len == 1 and @enumToInt(p.commands[0].kind) > @enumToInt(Kind.boolean_required) and argv.len == 1) {

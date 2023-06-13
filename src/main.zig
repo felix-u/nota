@@ -17,7 +17,7 @@ pub fn main() !void {
     const argv = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, argv);
 
-    _ = args.parse(allocator, stdout, argv, .{
+    const args_parsed = try args.parseAlloc(allocator, stdout, argv, .{
         .description = "general-purpose declarative notation",
         .version = "0.4-dev",
         .commands = &.{
@@ -34,10 +34,8 @@ pub fn main() !void {
                 },
             },
         },
-    }) catch |err| switch (err) {
-        args.Error.Help => return,
-        else => return err,
-    };
+    }) orelse return;
+    defer allocator.destroy(args_parsed);
 
     if (argv.len == 1) {
         try stdout.print("nota: expected file\n", .{});
@@ -45,7 +43,7 @@ pub fn main() !void {
     }
 
     // Read file into buffer.
-    const filepath = argv[1];
+    const filepath = argv[args_parsed.no_command.pos];
     const cwd = std.fs.cwd();
     const infile = try cwd.openFile(filepath, .{ .mode = .read_only });
     defer infile.close();
