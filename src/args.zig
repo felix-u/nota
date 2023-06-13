@@ -5,6 +5,7 @@ pub const Error = error{
     InvalidFlag,
     MissingArgument,
     MissingFlag,
+    UnexpectedArgument,
 };
 
 pub const Kind = enum(u8) {
@@ -206,49 +207,23 @@ pub fn parseAlloc(
     _ = general_flags;
 
     if (p.commands.len == 1) {
-        arg: for (argv, 0..) |arg, idx| {
-            var arg_kind: enum { positional, short_flag, long_flag } = .positional;
-            kind: {
-                if (arg.len == 1) break :kind;
-                if (arg[0] == '-' and arg[1] != '-') {
-                    arg_kind = .short_flag;
-                    break :kind;
-                }
-                if (arg.len == 2) continue :arg;
-                if (arg[0] == '-' and arg[1] == '-') {
-                    arg_kind = .long_flag;
-                    break :kind;
-                }
-            }
-            if (arg_kind == .positional) {
-                switch (p.commands[0].kind) {
-                    .single_positional_optional, .single_positional_required => {
-                        result.no_command.pos = idx;
-                    },
-                    .multi_positional_optional, .multi_positional_required => {
-                        result.no_command.pos.appendAssumeCapacity(idx);
-                    },
-                    else => {},
-                }
+        cmd_arg: for (argv, 0..) |arg, idx| {
+            const arg_kind = argKind(arg);
+            switch (arg_kind) {
+                .positional => {
+                    switch (p.commands[0].kind) {
+                        .boolean_required => return Error.UnexpectedArgument,
+                        .single_positional_required => result.no_command.pos = idx,
+                        .multi_positional_required => result.no_command.pos.appendAssumeCapacity(idx),
+                        else => unreachable,
+                    }
+                },
+                .positional_marker => continue :cmd_arg,
+                .short_flag => {},
+                .long_flag => {},
             }
         }
     }
-
-    // for (p.commands) |cmd| {
-    // }
-
-    // for (argv) |arg| {
-    //     var arg_kind: enum { positional, short_flag, long_flag } = .positional;
-    //     if (arg.len == 1) continue;
-    //     if (arg[0] == '-' and arg[1] != '-') {
-    //         arg_kind = .short_flag;
-    //         for (arg[1..]) |c| {
-    //         }
-    //     }
-    //     else if (arg[0] == '-' and arg[1] == '-') {
-    //         arg_kind = .long_flag;
-    //     }
-    // }
 
     if (std.mem.eql(u8, argv[1], "--help")) {
         try printHelp(writer, argv[0], p);
@@ -263,6 +238,24 @@ pub fn parseAlloc(
 
     try writer.print("{}\n", .{result});
     return result;
+}
+
+const ArgKind = enum { positional, positional_marker, short_flag, long_flag };
+fn argKind(arg: []const u8) ArgKind {
+    var arg_kind: ArgKind = .positional;
+    kind: {
+        if (arg.len == 1) break :kind;
+        if (arg[0] == '-' and arg[1] != '-') {
+            arg_kind = .short_flag;
+            break :kind;
+        }
+        if (arg.len == 2) return .positional_marker;
+        if (arg[0] == '-' and arg[1] == '-') {
+            arg_kind = .long_flag;
+            break :kind;
+        }
+    }
+    return arg_kind;
 }
 
 const indent = "  ";
