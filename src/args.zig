@@ -237,19 +237,17 @@ pub fn parseAlloc(
                 .positional_marker => continue :cmd_arg,
                 .short_flag => {
                     for (arg[1..]) |short| {
-                        var match = false;
                         if (short == help_flag.short_form) {
                             requested_help = true;
                             continue;
                         }
                         if (cmd.flags == null) return Error.InvalidFlag;
-                        for (cmd.flags.?) |flag| {
+                        match: for (cmd.flags.?) |flag| {
                             if (flag.short_form == null) continue;
                             if (short == flag.short_form.?) {
-                                match = true;
+                                break :match;
                             }
-                        }
-                        if (!match) return Error.InvalidFlag;
+                        } else return Error.InvalidFlag;
                     }
                 },
                 .long_flag => {
@@ -277,6 +275,14 @@ pub fn parseAlloc(
         if (requested_version) {
             try printVersion(writer, argv[0], p);
             return null;
+        }
+        switch (cmd.kind) {
+            inline .boolean_required => {},
+            inline .single_positional_required, .multi_positional_required => if (!got_pos) {
+                try printHelp(writer, argv[0], p);
+                return Error.MissingArgument;
+            },
+            inline else => unreachable,
         }
     }
 
