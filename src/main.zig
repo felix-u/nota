@@ -10,7 +10,6 @@ pub fn main() !void {
     defer arena.deinit();
     const allocator = arena.allocator();
 
-    // Error writers will print to stdout.
     const stdout = std.io.getStdOut().writer();
 
     // Args setup.
@@ -24,23 +23,34 @@ pub fn main() !void {
             args.Command{
                 // .name = "print",
                 // .description = "parse nota file and print its structure",
-                .kind = .single_positional_required,
+                .kind = .required_single_positional,
                 .flags = &.{
                     args.Flag{
                         .short_form = 'd',
                         .long_form = "debug",
                         .description = "Enable debugging-oriented formatting",
                     },
+                    // args.Flag{
+                    //     .short_form = 't',
+                    //     .long_form = "testflag",
+                    //     .description = "test",
+                    //     .kind = .optional_multi_positional,
+                    // },
                 },
             },
         },
     }) orelse return;
     defer allocator.destroy(args_parsed);
 
-    if (argv.len == 1) {
-        try stdout.print("nota: expected file\n", .{});
-        std.os.exit(1);
-    }
+    // if (args_parsed.no_command.testflag) |testpos| {
+    //     try stdout.print("{s}\n", .{argv[testpos]});
+    // }
+
+    // if (args_parsed.no_command.testflag.items.len > 0) {
+    //     for (args_parsed.no_command.testflag.items) |idx| {
+    //         try stdout.print("{s}\n", .{argv[idx]});
+    //     }
+    // }
 
     // Read file into buffer.
     const filepath = argv[args_parsed.no_command.pos];

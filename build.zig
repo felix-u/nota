@@ -46,7 +46,7 @@ pub fn build(b: *std.Build) void {
     const target_oses = [_][]const u8{
         "linux", "macos", "windows",
     };
-    const cross_step = b.step("cross", "Build for targets [ReleaseSafe]");
+    const cross_step = b.step("cross", "Build for targets [ReleaseFast]");
     inline for (target_arches) |target_arch| {
         inline for (target_oses) |target_os| {
             const triple = target_arch ++ "-" ++ target_os;
