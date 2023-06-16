@@ -134,6 +134,7 @@ pub fn parseAlloc(
     // Initialise and pre-allocate.
     const Result = Command.listResultType(p.commands);
     var result = try allocator.create(Result);
+    errdefer allocator.destroy(result);
     inline for (@typeInfo(Result).Struct.fields, 0..) |_, idx| {
         const cmd = p.commands[idx];
         const cmd_name = cmd.name orelse "no_command";
@@ -187,36 +188,6 @@ pub fn parseAlloc(
     if (p.commands[0].name == null and p.commands[0].description != null) {
         @compileError("the root command takes no description; " ++
             "use ParseParams.description instead and leave command.description = null");
-    }
-
-    // Error case: duplicate command name.
-    if (p.commands.len > 1) {
-        comptime var last_cmd_name: ?[]const u8 = null;
-        inline for (p.commands) |cmd| {
-            if (last_cmd_name != null and comptime std.mem.eql(u8, cmd.name.?, last_cmd_name.?)) {
-                const err = std.fmt.comptimePrint("{s} = {s}\n^two commands cannot have identical names", .{ cmd.name.?, last_cmd_name.? });
-                @compileError(err);
-            }
-            last_cmd_name = cmd.name;
-        }
-    }
-
-    // Error case: duplicate flag name (under same command).
-    inline for (p.commands) |cmd| {
-        if (cmd.flags != null) {
-            comptime var last_flag_long: ?[]const u8 = null;
-            comptime var last_flag_short: ?u8 = null;
-            inline for (cmd.flags.?) |flag| {
-                if (last_flag_long != null and comptime std.mem.eql(u8, flag.long_form, last_flag_long.?)) {
-                    @compileError("two flags of the same command cannot have identical long forms");
-                }
-                if (last_flag_short != null and flag.short_form != null and last_flag_short.? == flag.short_form.?) {
-                    @compileError("two flags of the same command cannot have identical short forms");
-                }
-                last_flag_long = flag.long_form;
-                last_flag_short = flag.short_form;
-            }
-        }
     }
 
     // Runtime

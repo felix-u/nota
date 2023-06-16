@@ -2,6 +2,7 @@ const std = @import("std");
 const args = @import("args.zig");
 const ast = @import("ast.zig");
 const log = @import("log.zig");
+const parse = @import("parse.zig");
 const token = @import("token.zig");
 
 pub fn main() !void {
@@ -30,27 +31,11 @@ pub fn main() !void {
                         .long_form = "debug",
                         .description = "Enable debugging-oriented formatting",
                     },
-                    // args.Flag{
-                    //     .short_form = 't',
-                    //     .long_form = "testflag",
-                    //     .description = "test",
-                    //     .kind = .optional_multi_positional,
-                    // },
                 },
             },
         },
     }) orelse return;
     defer allocator.destroy(args_parsed);
-
-    // if (args_parsed.no_command.testflag) |testpos| {
-    //     try stdout.print("{s}\n", .{argv[testpos]});
-    // }
-
-    // if (args_parsed.no_command.testflag.items.len > 0) {
-    //     for (args_parsed.no_command.testflag.items) |idx| {
-    //         try stdout.print("{s}\n", .{argv[idx]});
-    //     }
-    // }
 
     // Read file into buffer.
     const filepath = argv[args_parsed.no_command.pos];
@@ -62,15 +47,18 @@ pub fn main() !void {
     const absolute_filepath = try cwd.realpathAlloc(allocator, filepath);
     defer allocator.free(absolute_filepath);
 
+    var parse_set = parse.Set{
+        .filepath = absolute_filepath,
+        .buf = filebuf,
+    };
+
     // Tokeniser.
     try stdout.print("=== TOKENS: BEGIN ===\n", .{});
-    var token_list = token.TokenList{};
-    var token_pos: token.ParsePosition = .{ .filepath = absolute_filepath, .buf = filebuf };
-    try token.parseFromBuf(&token_pos, &token_list, allocator, stdout, false);
+    try token.parseFromBufAlloc(allocator, stdout, &parse_set, false);
 
     // Print tokens (for now).
-    for (0..token_list.len) |i| {
-        const item = token_list.get(i);
+    for (0..parse_set.token_list.len) |i| {
+        const item = parse_set.token_list.get(i);
         var position: log.filePosition = .{
             .filepath = absolute_filepath,
             .buf = filebuf,
@@ -81,7 +69,7 @@ pub fn main() !void {
             position.line,
             position.col,
             i,
-            item.lexeme(filebuf),
+            item.lexeme(&parse_set),
             item.token,
         });
     }
@@ -89,13 +77,8 @@ pub fn main() !void {
 
     // AST.
     try stdout.print("=== AST: BEGIN ===\n", .{});
-    var ast_set: ast.Set = .{
-        .filepath = absolute_filepath,
-        .buf = filebuf,
-        .token_list = token_list,
-    };
-    var ast_pos: ast.ParsePosition = .{ .set = ast_set };
-    const node_list_len = try ast.parseFromTokenList(&ast_pos, &ast_set, allocator, stdout);
+    var ast_pos: ast.ParsePosition = .{ .set = parse_set };
+    const node_list_len = try ast.parseFromTokenList(&ast_pos, &parse_set, allocator, stdout);
 
     // try stdout.print("=== TOKENS 2: BEGIN ===\n", .{});
     // for (0..token_list.len) |i| {
@@ -116,15 +99,5 @@ pub fn main() !void {
     // }
     // try stdout.print("=== TOKENS 2: END ===\n", .{});
 
-    // try stdout.print("{} nodes\n", .{ast_set.node_list.len});
-    // for (0..ast_set.node_list.len) |i| {
-    //     try stdout.print("{}\n", .{ast_set.node_list.get(i)});
-    // }
-    // try stdout.print("{} expressions\n", .{ast_set.expr_list.len});
-    // for (0..ast_set.expr_list.len) |i| {
-    //     try stdout.print("{}\n", .{ast_set.expr_list.get(i)});
-    // }
-    // try stdout.print("=== AST: END ===\n", .{});
-
-    try ast.printDebugView(&ast_set, 0, 0, node_list_len, stdout);
+    try ast.printDebugView(&parse_set, 0, 0, node_list_len, stdout);
 }

@@ -1,7 +1,7 @@
 const std = @import("std");
 const cast = std.math.lossyCast;
 const log = @import("log.zig");
-const resolver = @import("resolver.zig");
+const parse = @import("parse.zig");
 const token = @import("token.zig");
 
 const type_map = std.ComptimeStringMap(token.Kind, .{
@@ -20,24 +20,16 @@ pub const Node = struct {
 };
 pub const NodeList = std.MultiArrayList(Node);
 
-const Expr = struct {
+pub const Expr = struct {
     type: token.Kind = .unresolved,
     token_name_idx: u32 = 0,
     token_start_idx: u32 = 0,
 };
-const ExprList = std.MultiArrayList(Expr);
-
-pub const Set = struct {
-    filepath: []const u8 = undefined,
-    buf: []const u8 = undefined,
-    token_list: token.TokenList = token.TokenList{},
-    node_list: NodeList = NodeList{},
-    expr_list: ExprList = ExprList{},
-};
+pub const ExprList = std.MultiArrayList(Expr);
 
 pub fn parseFromTokenList(
     pos: *ParsePosition,
-    set: *Set,
+    set: *parse.Set,
     allocator: std.mem.Allocator,
     errorWriter: std.fs.File.Writer,
 ) !u32 {
@@ -160,7 +152,7 @@ pub fn parseFromTokenList(
         var err_loc: log.filePosition = .{
             .filepath = set.filepath,
             .buf = set.buf,
-            .idx = pos.getToken().lastByteIdx(set.buf),
+            .idx = pos.getToken().lastByteIdx(set),
         };
         err_loc.computeCoords();
         return log.reportError(log.SyntaxError.NoSemicolonAfterNode, err_loc, errorWriter);
@@ -171,7 +163,7 @@ pub fn parseFromTokenList(
 
 fn parseDeclaration(
     pos: *ParsePosition,
-    set: *Set,
+    set: *parse.Set,
     allocator: std.mem.Allocator,
     errorWriter: std.fs.File.Writer,
 ) !bool {
@@ -190,10 +182,10 @@ fn parseDeclaration(
                     .buf = set.buf,
                     .idx = pos.getToken().idx,
                 };
-                try resolver.ensureNotKeyword(
-                    &resolver.reserved_all,
+                try parse.ensureNotKeyword(
+                    &parse.reserved_all,
                     log.SyntaxError.NameIsKeyword,
-                    pos.getToken().lexeme(set.buf),
+                    pos.getToken().lexeme(set),
                     &loc,
                     errorWriter,
                 );
@@ -209,7 +201,7 @@ fn parseDeclaration(
                 // Resolve type in '...:type=...'.
                 in_bounds = pos.inc();
                 if (pos.getToken().token == .unresolved) {
-                    const type_string = pos.getToken().lexeme(set.buf);
+                    const type_string = pos.getToken().lexeme(set);
                     this_expr.type = type_map.get(type_string) orelse {
                         // Error case: invalid type specifier.
                         var err_loc: log.filePosition = .{
@@ -244,19 +236,23 @@ fn parseDeclaration(
                 // an expression name, a date, or a number.
                 if (this_expr.type == .unresolved) this_expr.type = .type_infer;
                 const this_token_type = pos.getToken().token;
-                if (this_token_type == .unresolved or this_token_type == .str) {
-                    if (this_token_type == .str) this_expr.type = .type_str;
-                    in_bounds = try parseExpression(pos, set, &this_expr, allocator, errorWriter);
-                    break :expr;
+                switch (this_token_type) {
+                    .unresolved, .str, .paren_left => {
+                        if (this_token_type == .str) this_expr.type = .type_str;
+                        in_bounds = try parseExpression(pos, set, &this_expr, allocator, errorWriter);
+                        break :expr;
+                    },
+                    else => {
+                        // Error case: no valid expression after `=`
+                        var err_loc: log.filePosition = .{
+                            .filepath = set.filepath,
+                            .buf = set.buf,
+                            .idx = pos.getToken().idx,
+                        };
+                        err_loc.computeCoords();
+                        return log.reportError(log.SyntaxError.NoExpr, err_loc, errorWriter);
+                    },
                 }
-                // Error case: no valid expression after `=`
-                var err_loc: log.filePosition = .{
-                    .filepath = set.filepath,
-                    .buf = set.buf,
-                    .idx = pos.getToken().idx,
-                };
-                err_loc.computeCoords();
-                return log.reportError(log.SyntaxError.NoExpr, err_loc, errorWriter);
             },
             else => {
                 var err_loc: log.filePosition = .{
@@ -275,7 +271,7 @@ fn parseDeclaration(
 
 fn parseExpression(
     pos: *ParsePosition,
-    set: *Set,
+    set: *parse.Set,
     expr: *Expr,
     allocator: std.mem.Allocator,
     errorWriter: std.fs.File.Writer,
@@ -285,10 +281,10 @@ fn parseExpression(
         .buf = set.buf,
         .idx = pos.getToken().idx,
     };
-    try resolver.ensureNotKeyword(
-        &resolver.reserved_types,
+    try parse.ensureNotKeyword(
+        &parse.types,
         log.SyntaxError.ExprIsTypeName,
-        pos.getToken().lexeme(set.buf),
+        pos.getToken().lexeme(set),
         &loc,
         errorWriter,
     );
@@ -300,7 +296,7 @@ fn parseExpression(
 }
 
 pub const ParsePosition = struct {
-    set: Set = .{},
+    set: parse.Set = .{},
     idx: u32 = 0,
     fn atEnd(self: *ParsePosition) bool {
         return (self.idx == self.set.token_list.len - 1);
@@ -324,7 +320,7 @@ pub const ParsePosition = struct {
 };
 
 pub fn printDebugView(
-    set: *Set,
+    set: *parse.Set,
     level: usize,
     node_list_start: u32,
     node_list_end: u32,
@@ -333,7 +329,7 @@ pub fn printDebugView(
     var node_list_idx = node_list_start;
     while (node_list_idx < node_list_end) : (node_list_idx += 1) {
         const node = set.node_list.get(node_list_idx);
-        const node_name = set.token_list.get(node.token_name_idx).lexeme(set.buf);
+        const node_name = set.token_list.get(node.token_name_idx).lexeme(set);
 
         for (level) |_| try writer.print("\t", .{});
         try writer.print("{s} <<<\n", .{node_name});
@@ -348,7 +344,7 @@ pub fn printDebugView(
             const expr = set.expr_list.get(expr_idx);
 
             for (level) |_| try writer.print("\t", .{});
-            try writer.print("{s} = ", .{set.token_list.get(expr.token_name_idx).lexeme(set.buf)});
+            try writer.print("{s} = ", .{set.token_list.get(expr.token_name_idx).lexeme(set)});
 
             for (level) |_| try writer.print("\t", .{});
             try writer.print("{}\n", .{expr});
