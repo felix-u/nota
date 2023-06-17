@@ -48,9 +48,9 @@ pub const Token = struct {
         if (@enumToInt(self.token) <= @enumToInt(Kind.characters)) {
             return set.buf[self.idx .. self.idx + 1];
         }
-        var token_pos: parse.Set.BufIterator = .{ .set = set, .idx = self.idx };
-        _ = if (self.token == .str) token_pos.incSkipString() else token_pos.incSkipSymbol();
-        return set.buf[self.idx..token_pos.idx];
+        var buf_it: BufIterator = .{ .set = set, .idx = self.idx };
+        _ = if (self.token == .str) buf_it.skipString() else buf_it.skipSymbol();
+        return set.buf[self.idx..buf_it.idx];
     }
     pub fn lastByteIdx(self: Token, set: *parse.Set) u32 {
         return self.idx + std.math.lossyCast(u32, self.lexeme(set).len) - 1;
@@ -67,13 +67,13 @@ pub fn parseFromBufAlloc(
     set: *parse.Set,
     comptime in_node_body: bool,
 ) !void {
+    var in_bounds = true;
     const it = &set.buf_it;
     it.set = set;
-    var in_bounds = true;
 
-    root: while (it.next()) |_| {
+    root: while (in_bounds) : (in_bounds = it.skip()) {
         // Break into upper level if we've reached the end of the body.
-        if (in_node_body and it.byte() == '}') {
+        if (in_node_body and it.peek() == '}') {
             try set.token_list.append(allocator, .{
                 .idx = it.idx,
                 .token = .curly_right,
@@ -83,23 +83,25 @@ pub fn parseFromBufAlloc(
 
         // Don't parse quoted strings (@Node is a node, but not "@Node").
         for (quote_pairs) |quote| {
-            if (it.byte() != quote) continue;
-            in_bounds = it.inc();
-            while (in_bounds and it.byte() != quote) : (in_bounds = it.inc()) {}
-            in_bounds = it.inc();
-            break;
+            if (it.peek() != quote) continue;
+            if (it.next()) |_| {
+                while (it.next()) |c| {
+                    if (c == quote) break;
+                }
+                if (it.next()) |_| break;
+            }
         }
 
         // Parse node name.
-        if (it.byte() != '@') continue;
+        if (it.peek() != '@') continue;
         try set.token_list.append(allocator, .{
             .idx = it.idx,
             .token = .at,
         });
-        in_bounds = it.inc();
+        if (it.next() == null) return;
         if (it.isValidSymbolChar()) {
             const name_start = it.idx;
-            while (in_bounds and it.isValidSymbolChar()) : (in_bounds = it.inc()) {}
+            while (it.isValidSymbolChar() and it.next() != null) {}
             var loc: log.filePosition = .{
                 .filepath = set.filepath,
                 .buf = set.buf,
@@ -119,18 +121,21 @@ pub fn parseFromBufAlloc(
         }
 
         // Parse node contents.
-        in_bounds = it.incToNonWhitespace();
-        node: while (in_bounds) : (in_bounds = it.incSkipWhitespace()) {
+        node: while (in_bounds) : (in_bounds = it.skipWhitespace()) {
             // Symbols.
 
             // Quoted (in which case we know it's a string).
             // TODO: Skip over escaped quotes.
             for (quote_pairs) |quote| {
-                if (it.byte() != quote) continue;
-                in_bounds = it.inc();
+                if (it.peek() != quote) continue;
+                if (it.next() == null) return;
                 const symbol_start = it.idx;
-                while (in_bounds and it.byte() != quote and it.nextByte() != '\n') : (in_bounds = it.inc()) {}
-                if (it.nextByte() == '\n') {
+                while (in_bounds and
+                    it.peek() != quote and
+                    it.peekNext() != null and
+                    it.peekNext().? != '\n') : (in_bounds = it.skip())
+                {}
+                if (it.peekNext() != null and it.peekNext().? == '\n') {
                     var err_loc: log.filePosition = .{
                         .filepath = set.filepath,
                         .buf = set.buf,
@@ -149,21 +154,19 @@ pub fn parseFromBufAlloc(
             // Unquoted.
             if (it.isValidSymbolChar()) {
                 const symbol_start = it.idx;
-                while (in_bounds and it.isValidSymbolChar()) : (in_bounds = it.inc()) {}
+                while (in_bounds and it.isValidSymbolChar()) : (in_bounds = it.skip()) {}
                 try set.token_list.append(allocator, .{
                     .idx = symbol_start,
                     .token = .unresolved,
                 });
             }
 
-            if (!in_bounds) break;
-
             // Single-character syntax.
-            switch (it.byte()) {
+            switch (it.peek()) {
                 // If '@' was detected in this branch, it means there's a syntax error,
                 // but as a favour to the AST we'll give it proper treatment anyway.
                 '@' => {
-                    in_bounds = it.dec();
+                    _ = it.last();
                     continue :root;
                 },
                 ';', ':', '=', '(', ')', '[', ']', '{', '}', '.', '+', '-' => |byte| {
@@ -190,7 +193,89 @@ pub fn parseFromBufAlloc(
                     err_loc.computeCoords();
                     return log.reportError(log.SyntaxError.InvalidSyntax, err_loc, errorWriter);
                 },
-            } // switch(it.byte())
+            } // switch(it.peek())
         } // :node
     } // :root
 } // parse()
+
+pub const BufIterator = struct {
+    set: *parse.Set = undefined,
+    idx: u32 = 0,
+    const Self = @This();
+
+    pub fn peek(self: *Self) u8 {
+        return self.set.buf[self.idx];
+    }
+
+    pub fn peekNext(self: *Self) ?u8 {
+        if (self.idx == self.set.buf.len - 1) return null;
+        return self.set.buf[self.idx + 1];
+    }
+
+    pub fn last(self: *Self) ?u8 {
+        if (self.idx == 0) return null;
+        self.idx -= 1;
+        return self.peek();
+    }
+
+    pub fn next(self: *Self) ?u8 {
+        self.idx += 1;
+        if (self.idx == self.set.buf.len) return null;
+        return self.peek();
+    }
+
+    pub fn skip(self: *Self) bool {
+        if (self.idx + 1 == self.set.buf.len) return false;
+        self.idx += 1;
+        return true;
+    }
+
+    pub fn skipNonWhitespace(self: *Self) bool {
+        return while (self.next()) |c| {
+            if (ascii.isWhitespace(c)) break true;
+        } else false;
+    }
+
+    pub fn skipString(self: *Self) bool {
+        return while (self.next()) |c| {
+            if (!self.isValidSymbolChar() and c != ' ' and c != '\t') break true;
+        } else false;
+    }
+
+    pub fn skipSymbol(self: *Self) bool {
+        return while (self.next()) |_| {
+            if (!self.isValidSymbolChar()) break true;
+        } else false;
+    }
+
+    pub fn skipWhitespace(self: *Self) bool {
+        return while (self.next()) |c| {
+            if (!ascii.isWhitespace(c)) break true;
+        } else false;
+    }
+
+    pub fn toNonWhitespace(self: *Self) bool {
+        if (!ascii.isWhitespace(self.peek())) return true;
+        return while (self.next()) |c| {
+            if (!ascii.isWhitespace(c)) break true;
+        } else false;
+    }
+
+    pub fn toValidSymbolChar(self: *Self) bool {
+        if (self.isValidSymbolChar()) return true;
+        return while (self.next()) |_| {
+            if (self.isValidSymbolChar()) break true;
+        } else false;
+    }
+
+    pub fn isValidSymbolChar(self: *Self) bool {
+        const c = self.peek();
+        return ascii.isAlphanumeric(c) or (c == '_') or (c == '-');
+    }
+
+    pub fn getBytes(self: *Self) []const u8 {
+        var end_idx: u32 = self.idx;
+        while (end_idx < self.set.buf.len and isValidSymbolChar(self)) : (end_idx += 1) {}
+        return self.set.buf[self.idx..end_idx];
+    }
+};
