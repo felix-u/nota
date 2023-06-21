@@ -102,17 +102,13 @@ pub fn parseFromBufAlloc(
         if (it.isValidSymbolChar()) {
             const name_start = it.idx;
             while (it.isValidSymbolChar() and it.next() != null) {}
-            var loc: log.filePosition = .{
-                .filepath = set.filepath,
-                .buf = set.buf,
-                .idx = name_start,
-            };
             try parse.ensureNotKeyword(
+                errorWriter,
                 &parse.reserved_all,
                 log.SyntaxError.NameIsKeyword,
-                set.buf[name_start..it.idx],
-                &loc,
-                errorWriter,
+                &set,
+                name_start,
+                it.idx,
             );
             try set.token_list.append(allocator, .{
                 .idx = name_start,
@@ -136,13 +132,7 @@ pub fn parseFromBufAlloc(
                     it.peekNext().? != '\n') : (in_bounds = it.skip())
                 {}
                 if (it.peekNext() != null and it.peekNext().? == '\n') {
-                    var err_loc: log.filePosition = .{
-                        .filepath = set.filepath,
-                        .buf = set.buf,
-                        .idx = it.idx,
-                    };
-                    err_loc.computeCoords();
-                    return log.reportError(log.SyntaxError.StrNoClosingQuote, err_loc, errorWriter);
+                    return log.reportError(errorWriter, log.SyntaxError.StrNoClosingQuote, set, it.idx);
                 }
                 try set.token_list.append(allocator, .{
                     .idx = symbol_start,

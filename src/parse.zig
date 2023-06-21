@@ -26,16 +26,16 @@ pub const matches = [_][]const u8{
 pub const reserved_all = types ++ values ++ matches;
 
 pub fn ensureNotKeyword(
+    errorWriter: std.fs.File.Writer,
     comptime reserved_list: []const []const u8,
     comptime err: log.SyntaxError,
-    str: []const u8,
-    loc: *log.filePosition,
-    errorWriter: std.fs.File.Writer,
+    set: *Set,
+    str_start: u32,
+    str_end: u32,
 ) !void {
     inline for (reserved_list) |keyword| {
-        if (std.mem.eql(u8, str, keyword)) {
-            loc.*.computeCoords();
-            return log.reportError(err, loc.*, errorWriter);
+        if (std.mem.eql(u8, set.buf[str_start..str_end], keyword)) {
+            return log.reportError(errorWriter, err, set, str_start);
         }
     }
 }
