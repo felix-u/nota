@@ -59,11 +59,7 @@ pub fn main() !void {
     // Print tokens (for now).
     for (0..parse_set.token_list.len) |i| {
         const item = parse_set.token_list.get(i);
-        var position: log.filePosition = .{
-            .filepath = absolute_filepath,
-            .buf = filebuf,
-            .idx = item.idx,
-        };
+        var position: log.filePosition = .{ .set = &parse_set, .idx = item.idx };
         position.computeCoords();
         try stdout.print("{d}:{d}\t{d}\t\"{s}\"\t{}\n", .{
             position.line,

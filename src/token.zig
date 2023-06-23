@@ -45,7 +45,7 @@ pub const Token = struct {
     idx: u32,
 
     pub fn lexeme(self: Token, set: *parse.Set) []const u8 {
-        if (@enumToInt(self.token) <= @enumToInt(Kind.characters)) {
+        if (@intFromEnum(self.token) <= @intFromEnum(Kind.characters)) {
             return set.buf[self.idx .. self.idx + 1];
         }
         var buf_it: BufIterator = .{ .set = set, .idx = self.idx };
@@ -106,7 +106,7 @@ pub fn parseFromBufAlloc(
                 errorWriter,
                 &parse.reserved_all,
                 log.SyntaxError.NameIsKeyword,
-                &set,
+                set,
                 name_start,
                 it.idx,
             );
@@ -162,7 +162,7 @@ pub fn parseFromBufAlloc(
                 ';', ':', '=', '(', ')', '[', ']', '{', '}', '.', '+', '-' => |byte| {
                     try set.token_list.append(allocator, .{
                         .idx = it.idx,
-                        .token = @intToEnum(Kind, byte),
+                        .token = @enumFromInt(Kind, byte),
                     });
                     if (byte == '{') {
                         _ = try parseFromBufAlloc(allocator, errorWriter, set, true);
@@ -175,13 +175,7 @@ pub fn parseFromBufAlloc(
                 },
                 else => |byte| {
                     if (ascii.isWhitespace(byte)) continue :node;
-                    var err_loc: log.filePosition = .{
-                        .filepath = set.filepath,
-                        .buf = set.buf,
-                        .idx = it.idx,
-                    };
-                    err_loc.computeCoords();
-                    return log.reportError(log.SyntaxError.InvalidSyntax, err_loc, errorWriter);
+                    return log.reportError(errorWriter, log.SyntaxError.InvalidSyntax, set, it.idx);
                 },
             } // switch(it.peek())
         } // :node

@@ -19,7 +19,7 @@ pub const Kind = enum(u8) {
     required_multi_positional = 9,
 
     pub fn isRequired(comptime self: @This()) bool {
-        return @enumToInt(self) % 2 == 1;
+        return @intFromEnum(self) % 2 == 1;
     }
 };
 
@@ -333,7 +333,7 @@ pub fn parseAlloc(
     }
 
     // Case: binary expected arguments but got none.
-    if (p.commands.len == 1 and @enumToInt(p.commands[0].kind) > @enumToInt(Kind.required_boolean) and argv.len == 1) {
+    if (p.commands.len == 1 and @intFromEnum(p.commands[0].kind) > @intFromEnum(Kind.required_boolean) and argv.len == 1) {
         try printHelp(writer, argv[0], p);
         return Error.MissingArgument;
     }
@@ -388,13 +388,13 @@ pub fn printHelp(
 
     comptime var brackets = "[]";
 
-    comptime var max_pos_cmd_requires = @enumToInt(Kind.required_boolean);
+    comptime var max_pos_cmd_requires = @intFromEnum(Kind.required_boolean);
     inline for (p.commands) |cmd| {
-        if (@enumToInt(cmd.kind) > max_pos_cmd_requires) max_pos_cmd_requires = @enumToInt(cmd.kind);
+        if (@intFromEnum(cmd.kind) > max_pos_cmd_requires) max_pos_cmd_requires = @intFromEnum(cmd.kind);
         if (comptime cmd.kind.isRequired()) brackets = "<>";
     }
-    if (max_pos_cmd_requires > @enumToInt(Kind.required_boolean)) try writer.print(" {c}arg{c}", .{ brackets[0], brackets[1] });
-    if (max_pos_cmd_requires > @enumToInt(Kind.required_single_positional)) _ = try writer.write("...");
+    if (max_pos_cmd_requires > @intFromEnum(Kind.required_boolean)) try writer.print(" {c}arg{c}", .{ brackets[0], brackets[1] });
+    if (max_pos_cmd_requires > @intFromEnum(Kind.required_single_positional)) _ = try writer.write("...");
 
     comptime var max_flag_num = 0;
     brackets = "[]";
@@ -409,16 +409,16 @@ pub fn printHelp(
     if (max_flag_num > 0) try writer.print(" {c}option{c}", .{ brackets[0], brackets[1] });
     if (max_flag_num > 1) _ = try writer.write("...");
 
-    comptime var max_positional_expected = @enumToInt(Kind.required_boolean);
+    comptime var max_positional_expected = @intFromEnum(Kind.required_boolean);
     inline for (p.commands) |cmd| {
         if (cmd.flags) |flags| {
             inline for (flags) |flag| {
-                if (@enumToInt(flag.kind) > max_positional_expected) max_positional_expected = @enumToInt(flag.kind);
+                if (@intFromEnum(flag.kind) > max_positional_expected) max_positional_expected = @intFromEnum(flag.kind);
             }
         }
     }
-    if (max_positional_expected > @enumToInt(Kind.required_boolean)) try writer.print(" {c}arg{c}", .{ brackets[0], brackets[1] });
-    if (max_positional_expected > @enumToInt(Kind.required_single_positional)) _ = try writer.write("...");
+    if (max_positional_expected > @intFromEnum(Kind.required_boolean)) try writer.print(" {c}arg{c}", .{ brackets[0], brackets[1] });
+    if (max_positional_expected > @intFromEnum(Kind.required_single_positional)) _ = try writer.write("...");
 
     try writer.writeByte('\n');
 
@@ -462,9 +462,9 @@ pub fn printFlag(writer: std.fs.File.Writer, comptime flag: Flag) !void {
 
     try writer.print("--{s}", .{flag.long_form});
 
-    if (@enumToInt(flag.kind) > @enumToInt(Kind.required_boolean)) {
+    if (@intFromEnum(flag.kind) > @intFromEnum(Kind.required_boolean)) {
         const pos_type = if (flag.positional_type != null) flag.positional_type.? else "arg";
-        const maybe_ellipses = if (@enumToInt(flag.kind) > @enumToInt(Kind.required_single_positional)) "..." else "";
+        const maybe_ellipses = if (@intFromEnum(flag.kind) > @intFromEnum(Kind.required_single_positional)) "..." else "";
         try writer.print(" <{s}>{s}", .{ pos_type, maybe_ellipses });
     }
 

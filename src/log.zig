@@ -47,14 +47,11 @@ pub const filePosition = struct {
     }
 };
 
-pub fn reportError(errorWriter: std.fs.File.Writer, comptime err: SyntaxError, set: *parse.Set, idx: usize) anyerror {
-    var pos = filePosition{
-        .set = &set,
-        .idx = idx,
-    };
+pub fn reportError(errorWriter: std.fs.File.Writer, comptime err: SyntaxError, set: *parse.Set, idx: u32) anyerror {
+    var pos = filePosition{ .set = set, .idx = idx };
     pos.computeCoords();
 
-    try errorWriter.print("{s}:{d}:{d}: error: ", .{ pos.filepath, pos.line, pos.col });
+    try errorWriter.print("{s}:{d}:{d}: error: ", .{ pos.set.filepath, pos.line, pos.col });
 
     switch (err) {
         SyntaxError.AssignmentToNothing => {
