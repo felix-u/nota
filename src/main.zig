@@ -77,24 +77,5 @@ pub fn main() !void {
     try stdout.print("=== AST: BEGIN ===\n", .{});
     ast.parseFromTokenList(allocator, stdout, &parse_set) catch std.os.exit(1);
 
-    // try stdout.print("=== TOKENS 2: BEGIN ===\n", .{});
-    // for (0..token_list.len) |i| {
-    //     const item = token_list.get(i);
-    //     var position: log.filePosition = .{
-    //         .filepath = absolute_filepath,
-    //         .buf = filebuf,
-    //         .idx = item.idx,
-    //     };
-    //     position.computeCoords();
-    //     try stdout.print("{d}:{d}\t{d}\t\"{s}\"\t{}\n", .{
-    //         position.line,
-    //         position.col,
-    //         i,
-    //         item.lexeme(filebuf),
-    //         item.token,
-    //     });
-    // }
-    // try stdout.print("=== TOKENS 2: END ===\n", .{});
-
     try ast.printDebugView(stdout, &parse_set, 0, 0, std.math.lossyCast(u32, parse_set.node_list.len));
 }
