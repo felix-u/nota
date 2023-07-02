@@ -47,61 +47,61 @@ pub const filePosition = struct {
     }
 };
 
-pub fn reportError(errorWriter: std.fs.File.Writer, comptime err: SyntaxError, set: *parse.Set, idx: u32) anyerror {
+pub fn reportError(writer: std.fs.File.Writer, comptime err: SyntaxError, set: *parse.Set, idx: u32) anyerror {
     var pos = filePosition{ .set = set, .idx = idx };
     pos.computeCoords();
 
-    try errorWriter.print("{s}:{d}:{d}: error: ", .{ pos.set.filepath, pos.line, pos.col });
+    try writer.print("{s}:{d}:{d}: error: ", .{ pos.set.filepath, pos.line, pos.col });
 
     switch (err) {
         SyntaxError.AssignmentToNothing => {
-            try errorWriter.print("assignment to nothing", .{});
+            try writer.print("assignment to nothing", .{});
         },
         SyntaxError.ExprIsTypeName => {
-            try errorWriter.print("type names are not expressions", .{});
+            try writer.print("type names are not expressions", .{});
         },
         SyntaxError.InvalidSyntax => {
-            try errorWriter.print("invalid syntax", .{});
+            try writer.print("invalid syntax", .{});
         },
         SyntaxError.InvalidTypeSpecifier => {
-            try errorWriter.print("invalid type specifier: not one of 'bool', 'date', 'num', 'str'", .{});
+            try writer.print("invalid type specifier: not one of 'bool', 'date', 'num', 'str'", .{});
         },
         SyntaxError.MisplacedNode => {
-            try errorWriter.print("expected ';' or '{c}' before node declaration", .{'{'});
+            try writer.print("expected ';' or '{c}' before node declaration", .{'{'});
         },
         SyntaxError.NameIsKeyword => {
-            try errorWriter.print("cannot use keyword as name", .{});
+            try writer.print("cannot use keyword as name", .{});
         },
         SyntaxError.NoExpr => {
-            try errorWriter.print("expected expression after '='", .{});
+            try writer.print("expected expression after '='", .{});
         },
         SyntaxError.NoExprName => {
-            try errorWriter.print("expected expression name before type specifier", .{});
+            try writer.print("expected expression name before type specifier", .{});
         },
         SyntaxError.NoNodeName => {
-            try errorWriter.print("expected node name after initialiser", .{});
+            try writer.print("expected node name after initialiser", .{});
         },
         SyntaxError.NoSemicolonAfterBody => {
-            try errorWriter.print("expected ';' to end node (expressions disallowed after body end)", .{});
+            try writer.print("expected ';' to end node (expressions disallowed after body end)", .{});
         },
         SyntaxError.NoSemicolonAfterNode => {
-            try errorWriter.print("expected ';' to end previous node", .{});
+            try writer.print("expected ';' to end previous node", .{});
         },
         SyntaxError.NoTypeAfterColon => {
-            try errorWriter.print("expected type: one of 'bool', 'date', 'num', 'str'" ++
+            try writer.print("expected type: one of 'bool', 'date', 'num', 'str'" ++
                 "(type inference uses '=', not ':=')", .{});
         },
         SyntaxError.StrNoClosingQuote => {
-            try errorWriter.print("expected quote to close previous string", .{});
+            try writer.print("expected quote to close previous string", .{});
         },
         SyntaxError.Unimplemented => {
-            try errorWriter.print("unimplemented", .{});
+            try writer.print("unimplemented", .{});
         },
     }
 
-    try errorWriter.print("\n\t{s}\n\t", .{pos.getLine()});
-    for (1..pos.col) |_| try errorWriter.print(" ", .{});
-    try errorWriter.print("^\n", .{});
+    try writer.print("\n\t{s}\n\t", .{pos.getLine()});
+    for (1..pos.col) |_| try writer.print(" ", .{});
+    try writer.print("^\n", .{});
 
     return err;
 }

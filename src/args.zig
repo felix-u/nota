@@ -133,8 +133,11 @@ pub fn parseAlloc(
 
     // Initialise and pre-allocate.
     const Result = Command.listResultType(p.commands);
+
     var result = try allocator.create(Result);
     errdefer allocator.destroy(result);
+    defer std.debug.print("{}\n", .{result});
+
     inline for (@typeInfo(Result).Struct.fields, 0..) |_, idx| {
         const cmd = p.commands[idx];
         const cmd_name = cmd.name orelse "no_command";
@@ -153,7 +156,6 @@ pub fn parseAlloc(
 
     var arg_kind_list = try allocator.alloc(ArgKind, argv.len);
     defer allocator.free(arg_kind_list);
-    defer std.debug.print("{any}\n", .{arg_kind_list});
 
     // Error case: `commands` is an empty slice.
     if (p.commands.len == 0) @compileError("at least one command must be provided");
@@ -338,7 +340,6 @@ pub fn parseAlloc(
         return Error.MissingArgument;
     }
 
-    try writer.print("{}\n", .{result});
     return result;
 }
 

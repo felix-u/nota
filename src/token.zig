@@ -68,6 +68,7 @@ pub fn parseFromBufAlloc(
     comptime in_node_body: bool,
 ) !void {
     var in_bounds = true;
+
     const it = &set.buf_it;
     it.set = set;
 

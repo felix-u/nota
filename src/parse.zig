@@ -45,6 +45,7 @@ pub const Set = struct {
     buf: []const u8 = undefined,
     buf_it: token.BufIterator = .{},
     token_list: token.TokenList = .{},
+    token_it: ast.TokenIterator = .{},
     node_list: ast.NodeList = .{},
     expr_list: ast.ExprList = .{},
 };

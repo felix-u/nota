@@ -17,7 +17,7 @@ pub fn main() !void {
     const argv = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, argv);
 
-    const args_parsed = try args.parseAlloc(allocator, stdout, argv, .{
+    const args_parsed = args.parseAlloc(allocator, stdout, argv, .{
         .description = "general-purpose declarative notation",
         .version = "0.4-dev",
         .commands = &.{
@@ -34,7 +34,9 @@ pub fn main() !void {
                 },
             },
         },
-    }) orelse return;
+    }) catch {
+        std.os.exit(1);
+    } orelse return;
     defer allocator.destroy(args_parsed);
 
     // Read file into buffer.
@@ -54,7 +56,7 @@ pub fn main() !void {
 
     // Tokeniser.
     try stdout.print("=== TOKENS: BEGIN ===\n", .{});
-    try token.parseFromBufAlloc(allocator, stdout, &parse_set, false);
+    token.parseFromBufAlloc(allocator, stdout, &parse_set, false) catch std.os.exit(1);
 
     // Print tokens (for now).
     for (0..parse_set.token_list.len) |i| {
@@ -73,8 +75,7 @@ pub fn main() !void {
 
     // AST.
     try stdout.print("=== AST: BEGIN ===\n", .{});
-    var ast_pos: ast.ParsePosition = .{ .set = parse_set };
-    const node_list_len = try ast.parseFromTokenList(&ast_pos, &parse_set, allocator, stdout);
+    const node_list_len = ast.parseFromTokenList(allocator, stdout, &parse_set) catch std.os.exit(1);
 
     // try stdout.print("=== TOKENS 2: BEGIN ===\n", .{});
     // for (0..token_list.len) |i| {
@@ -95,5 +96,5 @@ pub fn main() !void {
     // }
     // try stdout.print("=== TOKENS 2: END ===\n", .{});
 
-    try ast.printDebugView(&parse_set, 0, 0, node_list_len, stdout);
+    try ast.printDebugView(stdout, &parse_set, 0, 0, node_list_len);
 }
