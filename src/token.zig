@@ -127,13 +127,13 @@ pub fn parseFromBufAlloc(
                 if (it.peek() != quote) continue;
                 if (it.next() == null) return;
                 const symbol_start = it.idx;
-                while (in_bounds and
-                    it.peek() != quote and
-                    it.peekNext() != null and
-                    it.peekNext().? != '\n') : (in_bounds = it.skip())
-                {}
-                if (it.peekNext() != null and it.peekNext().? == '\n') {
-                    return log.reportError(errorWriter, log.SyntaxError.StrNoClosingQuote, set, it.idx);
+                while (in_bounds and it.peek() != quote and it.peekNext() != null) : (in_bounds = it.skip()) {
+                    if (it.peekNext().? == '\n') return log.reportError(
+                        errorWriter,
+                        log.SyntaxError.StrNoClosingQuote,
+                        set,
+                        it.idx,
+                    );
                 }
                 try set.token_list.append(allocator, .{
                     .idx = symbol_start,
@@ -204,8 +204,8 @@ pub const BufIterator = struct {
     }
 
     pub fn next(self: *Self) ?u8 {
+        if (self.idx + 1 == self.set.buf.len) return null;
         self.idx += 1;
-        if (self.idx == self.set.buf.len) return null;
         return self.peek();
     }
 

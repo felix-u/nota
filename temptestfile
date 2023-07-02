@@ -1,4 +1,4 @@
 @Week start:date=2000-01-01 {
     @Day name="Monday";
-    @Day name="Tuesday";
+    @Day name="Tuesday"
 };

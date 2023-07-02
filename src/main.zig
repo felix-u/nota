@@ -56,7 +56,8 @@ pub fn main() !void {
 
     // Tokeniser.
     try stdout.print("=== TOKENS: BEGIN ===\n", .{});
-    token.parseFromBufAlloc(allocator, stdout, &parse_set, false) catch std.os.exit(1);
+    // token.parseFromBufAlloc(allocator, stdout, &parse_set, false) catch std.os.exit(1);
+    try token.parseFromBufAlloc(allocator, stdout, &parse_set, false);
 
     // Print tokens (for now).
     for (0..parse_set.token_list.len) |i| {
@@ -75,7 +76,8 @@ pub fn main() !void {
 
     // AST.
     try stdout.print("=== AST: BEGIN ===\n", .{});
-    ast.parseFromTokenList(allocator, stdout, &parse_set) catch std.os.exit(1);
+    // ast.parseFromTokenList(allocator, stdout, &parse_set) catch std.os.exit(1);
+    try ast.parseFromTokenList(allocator, stdout, &parse_set);
 
     try ast.printDebugView(stdout, &parse_set, 0, 0, std.math.lossyCast(u32, parse_set.node_list.len));
 }

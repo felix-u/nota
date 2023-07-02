@@ -38,50 +38,56 @@ pub fn parseFromTokenList(
     var in_bounds = !it.atEnd();
     var appended_this = false;
 
-    root: while (in_bounds) : (in_bounds = it.inc()) {
+    root: while (in_bounds) : (in_bounds = it.skip()) {
         // First token in loop is guaranteed to be either `@` or `}`.
-        if (it.getToken().token == .curly_right) {
-            in_bounds = it.inc();
+        if (it.peek().token == .curly_right) {
+            in_bounds = it.skip();
             break;
         }
 
         // Error case: name doesn't immediately follow `@`.
-        if (it.nextToken().token != .node_name) {
-            return log.reportError(errorWriter, log.SyntaxError.NoNodeName, set, it.getToken().idx);
+        if (it.peekNext()) |next_token| {
+            if (next_token.token != .node_name) return log.reportError(
+                errorWriter,
+                log.SyntaxError.NoNodeName,
+                set,
+                it.peek().idx,
+            );
         }
 
         // Get node name.
-        in_bounds = it.inc();
+        in_bounds = it.skip();
         var this_node: Node = .{
             .token_name_idx = it.idx,
             .node_children_start_idx = cast(u32, set.node_list.len + 1),
         };
-        in_bounds = it.inc();
+        in_bounds = it.skip();
 
         // Go to `;` to process node.
         this_node.expr_start_idx = cast(u32, set.expr_list.len);
-        node: while (in_bounds and it.getToken().token != .semicolon) {
+        node: while (in_bounds and it.peek().token != .semicolon) {
 
             // Error case: floating `:`
-            if (it.getToken().token == .colon) {
-                return log.reportError(errorWriter, log.SyntaxError.NoExprName, set, it.getToken().idx);
+            if (it.peek().token == .colon) {
+                return log.reportError(errorWriter, log.SyntaxError.NoExprName, set, it.peek().idx);
             }
 
             // Error case: floating `=`
-            if (it.getToken().token == .equals) {
-                return log.reportError(errorWriter, log.SyntaxError.AssignmentToNothing, set, it.getToken().idx);
+            if (it.peek().token == .equals) {
+                return log.reportError(errorWriter, log.SyntaxError.AssignmentToNothing, set, it.peek().idx);
             }
 
             // Case: `name:maybe_type=expression`
-            if (it.getToken().token == .unresolved) {
+            if (it.peek().token == .unresolved) {
                 in_bounds = try parseDeclaration(allocator, errorWriter, set);
                 this_node.expr_end_idx = cast(u32, set.expr_list.len);
+                in_bounds = (it.idx < set.token_list.len);
                 continue :node;
             }
 
             // `{`: Recurse in body.
-            if (it.getToken().token == .curly_left and it.nextToken().token != .curly_right) {
-                in_bounds = it.inc();
+            if (it.peek().token == .curly_left and it.peekNext() != null and it.peekNext().?.token != .curly_right) {
+                in_bounds = it.skip();
 
                 try set.node_list.append(allocator, this_node);
                 appended_this = true;
@@ -92,33 +98,36 @@ pub fn parseFromTokenList(
                 set.node_list.set(this_node_idx, this_node_again);
 
                 // Error case: token after body end is not a semicolon.
-                if (it.getToken().token != .semicolon) {
-                    if (it.getToken().token == .at) return log.reportError(
+                if (it.peek().token != .semicolon) {
+                    if (it.peek().token == .at) return log.reportError(
                         errorWriter,
                         log.SyntaxError.NoSemicolonAfterNode,
                         set,
-                        it.getToken().idx,
+                        it.peek().idx,
                     );
 
-                    return log.reportError(errorWriter, log.SyntaxError.NoSemicolonAfterBody, set, it.getToken().idx);
+                    return log.reportError(errorWriter, log.SyntaxError.NoSemicolonAfterBody, set, it.peek().idx);
                 }
+
                 // Node over.
                 break :node;
             }
             // Ignore empty body.
-            else if (it.getToken().token == .curly_left and it.nextToken().token == .curly_right) {
-                in_bounds = it.inc();
+            else if (it.peek().token == .curly_left and it.peekNext() != null and
+                it.peekNext().?.token == .curly_right)
+            {
+                in_bounds = it.skip();
             }
 
             // The semicolon required before a new node or body end would've ended this loop, so:
             // `}` shouldn't be here if previous node wasn't `{` (empty body);
             // `@` shouldn't be here.
-            if ((it.getToken().token == .curly_right and it.prevToken().token != .curly_left) or
-                it.getToken().token == .at)
+            if (it.peek().token == .at or
+                (it.peek().token == .curly_right and it.peekLast() != null and it.peekLast().?.token != .curly_left))
             {
-                return log.reportError(errorWriter, log.SyntaxError.NoSemicolonAfterNode, set, it.getToken().idx);
+                return log.reportError(errorWriter, log.SyntaxError.NoSemicolonAfterNode, set, it.peek().idx);
             }
-            in_bounds = it.inc();
+            in_bounds = it.skip();
         } // :node
 
         // Node over, so continue the outer loop.
@@ -126,13 +135,15 @@ pub fn parseFromTokenList(
         continue :root;
     } // :root
 
-    // End of file and no semicolon.
-    if (!in_bounds and it.nextToken().token != .semicolon) return log.reportError(
-        errorWriter,
-        log.SyntaxError.NoSemicolonAfterNode,
-        set,
-        it.getToken().lastByteIdx(set),
-    );
+    // // End of file and no semicolon.
+    // // if (!in_bounds and it.peekNext().token != null and it.peekNext().?.token != .semicolon) return log.reportError(
+    // if (it.peek().token != .semicolon) return log.reportError(
+    //     errorWriter,
+    //     log.SyntaxError.NoSemicolonAfterNode,
+    //     set,
+    //     it.peek().lastByteIdx(set),
+    // );
+
 }
 
 fn parseDeclaration(
@@ -149,8 +160,8 @@ fn parseDeclaration(
     };
 
     var in_bounds = !it.atEnd();
-    expr: while (in_bounds) : (in_bounds = it.inc()) {
-        switch (it.getToken().token) {
+    expr: while (in_bounds) : (in_bounds = it.skip()) {
+        switch (it.peek().token) {
             // Expression name: `name:...`
             .unresolved => {
                 try parse.ensureNotKeyword(
@@ -158,10 +169,10 @@ fn parseDeclaration(
                     &parse.reserved_all,
                     log.SyntaxError.NameIsKeyword,
                     set,
-                    it.getToken().idx,
-                    it.getToken().idx,
+                    it.peek().idx,
+                    it.peek().idx,
                 );
-                var this_token = it.getToken();
+                var this_token = it.peek();
                 set.token_list.set(it.idx, .{
                     .token = .expr_name,
                     .idx = this_token.idx,
@@ -171,19 +182,19 @@ fn parseDeclaration(
             // Type syntax: `name : type`
             .colon => {
                 // Resolve type in '...:type=...'.
-                in_bounds = it.inc();
-                if (it.getToken().token == .unresolved) {
-                    const type_string = it.getToken().lexeme(set);
+                in_bounds = it.skip();
+                if (it.peek().token == .unresolved) {
+                    const type_string = it.peek().lexeme(set);
                     this_expr.type = type_map.get(type_string) orelse {
                         // Error case: invalid type specifier.
                         return log.reportError(
                             errorWriter,
                             log.SyntaxError.InvalidTypeSpecifier,
                             set,
-                            it.getToken().idx,
+                            it.peek().idx,
                         );
                     };
-                    var this_token = it.getToken();
+                    var this_token = it.peek();
                     set.token_list.set(it.idx, .{
                         .token = this_expr.type,
                         .idx = this_token.idx,
@@ -191,16 +202,16 @@ fn parseDeclaration(
                     continue :expr;
                 }
                 // Error case: inferred type uses `=`, not `:=`
-                if (it.getToken().token == .equals) {
-                    return log.reportError(errorWriter, log.SyntaxError.NoTypeAfterColon, set, it.getToken().idx);
+                if (it.peek().token == .equals) {
+                    return log.reportError(errorWriter, log.SyntaxError.NoTypeAfterColon, set, it.peek().idx);
                 }
             },
             .equals => {
-                in_bounds = it.inc();
+                in_bounds = it.skip();
                 // Expression is `...=unresolved`, where `unresolved` is either
                 // an expression name, a date, or a number.
                 if (this_expr.type == .unresolved) this_expr.type = .type_infer;
-                const this_token_type = it.getToken().token;
+                const this_token_type = it.peek().token;
                 switch (this_token_type) {
                     .unresolved, .str, .paren_left => {
                         if (this_token_type == .str) this_expr.type = .type_str;
@@ -209,14 +220,14 @@ fn parseDeclaration(
                     },
                     else => {
                         // Error case: no valid expression after `=`
-                        return log.reportError(errorWriter, log.SyntaxError.NoExpr, set, it.getToken().idx);
+                        return log.reportError(errorWriter, log.SyntaxError.NoExpr, set, it.peek().idx);
                     },
                 }
             },
             else => {
-                return log.reportError(errorWriter, log.SyntaxError.Unimplemented, set, it.getToken().idx);
+                return log.reportError(errorWriter, log.SyntaxError.Unimplemented, set, it.peek().idx);
             },
-        } // switch (it.getToken().token)
+        } // switch (it.peek().token)
     } // :expr
 
     return in_bounds;
@@ -236,12 +247,12 @@ fn parseExpression(
         &parse.types,
         log.SyntaxError.ExprIsTypeName,
         set,
-        it.getToken().idx,
-        it.getToken().idx,
+        it.peek().idx,
+        it.peek().idx,
     );
 
     expr.token_start_idx = it.idx;
-    _ = it.inc();
+    _ = it.skip();
     try set.expr_list.append(allocator, expr.*);
     return !it.atEnd();
 }
@@ -252,27 +263,33 @@ pub const TokenIterator = struct {
     const Self = @This();
 
     fn atEnd(self: *Self) bool {
-        return (self.idx == self.set.token_list.len - 1);
+        return (self.idx == self.set.token_list.len);
     }
 
-    fn getToken(self: *Self) token.Token {
+    fn peek(self: *Self) token.Token {
         return self.set.token_list.get(self.idx);
     }
 
-    fn inc(self: *Self) bool {
-        if (self.idx == self.set.token_list.len - 1) return false;
+    fn next(self: *Self) ?token.Token {
+        if (self.idx + 1 == self.set.token_list.len) return null;
         self.idx += 1;
-        return true;
+        return self.peek();
     }
 
-    fn nextToken(self: *Self) token.Token {
-        if (self.idx == self.set.token_list.len - 1) return self.getToken();
+    fn peekNext(self: *Self) ?token.Token {
+        if (self.idx == self.set.token_list.len - 1) return null;
         return self.set.token_list.get(self.idx + 1);
     }
 
-    fn prevToken(self: *Self) token.Token {
-        if (self.idx == 0) return self.getToken();
+    fn peekLast(self: *Self) ?token.Token {
+        if (self.idx == 0) return null;
         return self.set.token_list.get(self.idx - 1);
+    }
+
+    pub fn skip(self: *Self) bool {
+        if (self.idx + 1 == self.set.token_list.len) return false;
+        self.idx += 1;
+        return true;
     }
 };
 
