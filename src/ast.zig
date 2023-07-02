@@ -31,7 +31,7 @@ pub fn parseFromTokenList(
     allocator: std.mem.Allocator,
     errorWriter: std.fs.File.Writer,
     set: *parse.Set,
-) !u32 {
+) !void {
     const it = &set.token_it;
     it.set = set;
 
@@ -87,7 +87,8 @@ pub fn parseFromTokenList(
                 appended_this = true;
                 const this_node_idx = set.node_list.len - 1;
                 var this_node_again = set.node_list.get(set.node_list.len - 1);
-                this_node_again.node_children_end_idx = try parseFromTokenList(allocator, errorWriter, set);
+                try parseFromTokenList(allocator, errorWriter, set);
+                this_node_again.node_children_end_idx = cast(u32, set.node_list.len);
                 set.node_list.set(this_node_idx, this_node_again);
 
                 // Error case: token after body end is not a semicolon.
@@ -132,8 +133,6 @@ pub fn parseFromTokenList(
         set,
         it.getToken().lastByteIdx(set),
     );
-
-    return cast(u32, set.node_list.len);
 }
 
 fn parseDeclaration(

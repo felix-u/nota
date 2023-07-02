@@ -75,7 +75,7 @@ pub fn main() !void {
 
     // AST.
     try stdout.print("=== AST: BEGIN ===\n", .{});
-    const node_list_len = ast.parseFromTokenList(allocator, stdout, &parse_set) catch std.os.exit(1);
+    ast.parseFromTokenList(allocator, stdout, &parse_set) catch std.os.exit(1);
 
     // try stdout.print("=== TOKENS 2: BEGIN ===\n", .{});
     // for (0..token_list.len) |i| {
@@ -96,5 +96,5 @@ pub fn main() !void {
     // }
     // try stdout.print("=== TOKENS 2: END ===\n", .{});
 
-    try ast.printDebugView(stdout, &parse_set, 0, 0, node_list_len);
+    try ast.printDebugView(stdout, &parse_set, 0, 0, std.math.lossyCast(u32, parse_set.node_list.len));
 }
