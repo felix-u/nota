@@ -83,13 +83,13 @@ pub fn parseFromBufAlloc(
         }
 
         // Don't parse quoted strings (@Node is a node, but not "@Node").
-        for (quote_pairs) |quote| {
-            if (it.peek() != quote) continue;
-            if (it.next()) |_| {
-                while (it.next()) |c| {
-                    if (c == quote) break;
-                }
-                if (it.next()) |_| break;
+        quoted: for (quote_pairs) |quote| {
+            if (it.peek() != quote or !it.skip()) continue;
+            while (it.next()) |c| {
+                if (c == quote) break;
+            }
+            if (!it.skip()) break :root else {
+                break :quoted;
             }
         }
 
@@ -99,10 +99,10 @@ pub fn parseFromBufAlloc(
             .idx = it.idx,
             .token = .at,
         });
-        if (it.next() == null) return;
+        if (!it.skip()) break :root;
         if (it.isValidSymbolChar()) {
             const name_start = it.idx;
-            while (it.isValidSymbolChar() and it.next() != null) {}
+            while (it.isValidSymbolChar() and it.skip()) {}
             try parse.ensureNotKeyword(
                 errorWriter,
                 &parse.reserved_all,
@@ -123,11 +123,13 @@ pub fn parseFromBufAlloc(
 
             // Quoted (in which case we know it's a string).
             // TODO: Skip over escaped quotes.
-            for (quote_pairs) |quote| {
-                if (it.peek() != quote) continue;
-                if (it.next() == null) return;
+            quoted: for (quote_pairs) |quote| {
+                if (it.peek() != quote) continue :quoted;
+                if (!it.skip()) break :root;
+
                 const symbol_start = it.idx;
-                while (in_bounds and it.peek() != quote and it.peekNext() != null) : (in_bounds = it.skip()) {
+                while (it.next() != null and it.peek() != quote) {
+                    if (it.peekNext() == null) break :root;
                     if (it.peekNext().? == '\n') return log.reportError(
                         errorWriter,
                         log.SyntaxError.StrNoClosingQuote,
@@ -135,6 +137,7 @@ pub fn parseFromBufAlloc(
                         it.idx,
                     );
                 }
+
                 try set.token_list.append(allocator, .{
                     .idx = symbol_start,
                     .token = .str,
@@ -145,11 +148,12 @@ pub fn parseFromBufAlloc(
             // Unquoted.
             if (it.isValidSymbolChar()) {
                 const symbol_start = it.idx;
-                while (in_bounds and it.isValidSymbolChar()) : (in_bounds = it.skip()) {}
+                while (it.skip() and it.isValidSymbolChar()) {}
                 try set.token_list.append(allocator, .{
                     .idx = symbol_start,
                     .token = .unresolved,
                 });
+                std.debug.print("{any}\n", .{set.token_list.get(set.token_list.len - 1)});
             }
 
             // Single-character syntax.
@@ -199,14 +203,18 @@ pub const BufIterator = struct {
 
     pub fn last(self: *Self) ?u8 {
         if (self.idx == 0) return null;
+
+        const byte = self.set.buf[self.idx];
         self.idx -= 1;
-        return self.peek();
+        return byte;
     }
 
     pub fn next(self: *Self) ?u8 {
         if (self.idx + 1 == self.set.buf.len) return null;
+
+        const byte = self.set.buf[self.idx];
         self.idx += 1;
-        return self.peek();
+        return byte;
     }
 
     pub fn skip(self: *Self) bool {
@@ -234,6 +242,7 @@ pub const BufIterator = struct {
     }
 
     pub fn skipWhitespace(self: *Self) bool {
+        _ = self.next();
         return while (self.next()) |c| {
             if (!ascii.isWhitespace(c)) break true;
         } else false;
