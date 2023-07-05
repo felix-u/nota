@@ -118,17 +118,18 @@ pub fn parseFromBufAlloc(
         }
 
         // Parse node contents.
-        node: while (in_bounds) : (in_bounds = it.skipWhitespace()) {
+        node: while (in_bounds) : (in_bounds = it.skip()) {
             // Symbols.
 
             // Quoted (in which case we know it's a string).
-            // TODO: Skip over escaped quotes.
+            // TODO: Ignore escaped quotes.
             quoted: for (quote_pairs) |quote| {
                 if (it.peek() != quote) continue :quoted;
                 if (!it.skip()) break :root;
 
                 const symbol_start = it.idx;
-                while (it.next() != null and it.peek() != quote) {
+                while (it.next()) |_| {
+                    if (it.peek() == quote) break;
                     if (it.peekNext() == null) break :root;
                     if (it.peekNext().? == '\n') return log.reportError(
                         errorWriter,
@@ -153,7 +154,6 @@ pub fn parseFromBufAlloc(
                     .idx = symbol_start,
                     .token = .unresolved,
                 });
-                std.debug.print("{any}\n", .{set.token_list.get(set.token_list.len - 1)});
             }
 
             // Single-character syntax.
@@ -167,7 +167,7 @@ pub fn parseFromBufAlloc(
                 ';', ':', '=', '(', ')', '[', ']', '{', '}', '.', '+', '-' => |byte| {
                     try set.token_list.append(allocator, .{
                         .idx = it.idx,
-                        .token = @enumFromInt(Kind, byte),
+                        .token = @enumFromInt(byte),
                     });
                     if (byte == '{') {
                         _ = try parseFromBufAlloc(allocator, errorWriter, set, true);
@@ -223,12 +223,6 @@ pub const BufIterator = struct {
         return true;
     }
 
-    pub fn skipNonWhitespace(self: *Self) bool {
-        return while (self.next()) |c| {
-            if (ascii.isWhitespace(c)) break true;
-        } else false;
-    }
-
     pub fn skipString(self: *Self) bool {
         return while (self.next()) |c| {
             if (!self.isValidSymbolChar() and c != ' ' and c != '\t') break true;
@@ -238,27 +232,6 @@ pub const BufIterator = struct {
     pub fn skipSymbol(self: *Self) bool {
         return while (self.next()) |_| {
             if (!self.isValidSymbolChar()) break true;
-        } else false;
-    }
-
-    pub fn skipWhitespace(self: *Self) bool {
-        _ = self.next();
-        return while (self.next()) |c| {
-            if (!ascii.isWhitespace(c)) break true;
-        } else false;
-    }
-
-    pub fn toNonWhitespace(self: *Self) bool {
-        if (!ascii.isWhitespace(self.peek())) return true;
-        return while (self.next()) |c| {
-            if (!ascii.isWhitespace(c)) break true;
-        } else false;
-    }
-
-    pub fn toValidSymbolChar(self: *Self) bool {
-        if (self.isValidSymbolChar()) return true;
-        return while (self.next()) |_| {
-            if (self.isValidSymbolChar()) break true;
         } else false;
     }
 

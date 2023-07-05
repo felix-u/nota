@@ -134,16 +134,6 @@ pub fn parseFromTokenList(
         if (!appended_this) try set.node_list.append(allocator, this_node);
         continue :root;
     } // :root
-
-    // // End of file and no semicolon.
-    // // if (!in_bounds and it.peekNext().token != null and it.peekNext().?.token != .semicolon) return log.reportError(
-    // if (it.peek().token != .semicolon) return log.reportError(
-    //     errorWriter,
-    //     log.SyntaxError.NoSemicolonAfterNode,
-    //     set,
-    //     it.peek().lastByteIdx(set),
-    // );
-
 }
 
 fn parseDeclaration(
