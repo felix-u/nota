@@ -144,15 +144,6 @@ fn parseDeclaration(
     const it = &set.token_it;
     it.set = set;
 
-    try parse.ensureNotKeyword(
-        errorWriter,
-        &parse.reserved_all,
-        log.SyntaxError.NameIsKeyword,
-        set,
-        it.peek().idx,
-        it.peek().lastByteIdx(set) + 1,
-    );
-
     var this_expr: Expr = .{
         .type = .unresolved,
         .token_name_idx = it.idx,
@@ -163,18 +154,17 @@ fn parseDeclaration(
         switch (it.peek().token) {
             // Expression name: `name:...`
             .unresolved => {
-                const this_idx = it.peek().idx;
                 try parse.ensureNotKeyword(
                     errorWriter,
                     &parse.reserved_all,
                     log.SyntaxError.NameIsKeyword,
                     set,
-                    this_idx,
-                    this_idx,
+                    it.peek().idx,
+                    it.peek().lastByteIdx(set) + 1,
                 );
                 set.token_list.set(it.idx, .{
                     .token = .expr_name,
-                    .idx = this_idx,
+                    .idx = it.peek().idx,
                 });
                 continue :expr;
             },
