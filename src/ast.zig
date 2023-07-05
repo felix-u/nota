@@ -35,13 +35,13 @@ pub fn parseFromTokenList(
     const it = &set.token_it;
     it.set = set;
 
-    var in_bounds = !it.atEnd();
     var appended_this = false;
 
+    var in_bounds = !it.atEnd();
     root: while (in_bounds) : (in_bounds = it.skip()) {
         // First token in loop is guaranteed to be either `@` or `}`.
         if (it.peek().token == .curly_right) {
-            in_bounds = it.skip();
+            _ = it.next();
             break;
         }
 
@@ -56,16 +56,16 @@ pub fn parseFromTokenList(
         }
 
         // Get node name.
-        in_bounds = it.skip();
+        _ = it.next();
         var this_node: Node = .{
             .token_name_idx = it.idx,
             .node_children_start_idx = cast(u32, set.node_list.len + 1),
         };
-        in_bounds = it.skip();
+        _ = it.next();
 
         // Go to `;` to process node.
         this_node.expr_start_idx = cast(u32, set.expr_list.len);
-        node: while (in_bounds and it.peek().token != .semicolon) {
+        node: while (!it.atEnd() and it.peek().token != .semicolon) {
 
             // Error case: floating `:`
             if (it.peek().token == .colon) {
@@ -79,15 +79,15 @@ pub fn parseFromTokenList(
 
             // Case: `name:maybe_type=expression`
             if (it.peek().token == .unresolved) {
-                in_bounds = try parseDeclaration(allocator, errorWriter, set);
+                _ = try parseDeclaration(allocator, errorWriter, set);
                 this_node.expr_end_idx = cast(u32, set.expr_list.len);
-                in_bounds = (it.idx < set.token_list.len);
+                _ = (it.idx < set.token_list.len);
                 continue :node;
             }
 
             // `{`: Recurse in body.
             if (it.peek().token == .curly_left and it.peekNext() != null and it.peekNext().?.token != .curly_right) {
-                in_bounds = it.skip();
+                _ = it.next();
 
                 try set.node_list.append(allocator, this_node);
                 appended_this = true;
@@ -116,7 +116,7 @@ pub fn parseFromTokenList(
             else if (it.peek().token == .curly_left and it.peekNext() != null and
                 it.peekNext().?.token == .curly_right)
             {
-                in_bounds = it.skip();
+                _ = it.next();
             }
 
             // The semicolon required before a new node or body end would've ended this loop, so:
@@ -127,7 +127,7 @@ pub fn parseFromTokenList(
             {
                 return log.reportError(errorWriter, log.SyntaxError.NoSemicolonAfterNode, set, it.peek().idx);
             }
-            in_bounds = it.skip();
+            _ = it.next();
         } // :node
 
         // Node over, so continue the outer loop.
@@ -154,18 +154,18 @@ fn parseDeclaration(
         switch (it.peek().token) {
             // Expression name: `name:...`
             .unresolved => {
+                const this_idx = it.peek().idx;
                 try parse.ensureNotKeyword(
                     errorWriter,
                     &parse.reserved_all,
                     log.SyntaxError.NameIsKeyword,
                     set,
-                    it.peek().idx,
-                    it.peek().idx,
+                    this_idx,
+                    this_idx,
                 );
-                var this_token = it.peek();
                 set.token_list.set(it.idx, .{
                     .token = .expr_name,
-                    .idx = this_token.idx,
+                    .idx = this_idx,
                 });
                 continue :expr;
             },
@@ -253,7 +253,7 @@ pub const TokenIterator = struct {
     const Self = @This();
 
     fn atEnd(self: *Self) bool {
-        return (self.idx == self.set.token_list.len);
+        return (self.idx == self.set.token_list.len - 1);
     }
 
     fn peek(self: *Self) token.Token {
@@ -262,12 +262,14 @@ pub const TokenIterator = struct {
 
     fn next(self: *Self) ?token.Token {
         if (self.idx + 1 == self.set.token_list.len) return null;
+
+        const this_token = self.peek();
         self.idx += 1;
-        return self.peek();
+        return this_token;
     }
 
     fn peekNext(self: *Self) ?token.Token {
-        if (self.idx == self.set.token_list.len - 1) return null;
+        if (self.idx + 1 == self.set.token_list.len) return null;
         return self.set.token_list.get(self.idx + 1);
     }
 
