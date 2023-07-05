@@ -144,6 +144,15 @@ fn parseDeclaration(
     const it = &set.token_it;
     it.set = set;
 
+    try parse.ensureNotKeyword(
+        errorWriter,
+        &parse.reserved_all,
+        log.SyntaxError.NameIsKeyword,
+        set,
+        it.peek().idx,
+        it.peek().lastByteIdx(set) + 1,
+    );
+
     var this_expr: Expr = .{
         .type = .unresolved,
         .token_name_idx = it.idx,
@@ -238,7 +247,7 @@ fn parseExpression(
         log.SyntaxError.ExprIsTypeName,
         set,
         it.peek().idx,
-        it.peek().idx,
+        it.peek().lastByteIdx(set) + 1,
     );
 
     expr.token_start_idx = it.idx;
