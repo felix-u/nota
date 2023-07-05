@@ -39,6 +39,8 @@ pub fn main() !void {
     } orelse return;
     defer allocator.destroy(args_parsed);
 
+    const debug_view = args_parsed.no_command.debug;
+
     // Read file into buffer.
     const filepath = argv[args_parsed.no_command.pos];
     const cwd = std.fs.cwd();
@@ -54,30 +56,36 @@ pub fn main() !void {
         .buf = filebuf,
     };
 
-    // Tokeniser.
-    try stdout.print("=== TOKENS: BEGIN ===\n", .{});
+    if (debug_view) try stdout.print("=== TOKENS: BEGIN ===\n", .{});
+
     // token.parseFromBufAlloc(allocator, stdout, &parse_set, false) catch std.os.exit(1);
     try token.parseFromBufAlloc(allocator, stdout, &parse_set, false);
 
-    // Print tokens (for now).
-    for (0..parse_set.token_list.len) |i| {
-        const item = parse_set.token_list.get(i);
-        var position: log.filePosition = .{ .set = &parse_set, .idx = item.idx };
-        position.computeCoords();
-        try stdout.print("{d}:{d}\t{d}\t\"{s}\"\t{}\n", .{
-            position.line,
-            position.col,
-            i,
-            item.lexeme(&parse_set),
-            item.token,
-        });
-    }
-    try stdout.print("=== TOKENS: END ===\n", .{});
+    if (debug_view) {
+        for (0..parse_set.token_list.len) |i| {
+            const item = parse_set.token_list.get(i);
+            var position: log.filePosition = .{ .set = &parse_set, .idx = item.idx };
+            position.computeCoords();
+            try stdout.print("{d}:{d}\t{d}\t\"{s}\"\t{}\n", .{
+                position.line,
+                position.col,
+                i,
+                item.lexeme(&parse_set),
+                item.token,
+            });
+        }
+        try stdout.print("=== TOKENS: END ===\n", .{});
 
-    // AST.
-    try stdout.print("=== AST: BEGIN ===\n", .{});
+        try stdout.print("=== AST: BEGIN ===\n", .{});
+    }
+
     // ast.parseFromTokenList(allocator, stdout, &parse_set) catch std.os.exit(1);
     try ast.parseFromTokenList(allocator, stdout, &parse_set, false);
 
-    try ast.printDebugView(stdout, &parse_set, 0, 0, std.math.lossyCast(u32, parse_set.node_list.len));
+    if (debug_view) {
+        try ast.printDebugView(stdout, &parse_set, 0, 0, std.math.lossyCast(u32, parse_set.node_list.len));
+        try stdout.print("=== AST: END ===\n", .{});
+    } else {
+        try ast.printNicely(stdout, &parse_set, 0, 0, std.math.lossyCast(u32, parse_set.node_list.len));
+    }
 }

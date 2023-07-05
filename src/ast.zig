@@ -4,11 +4,21 @@ const log = @import("log.zig");
 const parse = @import("parse.zig");
 const token = @import("token.zig");
 
+pub fn typeName(token_kind: token.Kind) []const u8 {
+    return switch (token_kind) {
+        .type_bool => "bool",
+        .type_date => "date",
+        .type_num => "num",
+        .type_str => "str",
+        else => @panic("This function only works with .type_xx"),
+    };
+}
+
 const type_map = std.ComptimeStringMap(token.Kind, .{
-    .{ "bool", token.Kind.type_bool },
-    .{ "date", token.Kind.type_date },
-    .{ "num", token.Kind.type_num },
-    .{ "str", token.Kind.type_str },
+    .{ typeName(.type_bool), .type_bool },
+    .{ typeName(.type_date), .type_date },
+    .{ typeName(.type_num), .type_num },
+    .{ typeName(.type_str), .type_str },
 });
 
 pub const Node = struct {
@@ -288,6 +298,47 @@ pub const TokenIterator = struct {
         return true;
     }
 };
+
+pub fn printNicely(
+    writer: std.fs.File.Writer,
+    set: *parse.Set,
+    level: usize,
+    node_list_start: u32,
+    node_list_end: u32,
+) !void {
+    var node_list_idx = node_list_start;
+    while (node_list_idx < node_list_end) : (node_list_idx += 1) {
+        const node = set.node_list.get(node_list_idx);
+        const node_name = set.token_list.get(node.token_name_idx).lexeme(set);
+
+        for (0..level) |_| try writer.writeByte('\t');
+        try writer.print("@{s}\n", .{node_name});
+
+        var expr_idx = node.expr_start_idx;
+        while (expr_idx < node.expr_end_idx) : (expr_idx += 1) {
+            const expr_decl = set.expr_list.get(expr_idx);
+            const expr_name = set.token_list.get(expr_decl.token_name_idx).lexeme(set);
+
+            // TODO: Make this less hacky.
+            const token_end_idx = if (expr_idx == node.expr_end_idx - 1)
+                expr_decl.token_start_idx + 1
+            else
+                set.expr_list.get(expr_idx + 1).token_name_idx;
+
+            for (0..level + 1) |_| try writer.writeByte('\t');
+            try writer.print("{s} : {s} = ", .{ expr_name, typeName(expr_decl.type) });
+            for (expr_decl.token_start_idx..token_end_idx) |token_idx| {
+                try writer.print("{s}", .{set.token_list.get(token_idx).lexeme(set)});
+            }
+            try writer.writeByte('\n');
+        }
+
+        try printNicely(writer, set, level + 1, node.node_children_start_idx, node.node_children_end_idx);
+        if (node.node_children_end_idx > node.node_children_start_idx) {
+            node_list_idx = node.node_children_end_idx - 1;
+        }
+    }
+}
 
 pub fn printDebugView(
     writer: std.fs.File.Writer,

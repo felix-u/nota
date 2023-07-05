@@ -136,7 +136,7 @@ pub fn parseAlloc(
 
     var result = try allocator.create(Result);
     errdefer allocator.destroy(result);
-    defer std.debug.print("{}\n", .{result});
+    // defer std.debug.print("{}\n", .{result});
 
     inline for (@typeInfo(Result).Struct.fields, 0..) |_, idx| {
         const cmd = p.commands[idx];
