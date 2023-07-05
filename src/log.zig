@@ -11,6 +11,7 @@ pub const SyntaxError = error{
     NoExpr,
     NoExprName,
     NoNodeName,
+    NoRightCurly,
     NoSemicolonAfterBody,
     NoSemicolonAfterNode,
     NoTypeAfterColon,
@@ -80,6 +81,9 @@ pub fn reportError(writer: std.fs.File.Writer, comptime err: SyntaxError, set: *
         },
         SyntaxError.NoNodeName => {
             try writer.print("expected node name after initialiser", .{});
+        },
+        SyntaxError.NoRightCurly => {
+            try writer.print("expected '{c}' to terminate node body", .{'}'});
         },
         SyntaxError.NoSemicolonAfterBody => {
             try writer.print("expected ';' to end node (expressions disallowed after body end)", .{});

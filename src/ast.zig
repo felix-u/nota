@@ -31,6 +31,7 @@ pub fn parseFromTokenList(
     allocator: std.mem.Allocator,
     errorWriter: std.fs.File.Writer,
     set: *parse.Set,
+    comptime in_body: bool,
 ) !void {
     const it = &set.token_it;
     it.set = set;
@@ -93,7 +94,7 @@ pub fn parseFromTokenList(
                 appended_this = true;
                 const this_node_idx = set.node_list.len - 1;
                 var this_node_again = set.node_list.get(set.node_list.len - 1);
-                try parseFromTokenList(allocator, errorWriter, set);
+                try parseFromTokenList(allocator, errorWriter, set, true);
                 this_node_again.node_children_end_idx = cast(u32, set.node_list.len);
                 set.node_list.set(this_node_idx, this_node_again);
 
@@ -129,6 +130,10 @@ pub fn parseFromTokenList(
             }
             _ = it.next();
         } // :node
+
+        if (in_body and it.atEnd() and it.peek().token != .curly_right) {
+            return log.reportError(errorWriter, log.SyntaxError.NoRightCurly, set, it.peek().idx);
+        }
 
         // Node over, so continue the outer loop.
         if (!appended_this) try set.node_list.append(allocator, this_node);
