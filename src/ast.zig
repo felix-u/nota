@@ -246,14 +246,24 @@ fn parseExpression(
     const it = &set.token_it;
     it.set = set;
 
-    try parse.ensureNotKeyword(
-        errorWriter,
-        &parse.types,
-        log.SyntaxError.ExprIsTypeName,
-        set,
-        it.peek().idx,
-        it.peek().lastByteIdx(set) + 1,
-    );
+    var in_bounds = !it.atEnd();
+    while (in_bounds) : (in_bounds = it.skip()) {
+        switch (it.peek().token) {
+            // TODO: Recurse in brackets.
+            .paren_left => break,
+            else => {
+                try parse.ensureNotKeyword(
+                    errorWriter,
+                    &parse.types,
+                    log.SyntaxError.ExprIsTypeName,
+                    set,
+                    it.peek().idx,
+                    it.peek().lastByteIdx(set) + 1,
+                );
+                break;
+            },
+        }
+    }
 
     expr.token_start_idx = it.idx;
     _ = it.skip();
