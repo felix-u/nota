@@ -6,6 +6,7 @@ const token = @import("token.zig");
 
 pub fn typeName(token_kind: token.Kind) []const u8 {
     return switch (token_kind) {
+        .type_infer => "infer",
         .type_bool => "bool",
         .type_date => "date",
         .type_num => "num",
