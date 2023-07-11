@@ -6,14 +6,12 @@ const parse = @import("parse.zig");
 const token = @import("token.zig");
 
 pub fn main() !void {
-    // Allocator setup.
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
 
     const stdout = std.io.getStdOut().writer();
 
-    // Args setup.
     const argv = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, argv);
 
@@ -41,7 +39,6 @@ pub fn main() !void {
 
     const debug_view = args_parsed.no_command.debug;
 
-    // Read file into buffer.
     const filepath = argv[args_parsed.no_command.pos];
     const cwd = std.fs.cwd();
     const infile = try cwd.openFile(filepath, .{ .mode = .read_only });
@@ -58,7 +55,6 @@ pub fn main() !void {
 
     if (debug_view) try stdout.print("=== TOKENS: BEGIN ===\n", .{});
 
-    // token.parseFromBufAlloc(allocator, stdout, &parse_set, false) catch std.os.exit(1);
     try token.parseFromBufAlloc(allocator, stdout, &parse_set, false);
 
     if (debug_view) {
@@ -79,7 +75,6 @@ pub fn main() !void {
         try stdout.print("=== AST: BEGIN ===\n", .{});
     }
 
-    // ast.parseFromTokenList(allocator, stdout, &parse_set) catch std.os.exit(1);
     try ast.parseFromTokenList(allocator, stdout, &parse_set, false);
 
     if (debug_view) {

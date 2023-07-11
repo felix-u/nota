@@ -50,7 +50,7 @@ pub fn parseFromTokenList(
     var appended_this = false;
 
     var in_bounds = !it.atEnd();
-    root: while (in_bounds) : (in_bounds = it.skip()) {
+    while (in_bounds) : (in_bounds = it.skip()) {
         // First token in loop is guaranteed to be either `@` or `}`.
         if (it.peek().token == .curly_right) {
             _ = it.next();
@@ -118,7 +118,6 @@ pub fn parseFromTokenList(
                     return log.reportError(errorWriter, log.SyntaxError.NoSemicolonAfterBody, set, it.peek().idx);
                 }
 
-                // Node over.
                 break :node;
             }
             // Ignore empty body.
@@ -143,10 +142,8 @@ pub fn parseFromTokenList(
             return log.reportError(errorWriter, log.SyntaxError.NoRightCurly, set, it.peek().idx);
         }
 
-        // Node over, so continue the outer loop.
         if (!appended_this) try set.node_list.append(allocator, this_node);
-        continue :root;
-    } // :root
+    }
 }
 
 fn parseDeclaration(
