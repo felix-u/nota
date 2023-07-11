@@ -78,13 +78,10 @@ pub fn parseFromTokenList(
         // Go to `;` to process node.
         this_node.expr_start_idx = cast(u32, set.expr_list.len);
         node: while (!it.atEnd() and it.peek().token != .semicolon) {
-
-            // Error case: floating `:`
             if (it.peek().token == .colon) {
                 return log.reportError(errorWriter, log.SyntaxError.NoExprName, set, it.peek().idx);
             }
 
-            // Error case: floating `=`
             if (it.peek().token == .equals) {
                 return log.reportError(errorWriter, log.SyntaxError.AssignmentToNothing, set, it.peek().idx);
             }
