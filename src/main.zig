@@ -20,8 +20,8 @@ pub fn main() !void {
         .version = "0.4-dev",
         .commands = &.{
             args.Command{
-                // .name = "print",
-                // .description = "parse nota file and print its structure",
+                .name = "print",
+                .description = "parse nota file and print its structure",
                 .kind = .required_single_positional,
                 .flags = &.{
                     args.Flag{
@@ -31,15 +31,20 @@ pub fn main() !void {
                     },
                 },
             },
+            args.Command{
+                .name = "check",
+                .description = "check nota file for syntax errors",
+                .kind = .required_single_positional,
+            },
         },
     }) catch {
         std.os.exit(1);
     } orelse return;
     defer allocator.destroy(args_parsed);
 
-    const debug_view = args_parsed.no_command.debug;
+    const debug_view = args_parsed.print.debug;
 
-    const filepath = argv[args_parsed.no_command.pos];
+    const filepath = argv[args_parsed.print.pos];
     const cwd = std.fs.cwd();
     const infile = try cwd.openFile(filepath, .{ .mode = .read_only });
     defer infile.close();
