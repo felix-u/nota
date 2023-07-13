@@ -1,8 +1,8 @@
-const std = @import("std");
 const args = @import("args.zig");
 const ast = @import("ast.zig");
 const log = @import("log.zig");
 const parse = @import("parse.zig");
+const std = @import("std");
 const token = @import("token.zig");
 
 pub fn main() !void {
@@ -16,35 +16,39 @@ pub fn main() !void {
     defer std.process.argsFree(allocator, argv);
 
     const args_parsed = args.parseAlloc(allocator, stdout, argv, .{
-        .description = "general-purpose declarative notation",
-        .version = "0.4-dev",
-        .commands = &.{
-            args.Command{
-                .name = "print",
-                .description = "parse nota file and print its structure",
-                .kind = .required_single_positional,
+        .desc = "general-purpose declarative notation",
+        .ver = "0.4-dev",
+        .cmds = &.{
+            args.Cmd{
+                // .name = "print",
+                // .desc = "parse nota file and print its structure",
+                .kind = .single_pos,
                 .flags = &.{
                     args.Flag{
-                        .short_form = 'd',
-                        .long_form = "debug",
-                        .description = "Enable debugging-oriented formatting",
+                        .short = 'd',
+                        .long = "debug",
+                        .desc = "Enable debugging-oriented formatting",
                     },
                 },
             },
-            args.Command{
-                .name = "check",
-                .description = "check nota file for syntax errors",
-                .kind = .required_single_positional,
-            },
+            // args.Cmd{
+            //     .name = "check",
+            //     .desc = "check nota file for syntax errors",
+            //     .kind = .single_pos,
+            // },
         },
     }) catch {
         std.os.exit(1);
     } orelse return;
     defer allocator.destroy(args_parsed);
 
-    const debug_view = args_parsed.print.debug;
+    // // TODO
+    // if (args_parsed.print == null) return;
+    const cmd_print = args_parsed.no_command;
 
-    const filepath = argv[args_parsed.print.pos];
+    const debug_view = cmd_print.debug;
+
+    const filepath = argv[cmd_print.pos];
     const cwd = std.fs.cwd();
     const infile = try cwd.openFile(filepath, .{ .mode = .read_only });
     defer infile.close();
