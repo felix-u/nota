@@ -18,11 +18,11 @@ pub fn main() !void {
     const args_parsed = args.parseAlloc(allocator, stdout, argv, .{
         .desc = "general-purpose declarative notation",
         .ver = "0.4-dev",
-        .usage = "nota <file> [option]",
+        .usage = "nota <command> <file> [options]",
         .cmds = &.{
             args.Cmd{
-                // .name = "print",
-                // .desc = "parse nota file and print its structure",
+                .name = "print",
+                .desc = "parse nota file and print its structure",
                 .kind = .single_pos,
                 .flags = &.{
                     args.Flag{
@@ -32,20 +32,21 @@ pub fn main() !void {
                     },
                 },
             },
-            // args.Cmd{
-            //     .kind = .single_pos,
-            //     .desc = "check nota file for syntax errors",
-            //     .name = "check",
-            // },
+            args.Cmd{
+                .kind = .single_pos,
+                .desc = "check nota file for syntax errors",
+                .name = "check",
+            },
         },
-    }) catch {
-        std.os.exit(1);
+    }) catch |e| {
+        // std.os.exit(1);
+        return e;
     } orelse return;
     defer allocator.destroy(args_parsed);
 
     // // TODO
     // if (args_parsed.print == null) return;
-    const cmd_print = args_parsed.no_cmd;
+    const cmd_print = args_parsed.print;
 
     const debug_view = cmd_print.debug;
 
