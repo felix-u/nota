@@ -55,15 +55,11 @@ pub fn main() !void {
             .buf = filebuf,
         };
 
-        _ = try stdout.write("Tokens...");
-        try token.parseFromBufAlloc(allocator, stdout, &parse_set, false);
-        _ = try stdout.write(" done!\n");
+        token.parseFromBufAlloc(allocator, stdout, &parse_set, false) catch std.os.exit(1);
 
-        _ = try stdout.write("AST...");
-        try ast.parseFromTokenList(allocator, stdout, &parse_set, false);
-        _ = try stdout.write(" done!");
+        ast.parseFromTokenList(allocator, stdout, &parse_set, false) catch std.os.exit(1);
 
-        _ = try stdout.write("No problems.");
+        _ = try stdout.write("No problems.\n");
         std.os.exit(0);
     }
 

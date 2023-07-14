@@ -86,7 +86,7 @@ pub const Cmd = struct {
     kind: Kind = .boolean,
     desc: []const u8 = "",
     usage: []const u8 = "",
-    name: []const u8 = "",
+    name: []const u8,
 
     flags: []const Flag = &.{},
 
@@ -203,8 +203,8 @@ pub fn parseAlloc(
 
     switch (p.cmds.len) {
         inline 0 => @compileError("at least one command must be provided"),
-        inline 1 => if (p.cmds[0].name.len > 0 or p.cmds[0].desc.len > 0) {
-            @compileError("a command with non-empty .name or .desc implies the existence of several others, \n" ++
+        inline 1 => if (p.cmds[0].desc.len > 0) {
+            @compileError("a command with non-empty .desc implies the existence of several others, \n" ++
                 "but there is only 1; use ParseParams.desc");
         },
         inline else => {},
@@ -219,6 +219,8 @@ pub fn parseAlloc(
 
     inline for (p.cmds) |cmd| {
         if (p.cmds.len == 1 or std.mem.eql(u8, argv[1], cmd.name)) {
+            @field(result, cmd.name).invoked = true;
+
             var arg_i: usize = 1;
             cmd_arg: while (arg_i < argv.len) {
                 const arg_kind = arg_kinds[arg_i - 1];
@@ -389,37 +391,47 @@ pub fn printHelp(
     comptime p: ParseParams,
     comptime cmd: ?Cmd,
 ) !void {
-    _ = try writer.write(name);
-
-    if (cmd != null or p.cmds.len == 1) {
-        try writer.print(" {s}", .{cmd.?.name});
-        if (cmd.?.desc.len > 0) try writer.print(" - {s}", .{cmd.?.desc});
-        try writer.writeByte('\n');
-
-        if (cmd.?.usage.len > 0) {
-            try writer.print("\nUsage:\n{s}{s} {s} {s}\n", .{ indent, name, cmd.?.name, cmd.?.usage });
+    if (cmd == null or p.cmds.len == 1) {
+        if (p.desc.len > 0 or p.ver.len > 0) {
+            _ = try writer.write(name);
+            if (p.desc.len > 0) try writer.print(" - {s}", .{p.desc});
+            if (p.ver.len > 0) try writer.print(" (version {s})", .{p.ver});
+            try writer.writeByte('\n');
         }
 
-        _ = try writer.write("\nOptions:\n");
+        if (p.usage.len > 0) try writer.print("\nUsage:\n{s}{s} {s}\n", .{ indent, name, p.usage });
 
-        const all_flags = p.cmds[0].flags ++ .{help_flag};
+        if (p.cmds.len > 1) {
+            _ = try writer.write("\nCommands:\n");
+            inline for (p.cmds) |subcmd| {
+                try printCmd(writer, subcmd);
+            }
+            _ = try writer.write("\nGeneral options:\n");
+            try printFlag(writer, help_flag);
+            if (p.ver.len > 0) try printFlag(writer, ver_flag);
+        } else {
+            _ = try writer.write("\nOptions:\n");
+
+            const all_flags = cmd.?.flags ++ .{help_flag};
+            inline for (all_flags) |flag| {
+                try printFlag(writer, flag);
+            }
+        }
+    } else {
+        if (cmd.?.desc.len > 0) {
+            try writer.print("{s} - {s}\n\n", .{ cmd.?.name, cmd.?.desc });
+        }
+
+        if (cmd.?.usage.len > 0) {
+            try writer.print("Usage:\n{s}{s} {s} {s}\n\n", .{ indent, name, cmd.?.name, cmd.?.usage });
+        }
+
+        _ = try writer.write("Options:\n");
+
+        const all_flags = cmd.?.flags ++ .{help_flag};
         inline for (all_flags) |flag| {
             try printFlag(writer, flag);
         }
-    } else {
-        if (p.desc.len > 0) try writer.print(" - {s}", .{p.desc});
-        if (p.ver.len > 0) try writer.print(" (version {s})", .{p.ver});
-        try writer.writeByte('\n');
-
-        if (p.usage.len > 0) try writer.print("\nUsage:\n{s} {s} {s}\n", .{ indent, name, p.usage });
-
-        _ = try writer.write("\nCommands:\n");
-        inline for (p.cmds) |subcmd| {
-            try printCmd(writer, subcmd);
-        }
-        _ = try writer.write("\nGeneral options:\n");
-        try printFlag(writer, help_flag);
-        if (p.ver.len > 0) try printFlag(writer, ver_flag);
     }
 
     try writer.writeByte('\n');
