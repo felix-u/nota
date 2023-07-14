@@ -15,7 +15,7 @@ pub fn errMsg(
     writer: std.fs.File.Writer,
     argv: [][]const u8,
     i: usize,
-    char_i: ?u32,
+    char_i: ?usize,
 ) anyerror {
     _ = try writer.write("error: ");
 
@@ -37,13 +37,7 @@ pub fn errMsg(
             _ = try writer.writeByte('\'');
         },
         inline Error.MissingCommand => _ = try writer.write("expected command"),
-        inline Error.MissingFlag => {
-            _ = try writer.write("expected flag '");
-            if (char_i) |c| {
-                try writer.writeByte(argv[i][c]);
-            } else _ = try writer.write(argv[i]);
-            _ = try writer.writeByte('\'');
-        },
+        inline Error.MissingFlag => _ = try writer.write("expected flag"),
         inline Error.UnexpectedArgument => {
             _ = try writer.write("unexpected positional argument '");
             if (char_i) |c| {
@@ -257,7 +251,7 @@ pub fn parseAlloc(
                                     inline .single_pos => {
                                         if (short_i != arg.len - 1 or
                                             arg_i == argv.len - 1 or
-                                            arg_kinds[arg_i + 1] != .positional)
+                                            arg_kinds[arg_i + 1] != .pos)
                                         {
                                             return errMsg(Error.MissingArgument, writer, argv, arg_i, short_i);
                                         }
@@ -269,12 +263,12 @@ pub fn parseAlloc(
                                     inline .multi_pos => {
                                         if (short_i != arg.len - 1 or
                                             arg_i == argv.len - 1 or
-                                            arg_kinds[arg_i + 1] != .positional)
+                                            arg_kinds[arg_i] != .pos)
                                         {
                                             return errMsg(Error.MissingArgument, writer, argv, arg_i, short_i);
                                         }
                                         arg_i += 1;
-                                        while (arg_i < argv.len and arg_kinds[arg_i] == .positional) : (arg_i += 1) {
+                                        while (arg_i < argv.len and arg_kinds[arg_i - 1] == .pos) : (arg_i += 1) {
                                             @field(@field(result, cmd.name), flag.long).appendAssumeCapacity(arg_i);
                                         } else continue :cmd_arg;
                                     },
@@ -288,7 +282,9 @@ pub fn parseAlloc(
                             try printHelp(writer, argv[0], p, cmd);
                             return null;
                         }
+
                         if (cmd.flags.len == 0) return errMsg(Error.InvalidFlag, writer, argv, arg_i, null);
+
                         match: inline for (cmd.flags) |flag| {
                             if (std.mem.eql(u8, arg[2..], flag.long)) {
                                 // Matched flag in long form.
@@ -297,7 +293,7 @@ pub fn parseAlloc(
                                         @field(@field(result, cmd.name), flag.long) = true;
                                     },
                                     inline .single_pos => {
-                                        if (arg_i == argv.len - 1 or arg_kinds[arg_i + 1] != .positional) {
+                                        if (arg_i == argv.len - 1 or arg_kinds[arg_i + 1] != .pos) {
                                             return errMsg(Error.MissingArgument, writer, argv, arg_i, null);
                                         }
                                         arg_i += 1;
@@ -306,11 +302,11 @@ pub fn parseAlloc(
                                         continue :cmd_arg;
                                     },
                                     inline .multi_pos => {
-                                        if (arg_i == argv.len - 1 or arg_kinds[arg_i + 1] != .positional) {
+                                        if (arg_i == argv.len - 1 or arg_kinds[arg_i] != .pos) {
                                             return errMsg(Error.MissingArgument, writer, argv, arg_i, null);
                                         }
                                         arg_i += 1;
-                                        while (arg_i < argv.len and arg_kinds[arg_i] == .positional) : (arg_i += 1) {
+                                        while (arg_i < argv.len and arg_kinds[arg_i - 1] == .pos) : (arg_i += 1) {
                                             @field(@field(result, cmd.name), flag.long).appendAssumeCapacity(arg_i);
                                         } else continue :cmd_arg;
                                     },
@@ -332,6 +328,20 @@ pub fn parseAlloc(
                 try printHelp(writer, argv[0], p, cmd);
                 const cmd_i = if (p.cmds.len == 1) 0 else 1;
                 return errMsg(Error.MissingArgument, writer, argv, cmd_i, null);
+            }
+
+            inline for (cmd.flags) |flag| {
+                if (flag.required) switch (flag.kind) {
+                    inline .boolean => if (@field(@field(result, cmd.name), flag.long) == false) {
+                        return errMsg(Error.MissingFlag, writer, argv, 0, null);
+                    },
+                    inline .single_pos => if (@field(@field(result, cmd.name), flag.long).pos == null) {
+                        return errMsg(Error.MissingFlag, writer, argv, 0, null);
+                    },
+                    inline .multi_pos => if (@field(@field(result, cmd.name), flag.long).items.len == 0) {
+                        return errMsg(Error.MissingFlag, writer, argv, 0, null);
+                    },
+                };
             }
 
             break;
@@ -458,7 +468,9 @@ pub fn printFlag(writer: std.fs.File.Writer, comptime flag: Flag) !void {
 
     if (flag.usage.len > 0) try writer.print(" {s}", .{flag.usage});
 
-    try writer.print("\n\t{s}\n", .{flag.desc});
+    if (flag.desc.len > 0) try writer.print("\n\t{s}", .{flag.desc});
+
+    _ = try writer.writeByte('\n');
 }
 
 pub fn printCmd(writer: std.fs.File.Writer, comptime cmd: Cmd) !void {
