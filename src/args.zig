@@ -70,8 +70,8 @@ pub const Flag = struct {
     fn resultType(comptime self: *const @This()) type {
         return switch (self.kind) {
             inline .boolean => bool,
-            inline .single_pos => if (self.required) usize else ?usize,
-            inline .multi_pos => std.ArrayList(usize),
+            inline .single_pos => if (self.required) []const u8 else ?[]const u8,
+            inline .multi_pos => std.ArrayList([]const u8),
         };
     }
 };
@@ -98,8 +98,8 @@ pub const Cmd = struct {
             .name = "pos",
             .type = switch (self.kind) {
                 inline .boolean => bool,
-                inline .single_pos => usize,
-                inline .multi_pos => std.ArrayList(usize),
+                inline .single_pos => []const u8,
+                inline .multi_pos => std.ArrayList([]const u8),
             },
             .default_value = null,
             .is_comptime = false,
@@ -184,13 +184,13 @@ pub fn parseAlloc(
         const cmd = p.cmds[i];
 
         if (cmd.kind == .multi_pos) {
-            @field(result, cmd.name).pos = std.ArrayList(usize).init(allocator);
+            @field(result, cmd.name).pos = std.ArrayList([]const u8).init(allocator);
             try @field(result, cmd.name).pos.ensureTotalCapacity(argv.len);
         }
 
         inline for (cmd.flags) |flag| {
             if (flag.kind != .multi_pos) continue;
-            @field(@field(result, cmd.name), flag.long) = std.ArrayList(usize).init(allocator);
+            @field(@field(result, cmd.name), flag.long) = std.ArrayList([]const u8).init(allocator);
             try @field(@field(result, cmd.name), flag.long).ensureTotalCapacity(argv.len);
         }
     }
@@ -217,8 +217,9 @@ pub fn parseAlloc(
 
             var arg_i: usize = 1;
             cmd_arg: while (arg_i < argv.len) {
-                const arg_kind = arg_kinds[arg_i - 1];
                 const arg = argv[arg_i];
+                const arg_kind = arg_kinds[arg_i - 1];
+
                 switch (arg_kind) {
                     .cmd => if (!got_cmd) {
                         got_cmd = true;
@@ -227,10 +228,10 @@ pub fn parseAlloc(
                         inline .boolean => return errMsg(Error.UnexpectedArgument, writer, argv, arg_i, null),
                         inline .single_pos => {
                             if (got_pos) return errMsg(Error.UnexpectedArgument, writer, argv, arg_i, null);
-                            @field(result, cmd.name).pos = arg_i;
+                            @field(result, cmd.name).pos = arg;
                             got_pos = true;
                         },
-                        inline .multi_pos => @field(result, cmd.name).pos.appendAssumeCapacity(arg_i),
+                        inline .multi_pos => @field(result, cmd.name).pos.appendAssumeCapacity(arg),
                     },
                     .pos_marker => {},
                     .short => for (arg[1..], 1..) |short, short_i| {
@@ -256,7 +257,7 @@ pub fn parseAlloc(
                                             return errMsg(Error.MissingArgument, writer, argv, arg_i, short_i);
                                         }
                                         arg_i += 1;
-                                        @field(@field(result, cmd.name), flag.long) = arg_i;
+                                        @field(@field(result, cmd.name), flag.long) = arg;
                                         arg_i += 1;
                                         continue :cmd_arg;
                                     },
@@ -269,7 +270,7 @@ pub fn parseAlloc(
                                         }
                                         arg_i += 1;
                                         while (arg_i < argv.len and arg_kinds[arg_i - 1] == .pos) : (arg_i += 1) {
-                                            @field(@field(result, cmd.name), flag.long).appendAssumeCapacity(arg_i);
+                                            @field(@field(result, cmd.name), flag.long).appendAssumeCapacity(arg);
                                         } else continue :cmd_arg;
                                     },
                                 }
@@ -297,7 +298,7 @@ pub fn parseAlloc(
                                             return errMsg(Error.MissingArgument, writer, argv, arg_i, null);
                                         }
                                         arg_i += 1;
-                                        @field(@field(result, cmd.name), flag.long) = arg_i;
+                                        @field(@field(result, cmd.name), flag.long) = arg;
                                         arg_i += 1;
                                         continue :cmd_arg;
                                     },
@@ -307,7 +308,7 @@ pub fn parseAlloc(
                                         }
                                         arg_i += 1;
                                         while (arg_i < argv.len and arg_kinds[arg_i - 1] == .pos) : (arg_i += 1) {
-                                            @field(@field(result, cmd.name), flag.long).appendAssumeCapacity(arg_i);
+                                            @field(@field(result, cmd.name), flag.long).appendAssumeCapacity(arg);
                                         } else continue :cmd_arg;
                                     },
                                 }
@@ -373,7 +374,7 @@ fn procArgKindList(comptime p: ParseParams, arg_kinds: []ArgKind, argv: []const 
     var got_cmd = if (p.cmds.len > 1) false else true;
 
     for (argv, 0..) |arg, i| {
-        if (only_pos) {
+        if (only_pos or arg.len == 0) {
             arg_kinds[i] = .pos;
         } else if (arg.len == 1) {
             if (!got_cmd) arg_kinds[i] = .cmd;
@@ -462,7 +463,7 @@ pub fn printFlag(writer: std.fs.File.Writer, comptime flag: Flag) !void {
 
     if (flag.short != 0) {
         try writer.print("-{c}, ", .{flag.short});
-    } else try writer.print("    ", .{});
+    } else _ = try writer.write("    ");
 
     try writer.print("--{s}", .{flag.long});
 

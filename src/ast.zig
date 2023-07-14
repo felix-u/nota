@@ -4,8 +4,8 @@ const log = @import("log.zig");
 const parse = @import("parse.zig");
 const token = @import("token.zig");
 
-pub fn typeName(token_kind: token.Kind) []const u8 {
-    return switch (token_kind) {
+pub fn typeName(tok_kind: token.Kind) []const u8 {
+    return switch (tok_kind) {
         .type_infer => "infer",
         .type_bool => "bool",
         .type_date => "date",
@@ -23,18 +23,19 @@ const type_map = std.ComptimeStringMap(token.Kind, .{
 });
 
 pub const Node = struct {
-    token_name_idx: u32 = 0,
-    expr_start_idx: u32 = 0,
-    expr_end_idx: u32 = 0,
-    node_children_start_idx: u32 = 0,
-    node_children_end_idx: u32 = 0,
+    tok_name_i: u32 = 0,
+    expr_beg_i: u32 = 0,
+    expr_end_i: u32 = 0,
+    node_childs_beg_i: u32 = 0,
+    node_childs_end_i: u32 = 0,
 };
 pub const NodeList = std.MultiArrayList(Node);
 
 pub const Expr = struct {
     type: token.Kind = .unresolved,
-    token_name_idx: u32 = 0,
-    token_start_idx: u32 = 0,
+    tok_name_i: u32 = 0,
+    tok_beg_i: u32 = 0,
+    tok_end_i: u32 = 0,
 };
 pub const ExprList = std.MultiArrayList(Expr);
 
@@ -44,7 +45,7 @@ pub fn parseFromTokenList(
     set: *parse.Set,
     comptime in_body: bool,
 ) !void {
-    const it = &set.token_it;
+    const it = &set.tok_it;
     it.set = set;
 
     var appended_this = false;
@@ -70,13 +71,13 @@ pub fn parseFromTokenList(
         // Get node name.
         _ = it.next();
         var this_node: Node = .{
-            .token_name_idx = it.idx,
-            .node_children_start_idx = cast(u32, set.node_list.len + 1),
+            .tok_name_i = it.idx,
+            .node_childs_beg_i = cast(u32, set.nodes.len + 1),
         };
         _ = it.next();
 
         // Go to `;` to process node.
-        this_node.expr_start_idx = cast(u32, set.expr_list.len);
+        this_node.expr_beg_i = cast(u32, set.exprs.len);
         node: while (!it.atEnd() and it.peek().token != .semicolon) {
             if (it.peek().token == .colon) {
                 return log.reportError(errorWriter, log.SyntaxError.NoExprName, set, it.peek().idx);
@@ -89,8 +90,8 @@ pub fn parseFromTokenList(
             // Case: `name:maybe_type=expression`
             if (it.peek().token == .unresolved) {
                 _ = try parseDeclaration(allocator, errorWriter, set);
-                this_node.expr_end_idx = cast(u32, set.expr_list.len);
-                _ = (it.idx < set.token_list.len);
+                this_node.expr_end_i = cast(u32, set.exprs.len);
+                _ = (it.idx < set.toks.len);
                 continue :node;
             }
 
@@ -98,13 +99,13 @@ pub fn parseFromTokenList(
             if (it.peek().token == .curly_left and it.peekNext() != null and it.peekNext().?.token != .curly_right) {
                 _ = it.next();
 
-                try set.node_list.append(allocator, this_node);
+                try set.nodes.append(allocator, this_node);
                 appended_this = true;
-                const this_node_idx = set.node_list.len - 1;
-                var this_node_again = set.node_list.get(set.node_list.len - 1);
+                const this_node_i = set.nodes.len - 1;
+                var this_node_again = set.nodes.get(set.nodes.len - 1);
                 try parseFromTokenList(allocator, errorWriter, set, true);
-                this_node_again.node_children_end_idx = cast(u32, set.node_list.len);
-                set.node_list.set(this_node_idx, this_node_again);
+                this_node_again.node_childs_end_i = cast(u32, set.nodes.len);
+                set.nodes.set(this_node_i, this_node_again);
 
                 // Error case: token after body end is not a semicolon.
                 if (it.peek().token != .semicolon) {
@@ -142,7 +143,7 @@ pub fn parseFromTokenList(
             return log.reportError(errorWriter, log.SyntaxError.NoRightCurly, set, it.peek().idx);
         }
 
-        if (!appended_this) try set.node_list.append(allocator, this_node);
+        if (!appended_this) try set.nodes.append(allocator, this_node);
     }
 }
 
@@ -151,12 +152,12 @@ fn parseDeclaration(
     errorWriter: std.fs.File.Writer,
     set: *parse.Set,
 ) !bool {
-    const it = &set.token_it;
+    const it = &set.tok_it;
     it.set = set;
 
     var this_expr: Expr = .{
         .type = .unresolved,
-        .token_name_idx = it.idx,
+        .tok_name_i = it.idx,
     };
 
     var in_bounds = !it.atEnd();
@@ -172,7 +173,7 @@ fn parseDeclaration(
                     it.peek().idx,
                     it.peek().lastByteIdx(set) + 1,
                 );
-                set.token_list.set(it.idx, .{
+                set.toks.set(it.idx, .{
                     .token = .expr_name,
                     .idx = it.peek().idx,
                 });
@@ -194,7 +195,7 @@ fn parseDeclaration(
                         );
                     };
                     var this_token = it.peek();
-                    set.token_list.set(it.idx, .{
+                    set.toks.set(it.idx, .{
                         .token = this_expr.type,
                         .idx = this_token.idx,
                     });
@@ -210,10 +211,10 @@ fn parseDeclaration(
                 // Expression is `...=unresolved`, where `unresolved` is either
                 // an expression name, a date, or a number.
                 if (this_expr.type == .unresolved) this_expr.type = .type_infer;
-                const this_token_type = it.peek().token;
-                switch (this_token_type) {
+                const this_tok_type = it.peek().token;
+                switch (this_tok_type) {
                     .unresolved, .str, .paren_left => {
-                        if (this_token_type == .str) this_expr.type = .type_str;
+                        if (this_tok_type == .str) this_expr.type = .type_str;
                         in_bounds = try parseExpression(allocator, errorWriter, set, &this_expr);
                         break :expr;
                     },
@@ -238,7 +239,7 @@ fn parseExpression(
     set: *parse.Set,
     expr: *Expr,
 ) !bool {
-    const it = &set.token_it;
+    const it = &set.tok_it;
     it.set = set;
 
     var in_bounds = !it.atEnd();
@@ -260,9 +261,9 @@ fn parseExpression(
         }
     }
 
-    expr.token_start_idx = it.idx;
+    expr.tok_beg_i = it.idx;
     _ = it.skip();
-    try set.expr_list.append(allocator, expr.*);
+    try set.exprs.append(allocator, expr.*);
     return !it.atEnd();
 }
 
@@ -272,15 +273,15 @@ pub const TokenIterator = struct {
     const Self = @This();
 
     fn atEnd(self: *Self) bool {
-        return (self.idx == self.set.token_list.len - 1);
+        return (self.idx == self.set.toks.len - 1);
     }
 
     fn peek(self: *Self) token.Token {
-        return self.set.token_list.get(self.idx);
+        return self.set.toks.get(self.idx);
     }
 
     fn next(self: *Self) ?token.Token {
-        if (self.idx + 1 == self.set.token_list.len) return null;
+        if (self.idx + 1 == self.set.toks.len) return null;
 
         const this_token = self.peek();
         self.idx += 1;
@@ -288,17 +289,17 @@ pub const TokenIterator = struct {
     }
 
     fn peekNext(self: *Self) ?token.Token {
-        if (self.idx + 1 == self.set.token_list.len) return null;
-        return self.set.token_list.get(self.idx + 1);
+        if (self.idx + 1 == self.set.toks.len) return null;
+        return self.set.toks.get(self.idx + 1);
     }
 
     fn peekLast(self: *Self) ?token.Token {
         if (self.idx == 0) return null;
-        return self.set.token_list.get(self.idx - 1);
+        return self.set.toks.get(self.idx - 1);
     }
 
     pub fn skip(self: *Self) bool {
-        if (self.idx + 1 == self.set.token_list.len) return false;
+        if (self.idx + 1 == self.set.toks.len) return false;
         self.idx += 1;
         return true;
     }
@@ -308,39 +309,39 @@ pub fn printNicely(
     writer: std.fs.File.Writer,
     set: *parse.Set,
     level: usize,
-    node_list_start: u32,
-    node_list_end: u32,
+    nodes_beg: u32,
+    nodes_end: u32,
 ) !void {
-    var node_list_idx = node_list_start;
-    while (node_list_idx < node_list_end) : (node_list_idx += 1) {
-        const node = set.node_list.get(node_list_idx);
-        const node_name = set.token_list.get(node.token_name_idx).lexeme(set);
+    var nodes_i = nodes_beg;
+    while (nodes_i < nodes_end) : (nodes_i += 1) {
+        const node = set.nodes.get(nodes_i);
+        const node_name = set.toks.get(node.tok_name_i).lexeme(set);
 
         for (0..level) |_| try writer.writeByte('\t');
         try writer.print("@{s}\n", .{node_name});
 
-        var expr_idx = node.expr_start_idx;
-        while (expr_idx < node.expr_end_idx) : (expr_idx += 1) {
-            const expr_decl = set.expr_list.get(expr_idx);
-            const expr_name = set.token_list.get(expr_decl.token_name_idx).lexeme(set);
+        var expr_i = node.expr_beg_i;
+        while (expr_i < node.expr_end_i) : (expr_i += 1) {
+            const expr_decl = set.exprs.get(expr_i);
+            const expr_name = set.toks.get(expr_decl.tok_name_i).lexeme(set);
 
-            // TODO: Make this less hacky.
-            const token_end_idx = if (expr_idx == node.expr_end_idx - 1)
-                expr_decl.token_start_idx + 1
+            // TODO
+            const tok_end_i = if (expr_i == node.expr_end_i - 1)
+                expr_decl.tok_beg_i + 1
             else
-                set.expr_list.get(expr_idx + 1).token_name_idx;
+                set.exprs.get(expr_i + 1).tok_name_i;
 
             for (0..level + 1) |_| try writer.writeByte('\t');
-            try writer.print("{s} : {s} = ", .{ expr_name, typeName(expr_decl.type) });
-            for (expr_decl.token_start_idx..token_end_idx) |token_idx| {
-                try writer.print("{s}", .{set.token_list.get(token_idx).lexeme(set)});
+            try writer.print("{s}: {s} = ", .{ expr_name, typeName(expr_decl.type) });
+            for (expr_decl.tok_beg_i..tok_end_i) |tok_i| {
+                try writer.print("{s}", .{set.toks.get(tok_i).lexeme(set)});
             }
             try writer.writeByte('\n');
         }
 
-        try printNicely(writer, set, level + 1, node.node_children_start_idx, node.node_children_end_idx);
-        if (node.node_children_end_idx > node.node_children_start_idx) {
-            node_list_idx = node.node_children_end_idx - 1;
+        try printNicely(writer, set, level + 1, node.node_childs_beg_i, node.node_childs_end_i);
+        if (node.node_childs_end_i > node.node_childs_beg_i) {
+            nodes_i = node.node_childs_end_i - 1;
         }
     }
 }
@@ -349,13 +350,13 @@ pub fn printDebugView(
     writer: std.fs.File.Writer,
     set: *parse.Set,
     level: usize,
-    node_list_start: u32,
-    node_list_end: u32,
+    nodes_beg: u32,
+    nodes_end: u32,
 ) !void {
-    var node_list_idx = node_list_start;
-    while (node_list_idx < node_list_end) : (node_list_idx += 1) {
-        const node = set.node_list.get(node_list_idx);
-        const node_name = set.token_list.get(node.token_name_idx).lexeme(set);
+    var nodes_i = nodes_beg;
+    while (nodes_i < nodes_end) : (nodes_i += 1) {
+        const node = set.nodes.get(nodes_i);
+        const node_name = set.toks.get(node.tok_name_i).lexeme(set);
 
         for (0..level) |_| try writer.writeByte('\t');
         try writer.print("{s} <<<\n", .{node_name});
@@ -364,23 +365,23 @@ pub fn printDebugView(
         try writer.print("{}\n", .{node});
 
         for (0..level) |_| try writer.writeByte('\t');
-        try writer.print("EXPR <\n", .{});
-        var expr_idx = node.expr_start_idx;
-        while (expr_idx < node.expr_end_idx) : (expr_idx += 1) {
-            const expr = set.expr_list.get(expr_idx);
+        _ = try writer.write("EXPR <\n");
+        var expr_i = node.expr_beg_i;
+        while (expr_i < node.expr_end_i) : (expr_i += 1) {
+            const expr = set.exprs.get(expr_i);
 
             for (0..level) |_| try writer.writeByte('\t');
-            try writer.print("{s} = ", .{set.token_list.get(expr.token_name_idx).lexeme(set)});
+            try writer.print("{s} = ", .{set.toks.get(expr.tok_name_i).lexeme(set)});
 
             for (0..level) |_| try writer.writeByte('\t');
             try writer.print("{}\n", .{expr});
         }
         for (0..level) |_| try writer.writeByte('\t');
-        try writer.print(">\n", .{});
+        _ = try writer.write(">\n");
 
-        try printDebugView(writer, set, level + 1, node.node_children_start_idx, node.node_children_end_idx);
-        if (node.node_children_end_idx > node.node_children_start_idx) {
-            node_list_idx = node.node_children_end_idx - 1;
+        try printDebugView(writer, set, level + 1, node.node_childs_beg_i, node.node_childs_end_i);
+        if (node.node_childs_end_i > node.node_childs_beg_i) {
+            nodes_i = node.node_childs_end_i - 1;
         }
 
         for (0..level) |_| try writer.writeByte('\t');

@@ -16,7 +16,7 @@ pub fn main() !void {
     defer std.process.argsFree(allocator, argv);
 
     const args_parsed = args.parseAlloc(allocator, stdout, argv, .{
-        .desc = "general-purpose declarative notation",
+        .desc = "general-purpose declarative notation language",
         .ver = "0.4-dev",
         .usage = "<command> <file> [options]",
         .cmds = &.{
@@ -30,6 +30,11 @@ pub fn main() !void {
                         .short = 'd',
                         .long = "debug",
                         .desc = "Enable debugging-oriented formatting",
+                    },
+                    args.Flag{
+                        .long = "testflag",
+                        .short = 'f',
+                        .kind = .multi_pos,
                     },
                 },
             },
@@ -46,7 +51,7 @@ pub fn main() !void {
     defer allocator.destroy(args_parsed);
 
     if (args_parsed.check.invoked) {
-        const filepath = argv[args_parsed.check.pos];
+        const filepath = args_parsed.check.pos;
         const filebuf = try readFileAlloc(allocator, filepath);
         defer allocator.free(filebuf);
 
@@ -64,7 +69,9 @@ pub fn main() !void {
     }
 
     if (args_parsed.print.invoked) {
-        const filepath = argv[args_parsed.print.pos];
+        std.debug.print("{s}\n", .{args_parsed.print.testflag.items}); // TODO: not sure what's happening
+
+        const filepath = args_parsed.print.pos;
         const filebuf = try readFileAlloc(allocator, filepath);
         defer allocator.free(filebuf);
 
@@ -80,8 +87,8 @@ pub fn main() !void {
         try token.parseFromBufAlloc(allocator, stdout, &parse_set, false);
 
         if (debug_view) {
-            for (0..parse_set.token_list.len) |i| {
-                const item = parse_set.token_list.get(i);
+            for (0..parse_set.toks.len) |i| {
+                const item = parse_set.toks.get(i);
                 var position: log.filePosition = .{ .set = &parse_set, .idx = item.idx };
                 position.computeCoords();
                 try stdout.print("{d}:{d}\t{d}\t\"{s}\"\t{}\n", .{
@@ -100,10 +107,10 @@ pub fn main() !void {
         try ast.parseFromTokenList(allocator, stdout, &parse_set, false);
 
         if (debug_view) {
-            try ast.printDebugView(stdout, &parse_set, 0, 0, std.math.lossyCast(u32, parse_set.node_list.len));
+            try ast.printDebugView(stdout, &parse_set, 0, 0, std.math.lossyCast(u32, parse_set.nodes.len));
             try stdout.print("=== AST: END ===\n", .{});
         } else {
-            try ast.printNicely(stdout, &parse_set, 0, 0, std.math.lossyCast(u32, parse_set.node_list.len));
+            try ast.printNicely(stdout, &parse_set, 0, 0, std.math.lossyCast(u32, parse_set.nodes.len));
         }
 
         std.os.exit(0);

@@ -75,7 +75,7 @@ pub fn parseFromBufAlloc(
     root: while (in_bounds) : (in_bounds = it.skip()) {
         // Break into upper level if we've reached the end of the body.
         if (in_node_body and it.peek() == '}') {
-            try set.token_list.append(allocator, .{
+            try set.toks.append(allocator, .{
                 .idx = it.idx,
                 .token = .curly_right,
             });
@@ -95,7 +95,7 @@ pub fn parseFromBufAlloc(
 
         // Parse node name.
         if (it.peek() != '@') continue;
-        try set.token_list.append(allocator, .{
+        try set.toks.append(allocator, .{
             .idx = it.idx,
             .token = .at,
         });
@@ -111,7 +111,7 @@ pub fn parseFromBufAlloc(
                 name_start,
                 it.idx,
             );
-            try set.token_list.append(allocator, .{
+            try set.toks.append(allocator, .{
                 .idx = name_start,
                 .token = .node_name,
             });
@@ -139,7 +139,7 @@ pub fn parseFromBufAlloc(
                     );
                 }
 
-                try set.token_list.append(allocator, .{
+                try set.toks.append(allocator, .{
                     .idx = symbol_start,
                     .token = .str,
                 });
@@ -150,7 +150,7 @@ pub fn parseFromBufAlloc(
             if (it.isValidSymbolChar()) {
                 const symbol_start = it.idx;
                 while (it.skip() and it.isValidSymbolChar()) {}
-                try set.token_list.append(allocator, .{
+                try set.toks.append(allocator, .{
                     .idx = symbol_start,
                     .token = .unresolved,
                 });
@@ -165,7 +165,7 @@ pub fn parseFromBufAlloc(
                     continue :root;
                 },
                 ';', ':', '=', '(', ')', '[', ']', '{', '}', '.', '+', '-' => |byte| {
-                    try set.token_list.append(allocator, .{
+                    try set.toks.append(allocator, .{
                         .idx = it.idx,
                         .token = @enumFromInt(byte),
                     });
