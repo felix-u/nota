@@ -18,6 +18,7 @@ pub fn main() !void {
     const args_parsed = args.parseAlloc(allocator, stdout, argv, .{
         .desc = "general-purpose declarative notation",
         .ver = "0.4-dev",
+        .usage = "nota <file> [option]",
         .cmds = &.{
             args.Cmd{
                 // .name = "print",
@@ -32,9 +33,9 @@ pub fn main() !void {
                 },
             },
             // args.Cmd{
-            //     .name = "check",
-            //     .desc = "check nota file for syntax errors",
             //     .kind = .single_pos,
+            //     .desc = "check nota file for syntax errors",
+            //     .name = "check",
             // },
         },
     }) catch {
@@ -44,7 +45,7 @@ pub fn main() !void {
 
     // // TODO
     // if (args_parsed.print == null) return;
-    const cmd_print = args_parsed.no_command;
+    const cmd_print = args_parsed.no_cmd;
 
     const debug_view = cmd_print.debug;
 
