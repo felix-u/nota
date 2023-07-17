@@ -252,12 +252,12 @@ pub fn parseAlloc(
                                     inline .single_pos => {
                                         if (short_i != arg.len - 1 or
                                             arg_i == argv.len - 1 or
-                                            arg_kinds[arg_i + 1] != .pos)
+                                            arg_kinds[arg_i] != .pos)
                                         {
                                             return errMsg(Error.MissingArgument, writer, argv, arg_i, short_i);
                                         }
                                         arg_i += 1;
-                                        @field(@field(result, cmd.name), flag.long) = arg;
+                                        @field(@field(result, cmd.name), flag.long) = argv[arg_i];
                                         arg_i += 1;
                                         continue :cmd_arg;
                                     },
@@ -270,7 +270,7 @@ pub fn parseAlloc(
                                         }
                                         arg_i += 1;
                                         while (arg_i < argv.len and arg_kinds[arg_i - 1] == .pos) : (arg_i += 1) {
-                                            @field(@field(result, cmd.name), flag.long).appendAssumeCapacity(arg);
+                                            @field(@field(result, cmd.name), flag.long).appendAssumeCapacity(argv[arg_i]);
                                         } else continue :cmd_arg;
                                     },
                                 }
@@ -294,11 +294,11 @@ pub fn parseAlloc(
                                         @field(@field(result, cmd.name), flag.long) = true;
                                     },
                                     inline .single_pos => {
-                                        if (arg_i == argv.len - 1 or arg_kinds[arg_i + 1] != .pos) {
+                                        if (arg_i == argv.len - 1 or arg_kinds[arg_i] != .pos) {
                                             return errMsg(Error.MissingArgument, writer, argv, arg_i, null);
                                         }
                                         arg_i += 1;
-                                        @field(@field(result, cmd.name), flag.long) = arg;
+                                        @field(@field(result, cmd.name), flag.long) = argv[arg_i];
                                         arg_i += 1;
                                         continue :cmd_arg;
                                     },
@@ -308,7 +308,7 @@ pub fn parseAlloc(
                                         }
                                         arg_i += 1;
                                         while (arg_i < argv.len and arg_kinds[arg_i - 1] == .pos) : (arg_i += 1) {
-                                            @field(@field(result, cmd.name), flag.long).appendAssumeCapacity(arg);
+                                            @field(@field(result, cmd.name), flag.long).appendAssumeCapacity(argv[arg_i]);
                                         } else continue :cmd_arg;
                                     },
                                 }
