@@ -10,6 +10,7 @@ pub const SyntaxError = error{
     NameIsKeyword,
     NoExpr,
     NoExprName,
+    NoLeftParen,
     NoNodeName,
     NoRightCurly,
     NoSemicolonAfterBody,
@@ -78,6 +79,9 @@ pub fn reportError(writer: std.fs.File.Writer, comptime err: SyntaxError, set: *
         },
         SyntaxError.NoExprName => {
             _ = try writer.write("expected expression name before type specifier");
+        },
+        SyntaxError.NoLeftParen => {
+            _ = try writer.write("')' does not match any '('");
         },
         SyntaxError.NoNodeName => {
             _ = try writer.write("expected node name after initialiser");

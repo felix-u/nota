@@ -121,6 +121,7 @@ pub fn parseFromTokenList(
 
                 break :node;
             }
+
             // Ignore empty body.
             else if (it.peek().token == .curly_left and it.peekNext() != null and
                 it.peekNext().?.token == .curly_right)
@@ -215,7 +216,11 @@ fn parseDeclaration(
                 switch (this_tok_type) {
                     .unresolved, .str, .paren_left => {
                         if (this_tok_type == .str) this_expr.type = .type_str;
-                        in_bounds = try parseExpression(allocator, errorWriter, set, &this_expr);
+                        if (this_tok_type == .paren_left) {
+                            in_bounds = try parseExpr(allocator, errorWriter, set, &this_expr, true);
+                        } else {
+                            in_bounds = try parseExpr(allocator, errorWriter, set, &this_expr, false);
+                        }
                         break :expr;
                     },
                     else => {
@@ -233,20 +238,29 @@ fn parseDeclaration(
     return in_bounds;
 }
 
-fn parseExpression(
+fn parseExpr(
     allocator: std.mem.Allocator,
     errorWriter: std.fs.File.Writer,
     set: *parse.Set,
     expr: *Expr,
+    comptime in_paren: bool,
 ) !bool {
     const it = &set.tok_it;
     it.set = set;
 
+    expr.tok_beg_i = it.idx;
+
     var in_bounds = !it.atEnd();
     while (in_bounds) : (in_bounds = it.skip()) {
-        switch (it.peek().token) {
-            // TODO: Recurse in brackets.
-            .paren_left => break,
+        _ = switch (it.peek().token) {
+            .paren_left => {
+                in_bounds = it.skip();
+                in_bounds = try parseExpr(allocator, errorWriter, set, expr, true);
+            },
+            .paren_right => {
+                if (!in_paren) return log.reportError(errorWriter, log.SyntaxError.NoLeftParen, set, it.peek().idx);
+                break;
+            },
             else => {
                 try parse.ensureNotKeyword(
                     errorWriter,
@@ -258,11 +272,15 @@ fn parseExpression(
                 );
                 break;
             },
-        }
+        };
     }
 
-    expr.tok_beg_i = it.idx;
     _ = it.skip();
+
+    expr.tok_end_i = it.idx;
+
+    if (in_paren) _ = it.last();
+
     try set.exprs.append(allocator, expr.*);
     return !it.atEnd();
 }
@@ -285,6 +303,14 @@ pub const TokenIterator = struct {
 
         const this_token = self.peek();
         self.idx += 1;
+        return this_token;
+    }
+
+    fn last(self: *Self) ?token.Token {
+        if (self.idx == 0) return null;
+
+        const this_token = self.peek();
+        self.idx -= 1;
         return this_token;
     }
 
