@@ -26,8 +26,8 @@ pub const Node = struct {
     tok_name_i: u32 = 0,
     expr_beg_i: u32 = 0,
     expr_end_i: u32 = 0,
-    node_childs_beg_i: u32 = 0,
-    node_childs_end_i: u32 = 0,
+    childs_beg_i: u32 = 0,
+    childs_end_i: u32 = 0,
 };
 pub const NodeList = std.MultiArrayList(Node);
 
@@ -72,7 +72,7 @@ pub fn parseFromTokenList(
         _ = it.next();
         var this_node: Node = .{
             .tok_name_i = it.idx,
-            .node_childs_beg_i = cast(u32, set.nodes.len + 1),
+            .childs_beg_i = cast(u32, set.nodes.len + 1),
         };
         _ = it.next();
 
@@ -104,7 +104,7 @@ pub fn parseFromTokenList(
                 const this_node_i = set.nodes.len - 1;
                 var this_node_again = set.nodes.get(set.nodes.len - 1);
                 try parseFromTokenList(allocator, errorWriter, set, true);
-                this_node_again.node_childs_end_i = cast(u32, set.nodes.len);
+                this_node_again.childs_end_i = cast(u32, set.nodes.len);
                 set.nodes.set(this_node_i, this_node_again);
 
                 // Error case: token after body end is not a semicolon.
@@ -339,9 +339,9 @@ pub fn printNicely(
             try writer.writeByte('\n');
         }
 
-        try printNicely(writer, set, level + 1, node.node_childs_beg_i, node.node_childs_end_i);
-        if (node.node_childs_end_i > node.node_childs_beg_i) {
-            nodes_i = node.node_childs_end_i - 1;
+        try printNicely(writer, set, level + 1, node.childs_beg_i, node.childs_end_i);
+        if (node.childs_end_i > node.childs_beg_i) {
+            nodes_i = node.childs_end_i - 1;
         }
     }
 }
@@ -379,9 +379,9 @@ pub fn printDebugView(
         for (0..level) |_| try writer.writeByte('\t');
         _ = try writer.write(">\n");
 
-        try printDebugView(writer, set, level + 1, node.node_childs_beg_i, node.node_childs_end_i);
-        if (node.node_childs_end_i > node.node_childs_beg_i) {
-            nodes_i = node.node_childs_end_i - 1;
+        try printDebugView(writer, set, level + 1, node.childs_beg_i, node.childs_end_i);
+        if (node.childs_end_i > node.childs_beg_i) {
+            nodes_i = node.childs_end_i - 1;
         }
 
         for (0..level) |_| try writer.writeByte('\t');

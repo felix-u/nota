@@ -177,7 +177,7 @@ pub fn parseAlloc(
     comptime p: ParseParams,
 ) !?*Cmd.listResultType(p.cmds) {
     if (argv.len == 1) {
-        try printHelp(writer, argv[0], p, null);
+        try printHelp(errWriter, argv[0], p, null);
         return errMsg(p.errMsg, Error.InvalidUsage, errWriter, argv, 0, null);
     }
 
