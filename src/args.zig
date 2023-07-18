@@ -29,7 +29,7 @@ pub fn errMsg(
             if (char_i) |c| {
                 try errWriter.writeByte(argv[i][c]);
             } else _ = try errWriter.write(argv[i]);
-            _ = try errWriter.writeByte('\'');
+            try errWriter.writeByte('\'');
         },
         inline Error.InvalidUsage => _ = try errWriter.write("invalid usage"),
         inline Error.MissingArgument => {
@@ -37,7 +37,7 @@ pub fn errMsg(
             if (char_i) |c| {
                 try errWriter.writeByte(argv[i][c]);
             } else _ = try errWriter.write(argv[i]);
-            _ = try errWriter.writeByte('\'');
+            try errWriter.writeByte('\'');
         },
         inline Error.MissingCommand => _ = try errWriter.write("expected command"),
         inline Error.MissingFlag => _ = try errWriter.write("expected flag"),
@@ -46,11 +46,11 @@ pub fn errMsg(
             if (char_i) |c| {
                 try errWriter.writeByte(argv[i][c]);
             } else _ = try errWriter.write(argv[i]);
-            _ = try errWriter.writeByte('\'');
+            try errWriter.writeByte('\'');
         },
     }
 
-    _ = try errWriter.writeByte('\n');
+    try errWriter.writeByte('\n');
 
     return e;
 }
@@ -577,7 +577,7 @@ pub fn printFlag(writer: std.fs.File.Writer, comptime flag: Flag) !void {
 
     if (flag.desc.len > 0) try writer.print("\n\t{s}", .{flag.desc});
 
-    _ = try writer.writeByte('\n');
+    try writer.writeByte('\n');
 }
 
 pub fn printCmd(writer: std.fs.File.Writer, comptime cmd: Cmd) !void {
@@ -587,5 +587,5 @@ pub fn printCmd(writer: std.fs.File.Writer, comptime cmd: Cmd) !void {
 
     if (cmd.desc.len > 0) try writer.print("\n\t{s}", .{cmd.desc});
 
-    _ = try writer.writeByte('\n');
+    try writer.writeByte('\n');
 }
