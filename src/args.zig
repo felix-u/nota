@@ -245,9 +245,13 @@ pub fn parseAlloc(
                         got_cmd = true;
                     },
                     .pos => switch (cmd.kind) {
-                        inline .boolean => return errMsg(p.errMsg, Error.UnexpectedArgument, errWriter, argv, arg_i, null),
+                        inline .boolean => {
+                            return errMsg(p.errMsg, Error.UnexpectedArgument, errWriter, argv, arg_i, null);
+                        },
                         inline .single_pos => {
-                            if (got_pos) return errMsg(p.errMsg, Error.UnexpectedArgument, errWriter, argv, arg_i, null);
+                            if (got_pos) {
+                                return errMsg(p.errMsg, Error.UnexpectedArgument, errWriter, argv, arg_i, null);
+                            }
                             @field(result, cmd.name).pos = arg;
                             got_pos = true;
                         },
@@ -260,7 +264,9 @@ pub fn parseAlloc(
                             return null;
                         }
 
-                        if (cmd.flags.len == 0) return errMsg(p.errMsg, Error.InvalidFlag, errWriter, argv, arg_i, null);
+                        if (cmd.flags.len == 0) {
+                            return errMsg(p.errMsg, Error.InvalidFlag, errWriter, argv, arg_i, null);
+                        }
 
                         match: inline for (cmd.flags) |flag| {
                             // Matched flag in short form.
@@ -273,7 +279,14 @@ pub fn parseAlloc(
                                         if (short_i == arg.len - 1 and
                                             (arg_i == argv.len - 1 or arg_kinds[arg_i] != .pos))
                                         {
-                                            return errMsg(p.errMsg, Error.MissingArgument, errWriter, argv, arg_i, short_i);
+                                            return errMsg(
+                                                p.errMsg,
+                                                Error.MissingArgument,
+                                                errWriter,
+                                                argv,
+                                                arg_i,
+                                                short_i,
+                                            );
                                         }
 
                                         // Format: -fval
@@ -295,7 +308,14 @@ pub fn parseAlloc(
                                         if (short_i == arg.len - 1 and
                                             (arg_i == argv.len - 1 or arg_kinds[arg_i] != .pos))
                                         {
-                                            return errMsg(p.errMsg, Error.MissingArgument, errWriter, argv, arg_i, short_i);
+                                            return errMsg(
+                                                p.errMsg,
+                                                Error.MissingArgument,
+                                                errWriter,
+                                                argv,
+                                                arg_i,
+                                                short_i,
+                                            );
                                         }
 
                                         if (short_i < arg.len - 1) @field(
@@ -322,7 +342,9 @@ pub fn parseAlloc(
                             return null;
                         }
 
-                        if (cmd.flags.len == 0) return errMsg(p.errMsg, Error.InvalidFlag, errWriter, argv, arg_i, null);
+                        if (cmd.flags.len == 0) {
+                            return errMsg(p.errMsg, Error.InvalidFlag, errWriter, argv, arg_i, null);
+                        }
 
                         match: inline for (cmd.flags) |flag| {
                             const equals_syntax = if (flag.kind != .boolean and
@@ -341,7 +363,14 @@ pub fn parseAlloc(
                                     },
                                     inline .single_pos => {
                                         if (!equals_syntax and (arg_i == argv.len - 1 or arg_kinds[arg_i] != .pos)) {
-                                            return errMsg(p.errMsg, Error.MissingArgument, errWriter, argv, arg_i, null);
+                                            return errMsg(
+                                                p.errMsg,
+                                                Error.MissingArgument,
+                                                errWriter,
+                                                argv,
+                                                arg_i,
+                                                null,
+                                            );
                                         }
 
                                         if (equals_syntax) {
@@ -359,7 +388,14 @@ pub fn parseAlloc(
                                     },
                                     inline .multi_pos => {
                                         if (!equals_syntax and (arg_i == argv.len - 1 or arg_kinds[arg_i] != .pos)) {
-                                            return errMsg(p.errMsg, Error.MissingArgument, errWriter, argv, arg_i, null);
+                                            return errMsg(
+                                                p.errMsg,
+                                                Error.MissingArgument,
+                                                errWriter,
+                                                argv,
+                                                arg_i,
+                                                null,
+                                            );
                                         }
 
                                         if (equals_syntax) @field(
