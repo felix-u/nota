@@ -11,12 +11,15 @@ pub const Error = error{
 };
 
 pub fn errMsg(
+    comptime do_anything: bool,
     comptime e: Error,
     errWriter: std.fs.File.Writer,
     argv: [][]const u8,
     i: usize,
     char_i: ?usize,
 ) anyerror {
+    if (!do_anything) return e;
+
     _ = try errWriter.write("error: ");
 
     switch (e) {
@@ -163,6 +166,7 @@ pub const ParseParams = struct {
     ver: []const u8 = "",
     usage: []const u8 = "",
     cmds: []const Cmd = &.{},
+    errMsg: bool = true,
 };
 
 pub fn parseAlloc(
@@ -174,7 +178,7 @@ pub fn parseAlloc(
 ) !?*Cmd.listResultType(p.cmds) {
     if (argv.len == 1) {
         try printHelp(writer, argv[0], p, null);
-        return errMsg(Error.InvalidUsage, errWriter, argv, 0, null);
+        return errMsg(p.errMsg, Error.InvalidUsage, errWriter, argv, 0, null);
     }
 
     const Result = Cmd.listResultType(p.cmds);
@@ -241,9 +245,9 @@ pub fn parseAlloc(
                         got_cmd = true;
                     },
                     .pos => switch (cmd.kind) {
-                        inline .boolean => return errMsg(Error.UnexpectedArgument, errWriter, argv, arg_i, null),
+                        inline .boolean => return errMsg(p.errMsg, Error.UnexpectedArgument, errWriter, argv, arg_i, null),
                         inline .single_pos => {
-                            if (got_pos) return errMsg(Error.UnexpectedArgument, errWriter, argv, arg_i, null);
+                            if (got_pos) return errMsg(p.errMsg, Error.UnexpectedArgument, errWriter, argv, arg_i, null);
                             @field(result, cmd.name).pos = arg;
                             got_pos = true;
                         },
@@ -256,7 +260,7 @@ pub fn parseAlloc(
                             return null;
                         }
 
-                        if (cmd.flags.len == 0) return errMsg(Error.InvalidFlag, errWriter, argv, arg_i, null);
+                        if (cmd.flags.len == 0) return errMsg(p.errMsg, Error.InvalidFlag, errWriter, argv, arg_i, null);
 
                         match: inline for (cmd.flags) |flag| {
                             // Matched flag in short form.
@@ -269,7 +273,7 @@ pub fn parseAlloc(
                                         if (short_i == arg.len - 1 and
                                             (arg_i == argv.len - 1 or arg_kinds[arg_i] != .pos))
                                         {
-                                            return errMsg(Error.MissingArgument, errWriter, argv, arg_i, short_i);
+                                            return errMsg(p.errMsg, Error.MissingArgument, errWriter, argv, arg_i, short_i);
                                         }
 
                                         // Format: -fval
@@ -291,7 +295,7 @@ pub fn parseAlloc(
                                         if (short_i == arg.len - 1 and
                                             (arg_i == argv.len - 1 or arg_kinds[arg_i] != .pos))
                                         {
-                                            return errMsg(Error.MissingArgument, errWriter, argv, arg_i, short_i);
+                                            return errMsg(p.errMsg, Error.MissingArgument, errWriter, argv, arg_i, short_i);
                                         }
 
                                         if (short_i < arg.len - 1) @field(
@@ -310,7 +314,7 @@ pub fn parseAlloc(
                                 }
                                 break :match;
                             }
-                        } else return errMsg(Error.InvalidFlag, errWriter, argv, arg_i, null);
+                        } else return errMsg(p.errMsg, Error.InvalidFlag, errWriter, argv, arg_i, null);
                     },
                     .long => {
                         if (std.mem.eql(u8, arg[2..], help_flag.long)) {
@@ -318,7 +322,7 @@ pub fn parseAlloc(
                             return null;
                         }
 
-                        if (cmd.flags.len == 0) return errMsg(Error.InvalidFlag, errWriter, argv, arg_i, null);
+                        if (cmd.flags.len == 0) return errMsg(p.errMsg, Error.InvalidFlag, errWriter, argv, arg_i, null);
 
                         match: inline for (cmd.flags) |flag| {
                             const equals_syntax = if (flag.kind != .boolean and
@@ -337,7 +341,7 @@ pub fn parseAlloc(
                                     },
                                     inline .single_pos => {
                                         if (!equals_syntax and (arg_i == argv.len - 1 or arg_kinds[arg_i] != .pos)) {
-                                            return errMsg(Error.MissingArgument, errWriter, argv, arg_i, null);
+                                            return errMsg(p.errMsg, Error.MissingArgument, errWriter, argv, arg_i, null);
                                         }
 
                                         if (equals_syntax) {
@@ -355,7 +359,7 @@ pub fn parseAlloc(
                                     },
                                     inline .multi_pos => {
                                         if (!equals_syntax and (arg_i == argv.len - 1 or arg_kinds[arg_i] != .pos)) {
-                                            return errMsg(Error.MissingArgument, errWriter, argv, arg_i, null);
+                                            return errMsg(p.errMsg, Error.MissingArgument, errWriter, argv, arg_i, null);
                                         }
 
                                         if (equals_syntax) @field(
@@ -374,7 +378,7 @@ pub fn parseAlloc(
                                 }
                                 break :match;
                             }
-                        } else return errMsg(Error.InvalidFlag, errWriter, argv, arg_i, null);
+                        } else return errMsg(p.errMsg, Error.InvalidFlag, errWriter, argv, arg_i, null);
                         arg_i += 1;
                         continue :cmd_arg;
                     },
@@ -388,19 +392,19 @@ pub fn parseAlloc(
             {
                 try printHelp(writer, argv[0], p, cmd);
                 const cmd_i = if (p.cmds.len == 1) 0 else 1;
-                return errMsg(Error.MissingArgument, errWriter, argv, cmd_i, null);
+                return errMsg(p.errMsg, Error.MissingArgument, errWriter, argv, cmd_i, null);
             }
 
             inline for (cmd.flags) |flag| {
                 if (flag.required) switch (flag.kind) {
                     inline .boolean => if (@field(@field(result, cmd.name), flag.long) == false) {
-                        return errMsg(Error.MissingFlag, errWriter, argv, 0, null);
+                        return errMsg(p.errMsg, Error.MissingFlag, errWriter, argv, 0, null);
                     },
                     inline .single_pos => if (@field(@field(result, cmd.name), flag.long).pos == null) {
-                        return errMsg(Error.MissingFlag, errWriter, argv, 0, null);
+                        return errMsg(p.errMsg, Error.MissingFlag, errWriter, argv, 0, null);
                     },
                     inline .multi_pos => if (@field(@field(result, cmd.name), flag.long).items.len == 0) {
-                        return errMsg(Error.MissingFlag, errWriter, argv, 0, null);
+                        return errMsg(p.errMsg, Error.MissingFlag, errWriter, argv, 0, null);
                     },
                 };
             }
@@ -419,9 +423,9 @@ pub fn parseAlloc(
         }
 
         switch (arg_kinds[0]) {
-            .cmd => return errMsg(Error.InvalidCommand, errWriter, argv, 1, null),
+            .cmd => return errMsg(p.errMsg, Error.InvalidCommand, errWriter, argv, 1, null),
             .pos => unreachable,
-            .short, .long, .pos_marker => return errMsg(Error.MissingCommand, errWriter, argv, 0, null),
+            .short, .long, .pos_marker => return errMsg(p.errMsg, Error.MissingCommand, errWriter, argv, 0, null),
         }
     }
 
