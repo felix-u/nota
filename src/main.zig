@@ -31,6 +31,11 @@ pub fn main() !void {
                         .long = "debug",
                         .desc = "Enable debugging-oriented formatting",
                     },
+                    args.Flag{
+                        .long = "testflag",
+                        .short = 'f',
+                        .kind = .multi_pos,
+                    },
                 },
             },
             args.Cmd{
@@ -64,6 +69,8 @@ pub fn main() !void {
     }
 
     if (args_parsed.print.invoked) {
+        std.debug.print("{s}\n", .{args_parsed.print.testflag.items});
+
         const filepath = args_parsed.print.pos;
         const filebuf = try readFileAlloc(allocator, filepath);
         defer allocator.free(filebuf);
