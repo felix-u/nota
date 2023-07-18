@@ -204,6 +204,21 @@ pub fn parseAlloc(
         inline else => {},
     }
 
+    inline for (p.cmds) |cmd| {
+        inline for (cmd.flags, 0..) |flag, i| {
+            inline for (cmd.flags[i + 1 ..]) |flag_cmp| {
+                if ((flag.short != 0 and flag_cmp.short != 0) and
+                    (flag.short == flag_cmp.short))
+                {
+                    @compileError(std.fmt.comptimePrint(
+                        "flags '{s}' and '{s}' belong to the same command and cannot share their short form '{c}'",
+                        .{ flag.long, flag_cmp.long, flag.short },
+                    ));
+                }
+            }
+        }
+    }
+
     var arg_kinds = try allocator.alloc(ArgKind, argv.len - 1);
     defer allocator.free(arg_kinds);
     procArgKindList(p, arg_kinds, argv[1..]);
@@ -278,13 +293,17 @@ pub fn parseAlloc(
                                             return errMsg(Error.MissingArgument, writer, argv, arg_i, short_i);
                                         }
 
-                                        if (short_i < arg.len - 1) {
-                                            @field(@field(result, cmd.name), flag.long).appendAssumeCapacity(argv[arg_i][short_i + 1 ..]);
-                                        }
+                                        if (short_i < arg.len - 1) @field(
+                                            @field(result, cmd.name),
+                                            flag.long,
+                                        ).appendAssumeCapacity(argv[arg_i][short_i + 1 ..]);
 
                                         arg_i += 1;
                                         while (arg_i < argv.len and arg_kinds[arg_i - 1] == .pos) : (arg_i += 1) {
-                                            @field(@field(result, cmd.name), flag.long).appendAssumeCapacity(argv[arg_i]);
+                                            @field(
+                                                @field(result, cmd.name),
+                                                flag.long,
+                                            ).appendAssumeCapacity(argv[arg_i]);
                                         } else continue :cmd_arg;
                                     },
                                 }
@@ -321,7 +340,10 @@ pub fn parseAlloc(
                                         }
 
                                         if (equals_syntax) {
-                                            @field(@field(result, cmd.name), flag.long) = argv[arg_i]["--".len + flag.long.len + "=".len ..];
+                                            @field(
+                                                @field(result, cmd.name),
+                                                flag.long,
+                                            ) = argv[arg_i]["--".len + flag.long.len + "=".len ..];
                                         } else {
                                             arg_i += 1;
                                             @field(@field(result, cmd.name), flag.long) = argv[arg_i];
@@ -335,13 +357,17 @@ pub fn parseAlloc(
                                             return errMsg(Error.MissingArgument, writer, argv, arg_i, null);
                                         }
 
-                                        if (equals_syntax) {
-                                            @field(@field(result, cmd.name), flag.long).appendAssumeCapacity(argv[arg_i]["--".len + flag.long.len + "=".len ..]);
-                                        }
+                                        if (equals_syntax) @field(
+                                            @field(result, cmd.name),
+                                            flag.long,
+                                        ).appendAssumeCapacity(argv[arg_i]["--".len + flag.long.len + "=".len ..]);
 
                                         arg_i += 1;
                                         while (arg_i < argv.len and arg_kinds[arg_i - 1] == .pos) : (arg_i += 1) {
-                                            @field(@field(result, cmd.name), flag.long).appendAssumeCapacity(argv[arg_i]);
+                                            @field(
+                                                @field(result, cmd.name),
+                                                flag.long,
+                                            ).appendAssumeCapacity(argv[arg_i]);
                                         } else continue :cmd_arg;
                                     },
                                 }
@@ -468,6 +494,12 @@ pub fn printHelp(
 
         if (cmd.?.usage.len > 0) {
             try writer.print("Usage:\n{s}{s} {s} {s}\n\n", .{ indent, name, cmd.?.name, cmd.?.usage });
+        }
+
+        inline for (cmd.?.flags) |flag| {
+            if (!flag.required) continue;
+            try writer.print("Options marked with '{c}' are required.\n\n", .{indent_required[0]});
+            break;
         }
 
         _ = try writer.write("Options:\n");

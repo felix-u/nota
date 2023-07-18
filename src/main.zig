@@ -61,10 +61,8 @@ pub fn main() !void {
         };
 
         token.parseFromBufAlloc(allocator, stdout, &parse_set, false) catch std.os.exit(1);
-
         ast.parseFromTokenList(allocator, stdout, &parse_set, false) catch std.os.exit(1);
 
-        _ = try stdout.write("No problems.\n");
         std.os.exit(0);
     }
 
