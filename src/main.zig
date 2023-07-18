@@ -11,11 +11,12 @@ pub fn main() !void {
     const allocator = arena.allocator();
 
     const stdout = std.io.getStdOut().writer();
+    const stderr = std.io.getStdErr().writer();
 
     const argv = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, argv);
 
-    const args_parsed = args.parseAlloc(allocator, stdout, argv, .{
+    const args_parsed = args.parseAlloc(allocator, stdout, stderr, argv, .{
         .desc = "general-purpose declarative notation language",
         .ver = "0.4-dev",
         .usage = "<command> <file> [options]",
@@ -30,11 +31,6 @@ pub fn main() !void {
                         .short = 'd',
                         .long = "debug",
                         .desc = "Enable debugging-oriented formatting",
-                    },
-                    args.Flag{
-                        .long = "testflag",
-                        .short = 'f',
-                        .kind = .multi_pos,
                     },
                 },
             },
@@ -67,8 +63,6 @@ pub fn main() !void {
     }
 
     if (args_parsed.print.invoked) {
-        std.debug.print("{s}\n", .{args_parsed.print.testflag.items});
-
         const filepath = args_parsed.print.pos;
         const filebuf = try readFileAlloc(allocator, filepath);
         defer allocator.free(filebuf);
