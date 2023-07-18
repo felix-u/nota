@@ -301,14 +301,10 @@ pub fn parseAlloc(
                         if (cmd.flags.len == 0) return errMsg(Error.InvalidFlag, writer, argv, arg_i, null);
 
                         match: inline for (cmd.flags) |flag| {
-                            const equals_syntax = switch (flag.kind) {
-                                inline .boolean => false,
-                                inline .single_pos, .multi_pos => {
-                                    std.mem.startsWith(u8, arg[2..], flag.long) and
-                                        (arg[2 + flag.long.len] == '=') and
-                                        (arg[2..].len > flag.long.len + 1);
-                                },
-                            };
+                            const equals_syntax = if (flag.kind != .boolean and
+                                std.mem.startsWith(u8, arg[2..], flag.long) and
+                                (arg[2..].len > flag.long.len + 1) and
+                                (arg[2 + flag.long.len] == '=')) true else false;
 
                             if (equals_syntax or std.mem.eql(u8, arg[2..], flag.long)) {
                                 // Matched flag in long form "--flag" or "--flag=val" or "--flag val".
@@ -335,9 +331,14 @@ pub fn parseAlloc(
                                         continue :cmd_arg;
                                     },
                                     inline .multi_pos => {
-                                        if (arg_i == argv.len - 1 or arg_kinds[arg_i] != .pos) {
+                                        if (!equals_syntax and (arg_i == argv.len - 1 or arg_kinds[arg_i] != .pos)) {
                                             return errMsg(Error.MissingArgument, writer, argv, arg_i, null);
                                         }
+
+                                        if (equals_syntax) {
+                                            @field(@field(result, cmd.name), flag.long).appendAssumeCapacity(argv[arg_i]["--".len + flag.long.len + "=".len ..]);
+                                        }
+
                                         arg_i += 1;
                                         while (arg_i < argv.len and arg_kinds[arg_i - 1] == .pos) : (arg_i += 1) {
                                             @field(@field(result, cmd.name), flag.long).appendAssumeCapacity(argv[arg_i]);
