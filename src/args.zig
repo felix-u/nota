@@ -423,9 +423,7 @@ pub fn parseAlloc(
                 continue :cmd_arg;
             } // :cmd_arg
 
-            if ((cmd.kind == .single_pos or cmd.kind == .multi_pos) and
-                (!got_pos or argv.len == 1))
-            {
+            if (cmd.kind == .single_pos and (!got_pos or argv.len == 1)) {
                 try printHelp(writer, argv[0], p, cmd);
                 const cmd_i = if (p.cmds.len == 1) 0 else 1;
                 return errMsg(p.errMsg, Error.MissingArgument, errWriter, argv, cmd_i, null);
@@ -523,7 +521,7 @@ pub fn printHelp(
         } else {
             _ = try writer.write("\nOptions:\n");
 
-            const all_flags = cmd.?.flags ++ .{help_flag};
+            const all_flags = p.cmds[0].flags ++ .{help_flag};
             inline for (all_flags) |flag| {
                 try printFlag(writer, flag);
             }
