@@ -41,15 +41,15 @@ pub const Kind = enum(u8) {
 };
 
 pub const Token = struct {
-    token: Kind,
+    kind: Kind,
     idx: u32,
 
     pub fn lexeme(self: Token, set: *parse.Set) []const u8 {
-        if (@intFromEnum(self.token) <= @intFromEnum(Kind.characters)) {
+        if (@intFromEnum(self.kind) <= @intFromEnum(Kind.characters)) {
             return set.buf[self.idx .. self.idx + 1];
         }
         var buf_it: BufIterator = .{ .set = set, .idx = self.idx };
-        _ = if (self.token == .str) buf_it.skipString() else buf_it.skipSymbol();
+        _ = if (self.kind == .str) buf_it.skipString() else buf_it.skipSymbol();
         return set.buf[self.idx..buf_it.idx];
     }
     pub fn lastByteIdx(self: Token, set: *parse.Set) u32 {
@@ -63,7 +63,7 @@ const quote_pairs = "\"'`";
 
 pub fn parseFromBufAlloc(
     allocator: std.mem.Allocator,
-    errorWriter: std.fs.File.Writer,
+    errWriter: std.fs.File.Writer,
     set: *parse.Set,
     comptime in_node_body: bool,
 ) !void {
@@ -77,7 +77,7 @@ pub fn parseFromBufAlloc(
         if (in_node_body and it.peek() == '}') {
             try set.toks.append(allocator, .{
                 .idx = it.idx,
-                .token = .curly_right,
+                .kind = .curly_right,
             });
             break :root;
         }
@@ -97,23 +97,23 @@ pub fn parseFromBufAlloc(
         if (it.peek() != '@') continue;
         try set.toks.append(allocator, .{
             .idx = it.idx,
-            .token = .at,
+            .kind = .at,
         });
         if (!it.skip()) break :root;
         if (it.isValidSymbolChar()) {
             const name_start = it.idx;
             while (it.isValidSymbolChar() and it.skip()) {}
             try parse.ensureNotKeyword(
-                errorWriter,
+                errWriter,
                 &parse.reserved_all,
-                log.SyntaxError.NameIsKeyword,
+                log.SyntaxErr.NameIsKeyword,
                 set,
                 name_start,
                 it.idx,
             );
             try set.toks.append(allocator, .{
                 .idx = name_start,
-                .token = .node_name,
+                .kind = .node_name,
             });
         }
 
@@ -131,9 +131,9 @@ pub fn parseFromBufAlloc(
                 while (it.next()) |_| {
                     if (it.peek() == quote) break;
                     if (it.peekNext() == null) break :root;
-                    if (it.peekNext().? == '\n') return log.reportError(
-                        errorWriter,
-                        log.SyntaxError.StrNoClosingQuote,
+                    if (it.peekNext().? == '\n') return log.reportErr(
+                        errWriter,
+                        log.SyntaxErr.StrNoClosingQuote,
                         set,
                         it.idx,
                     );
@@ -141,7 +141,7 @@ pub fn parseFromBufAlloc(
 
                 try set.toks.append(allocator, .{
                     .idx = symbol_start,
-                    .token = .str,
+                    .kind = .str,
                 });
                 continue :node;
             }
@@ -152,7 +152,7 @@ pub fn parseFromBufAlloc(
                 while (it.skip() and it.isValidSymbolChar()) {}
                 try set.toks.append(allocator, .{
                     .idx = symbol_start,
-                    .token = .unresolved,
+                    .kind = .unresolved,
                 });
             }
 
@@ -167,10 +167,10 @@ pub fn parseFromBufAlloc(
                 ';', ':', '=', '(', ')', '[', ']', '{', '}', '.', '+', '-' => |byte| {
                     try set.toks.append(allocator, .{
                         .idx = it.idx,
-                        .token = @enumFromInt(byte),
+                        .kind = @enumFromInt(byte),
                     });
                     if (byte == '{') {
-                        _ = try parseFromBufAlloc(allocator, errorWriter, set, true);
+                        _ = try parseFromBufAlloc(allocator, errWriter, set, true);
                     }
                     // If '}' was detected in this branch, it has no matching left curly bracket,
                     // but as a favour to the AST we'll give it proper treatment anyway.
@@ -180,11 +180,16 @@ pub fn parseFromBufAlloc(
                 },
                 else => |byte| {
                     if (ascii.isWhitespace(byte)) continue :node;
-                    return log.reportError(errorWriter, log.SyntaxError.InvalidSyntax, set, it.idx);
+                    return log.reportErr(errWriter, log.SyntaxErr.InvalidSyntax, set, it.idx);
                 },
             } // switch(it.peek())
         } // :node
     } // :root
+
+    if (!in_node_body) try set.toks.append(allocator, .{
+        .idx = it.idx,
+        .kind = .eof,
+    });
 } // parse()
 
 pub const BufIterator = struct {

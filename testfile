@@ -1,63 +1,64 @@
-@Test field:str="somefield";
+test { field: str = "somefield" }
 
-@Section name="Name 1" time:date=2000-01-01.20:00 done=false;
+section {
+    name = "Name 1"
+    time: date = 2000-01-01 20:00
+    done = false
+}
 
-@Section name="Name 2" time:date=2020-01-01 moretext="This is the Section, with terrible whitespace." {};
+section {
+    name = "Name 2"
+    time: date = 2020-01-01
+    moretext = "this is a section"
+}
 
-@Section name="Name 3" {
-    @Subsection text="wow, a subsection!";
-    @Subsection name="A Name" time=1990-01-01.12:00 done=false meaningoflife=42
-    {
-        @Subsubsection done=true (up 1).time+25d7h {
-            A subsection of a subsection. Stunning.
-        };
-    };
-};
+section {
+    name = "Name 3"
+    subsection { text = "wow, a subsection!" }
+    subsection {
+        name = "A name"
+        time = 1990-01-01 12:00
+        done = false
+        meaning_of_life = 42
+        subsubsection {
+            done = true
+            ^.time + 25d7h
+            text = "A subsection of a subsection. Stunning."
+        }
+    }
+}
 
+week {
+    start = 2023-05-01
+    every(.day)[i] {
+        .start + (i * 1d)
+    }
+    day { name = "mon" }
+    day { name = "tue" }
+    day { name = "wed" }
+    day { name = "thu" }
+    day { name = "fri" }
+    day { name = "sat" }
+    day { name = "sun" }
+}
 
-@Week start=2023-05-01 {
-    @Day name="Mon" (up 1).start + 0d;
-    @Day name="Tue" (up 1).start + 1d;
-    @Day name="Wed" (up 1).start + 2d;
-    @Day name="Thu" (up 1).start + 3d;
-    @Day name="Fri" (up 1).start + 4d;
-    @Day name="Sat" (up 1).start + 5d;
-    @Day name="Sun" (up 1).start + 6d;
-};
+books {
+    series {
+        title = "Harry Potter"
+        author = "J. K. Rowling"
+        genres = ["fiction", "fantasy", "magic"]
 
-@Books {
-    @Series 
-        title="Harry Potter" 
-        shares( 
-            author="J. K. Rowling",
-            genres=["fiction", "fantasy", "magic"]
-        )
-    {
-        @Book title="Harry Potter and the Philosopher's Stone"
-              status="Read";  
-    };
-    @Book title="The Catcher in the Rye" 
-          author="J.D. Salinger" 
-          pages=277 
-          status="Read"
-          genres=["fiction", "coming-of-age"];
-    @Book title="To Kill a Mockingbird" 
-          author="Harper Lee" pages=324 
-          status="Read"
-          genres=["fiction", "classic", "social-issues"];
-    @Book title="Dune" 
-          author="Frank Herbert" 
-          pages=896 
-          status="Reading"
-          genres=["science-fiction", "fantasy", "adventure"];
-    @Book title="1984" 
-          author="George Orwell" 
-          pages=328 
-          status="To Read" 
-          genres=["fiction", "dystopian", "social-criticism"];
-    @Book title="Brave New World" 
-          author="Aldous Huxley" 
-          pages=268 
-          status="To Read" 
-          genres=["fiction", "dystopian", "philosophy"];
-};
+        every(.book) { .author .genres }
+        book {
+            title = "Harry Potter and the Philosopher's Stone"
+            read = true
+        }
+    }
+    book {
+        title = "The Catcher in the Rye"
+        author = "J.D. Salinger"
+        pages = 277
+        read = true
+        genres = ["fiction", "coming of age"]
+    }
+}

@@ -1,4 +1,5 @@
-@week start:date=2000-01-01 {
-    @day name="mon";
-    @day name="tue";
-};
+week {
+    start = 2000-01-01
+    day { name = "mon" }
+    day { name = "tue" }
+}

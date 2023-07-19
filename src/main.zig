@@ -81,14 +81,14 @@ pub fn main() !void {
         if (debug_view) {
             for (0..parse_set.toks.len) |i| {
                 const item = parse_set.toks.get(i);
-                var position: log.filePosition = .{ .set = &parse_set, .idx = item.idx };
+                var position: log.filePos = .{ .set = &parse_set, .idx = item.idx };
                 position.computeCoords();
                 try stdout.print("{d}:{d}\t{d}\t\"{s}\"\t{}\n", .{
                     position.line,
                     position.col,
                     i,
                     item.lexeme(&parse_set),
-                    item.token,
+                    item.kind,
                 });
             }
             try stdout.print("=== TOKENS: END ===\n", .{});
