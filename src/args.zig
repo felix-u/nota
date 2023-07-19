@@ -1,3 +1,293 @@
+// Last tested with zig 0.11.0-dev.4004+a57608217 on 2023-07-19T03:06:40Z
+//
+// args.zig - public domain command-line argument parser - felix-u
+//
+// No warranty implied; use at your own risk.
+// See end of file for licence information.
+//
+//
+// Documentation contains:
+// * Summary
+// * Usage
+// * Guarantees
+// * Notes
+// * Examples
+//
+// For a quick start, view the examples, then refer to Usage as needed.
+//
+// Throughout this documentation, `args_parsed` refers to what is returned by `args_parseAlloc(...)`.
+//
+//
+// Summary:
+//
+// args.zig parses command-line arguments, with support for conventional syntax and single-level subcommands.
+//
+// The following are equivalent uses of a hypothetical programmer-defined interface, as parsed by args.zig:
+// * `exe --verbose --feature 1 2 3`
+// * `exe -vf1 2 3`
+// * `exe --verbose -f 1 2 3`
+// * `exe -v --feature=1 --feature=2 3`
+//
+// args.zig creates `-h`/`--help` flags at the general and (if applicable) subcommand levels.
+// If `ParseParams.ver` is set, args.zig creates a `--version` flag at the general level.
+//
+//
+// Usage:
+//
+// args.parseAlloc(
+//     allocator: std.mem.Allocator
+//     writer: std.fs.File.Writer - usually stdout
+//     errWriter: std.fs.File.Writer - usually stderr
+//     argv: [][]const u8
+//     comptime p: ParseParams - see below
+// )
+//
+// struct ParseParams {
+//     desc: []const u8 - program description (can leave empty)
+//     ver: []const u8 - program version (can leave empty)
+//     usage: []const u8 - program usage (can leave empty)
+//     cmds: []const Cmd = &.{} - at least one (1) (sub)command - see below
+//     errMsg: bool - whether to use errWriter to print error messages before returning error (default: true)
+// }
+//
+// struct Cmd {
+//     kind: Kind - one of .boolean, .single_pos, .multi_pos (default: .boolean)
+//     desc: []const u8 - subcommand description (can leave empty)
+//     usage: []const u8 - subcommand usage (can leave empty)
+//     name: []const u8 - subcommand name (must set)
+//     flags: []const Flag - any number of flags (can leave empty) - see below
+// }
+//
+// struct Flag {
+//     short: u8 - flag short form, as in `-f` (can leave none)
+//     long: []const u8 - flag long form, as in `--flag` (must set)
+//     kind: Kind - one of .boolean, .single_pos, .multi_pos (default: .boolean)
+//     required: bool - whether to enforce usage of flag (default: false)
+//     desc: []const u8 - flag description (can leave empty)
+//     usage: []const u8 - flag usage (can leave empty)
+// }
+//
+// If your program has subcommands, define multiple commands. Otherwise, define one (1).
+//
+// Command results are accessed through `args_parsed.command_name`, which is nullable if the number of commands
+// provided is greater than one (1). This field has the following subfields:
+// * `.invoked: bool` - always true for single commands;
+// * `.pos` - `bool` if `cmd.kind = .boolean`, `[]const u8` if `cmd.kind = .single_pos`, and
+//   `std.Arraylist([]const u8)` if `cmd.kind = .multi_pos`;
+// * Another field for each flag - see next paragraph.
+//
+// Flag results are accessed through `args_parsed.command_name.flag_long_form`. The type of this field is:
+// * `bool` if `flag.kind = .boolean`;
+// * `[]const u8` if `flag.kind = .single_pos`, and nullable if `flag.required = false`;
+// * `std.ArrayList([]const u8)` if `flag.kind = .multi_pos`.
+// Therefore, to test for the presence of a non-required flag, either check:
+// * if its field is `true`;
+// * if its field is not null;
+// * if field.items.len > 0;
+// based on the above types.
+//
+//
+// Guarantees:
+//
+// * `args.parseAlloc()` will return an error if incorrect usage was detected, null if `--help` or `--version` were
+//   called, and a comptime-generated result type otherwise. See Examples.
+//
+// * If there are multiple subcommands, exactly one (1) in the result type will have `.invoked = true`.
+//
+// * args.parseAlloc() ensures the following:
+//     - Flags and commands with `.kind = .single_pos` have received exactly one (1) positional argument from the user.
+//     - Flags with `.required = true` have been provided by the user.
+//     - No invalid subcommands or flags have been provided by the user.
+//
+//   If any of the above conditions is not met, args.parseAlloc() will:
+//     1) print a helpful error messages, unless `ParseParams.errMsg = false`;
+//     2) return an error.
+//
+//
+// Notes:
+//
+// * Every flag MUST have a `.long` form: its results are accessed using `args_parsed.cmd_name.long_flag_form`.
+//   Its `.short` form may be left unset.
+//
+// * Flags and commands with `.kind = .multi_pos` can receive any number of positional arguments, including zero (0).
+//
+// * If there is only one (1) `args.Cmd`, it is not considered a subcommand. Leave its `.desc` and `.usage` empty and
+//   use `ParseParams.desc` and `ParseParams.usage` instead. The `.name` of a single `args.Cmd` is not used at runtime,
+//   but is used by the programmer to access the fields of the command's result type, i.e.
+//   `args_parsed.cmd_name.pos.items`. A single `args.Cmd` is guaranteed to have `.invoked = true` - this does not need
+//   to be checked.
+//
+// * The default error messages can be modified by editing the `errMsg` function.
+//
+// * If `ParseParams.ver` is not set to a non-empty string, no `--version` flag will be generated.
+//
+// * `ParseParams.usage` and `Cmd.usage` are for the help text - you can set them to whatever you like, or leave
+//   them empty. When printed, they are preceded by the binary or command names.
+//
+//
+// Example: `ls`
+// ------
+// const std = @import("std");
+// const args = @import("args.zig");
+//
+// pub fn main() !void {
+//     const allocator = ...;
+//     const stdout = std.io.getStdOut().writer();
+//     const stderr = std.io.getStdErr().writer();
+//
+//     const argv = try std.process.argsAlloc(allocator);
+//     defer std.process.argsFree(allocator, argv);
+//
+//     const args_parsed = args.parseAlloc(allocator, stdout, stderr, argv, .{
+//         .desc = "list contents of directory",
+//         .usage = "[ -lrF ] [paths]" ,
+//         .cmds = &.{args.Cmd{
+//             .name = "ls",
+//             .kind = .multi_pos,
+//             .flags = &.{
+//                 args.Flag{
+//                     .short = 'l',
+//                     .long = "long",
+//                     .desc = "List in long format",
+//                 },
+//                 args.Flag{
+//                     .short = 'r',
+//                     .long = "reverse",
+//                     .desc = "Reverse the sort order",
+//                 },
+//                 args.Flag{
+//                     .short = 'F',
+//                     .long = "format",
+//                     .desc = "Add '/' after directory names and '*' after executables",
+//                 },
+//             },
+//         }},
+//     }) catch {
+//         std.os.exit(1);
+//     } orelse return;
+//     defer allocator.destroy(args_parsed);
+//
+//     for (args_parsed.ls.pos) |path| {
+//         ...
+//     }
+// }
+// ------
+//
+// Output of `ls --help`:
+// -----
+// ls - list contents of directory
+//
+// Usage:
+//   ls [ -lrF ] [paths]
+//
+// Options:
+//   -l, --long
+//       List in long format
+//   -r, --reverse
+//       Reverse the sort order
+//   -F, --format
+//       Add '/' after directory names and '*' after executables
+//   -h, --help
+//       Print this help and exit
+//
+// -----
+//
+// Example: `git`
+// -----
+// ...
+//
+// pub fn main() !void {
+//     ...
+//
+//     const args_parsed = args.parseAlloc(allocator, stdout, stderr, argv, .{
+//         .desc = "distributed revision control system",
+//         .usage = "<command> [args]",
+//         .cmds = &.{
+//             args.Cmd{
+//                 .desc = "Clone a repository",
+//                 .usage = "[flags] <repository>",
+//                 .name = "clone",
+//                 .kind = .single_pos,
+//                 .flags = &.{
+//                     args.Flag{
+//                         .short = 'q',
+//                         .long = "quiet",
+//                         .desc = "Operate quietly",
+//                     },
+//                     args.Flag{
+//                         .long = "depth",
+//                         .kind = .single_pos,
+//                         .desc = "Create a shallow clone",
+//                         .usage = "<depth>",
+//                     },
+//                 },
+//             },
+//             args.Cmd{
+//                 .desc = "Create an empty Git repository",
+//                 .usage = "[flags] [directory]",
+//                 .name = "init",
+//                 .kind = .multi_pos,
+//                 .flags = &.{
+//                     args.Flag{
+//                         .long = "bare",
+//                         .desc = "Create a bare repository",
+//                     },
+//                     args.Flag{
+//                         .long = "separate-git-dir",
+//                         .kind = .single_pos,
+//                         .desc = "Instead of creating ./.git/, create a Git symbolic link",
+//                         .usage = "<git-dir>",
+//                     },
+//                 },
+//             },
+//         },
+//     }) catch {
+//         std.os.exit(1);
+//     } orelse return;
+//     defer allocator.destroy(args_parsed);
+//
+//     if (args_parsed.clone.invoked) {
+//         ...
+//     }
+// }
+// -----
+//
+// Output of `git --help`:
+// -----
+// git - distributed revision control system
+//
+// Usage:
+//   git <command> [args]
+//
+// Commands:
+//   clone [flags] <repository>
+//       Clone a repository
+//   init [flags] [directory]
+//       Create an empty Git repository
+//
+// General options:
+//   -h, --help
+//       Print this help and exit
+//
+// -----
+//
+// Output of `git init --help`:
+// -----
+// init - Create an empty Git repository
+//
+// Usage:
+//   git init [flags] [directory]
+//
+// Options:
+//       --bare
+//       Create a bare repository
+//       --separate-git-dir <git-dir>
+//       Instead of creating ./.git/, create a Git symbolic link
+//   -h, --help
+//       Print this help and exit
+//
+// -----
+
 const std = @import("std");
 
 pub const Error = error{
@@ -587,3 +877,39 @@ pub fn printCmd(writer: std.fs.File.Writer, comptime cmd: Cmd) !void {
 
     try writer.writeByte('\n');
 }
+
+// ------
+// This software is available under 2 licences. Choose whichever you prefer.
+// ------
+// ALTERNATIVE A - BSD-3-Clause (https://opensource.org/license/bsd-3-clause/)
+// Copyright 2023 felix-u
+// Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
+// following conditions are met:
+// 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following
+// disclaimer.
+// 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the
+// following disclaimer in the documentation and/or other materials provided with the distribution.
+// 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote
+// products derived from this software without specific prior written permission.
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS “AS IS” AND ANY EXPRESS OR IMPLIED WARRANTIES,
+// INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+// SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+// WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// ------
+// ALTERNATIVE B - Public Domain (https://unlicense.org)
+// This is free and unencumbered software released into the public domain.
+// Anyone is free to copy, modify, publish, use, compile, sell, or distribute this software, either in source code form
+// or as a compiled binary, for any purpose, commercial or non-commercial, and by any means.
+// In jurisdictions that recognize copyright laws, the author or authors of this software dedicate any and all copyright
+// interest in the software to the public domain. We make this dedication for the benefit of the public at large and to
+// the detriment of our heirs and successors. We intend this dedication to be an overt act of relinquishment in
+// perpetuity of all present and future rights to this software under copyright law.
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+// WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS BE
+// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+// For more information, please refer to <http://unlicense.org/>
+// ------
