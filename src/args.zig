@@ -1,4 +1,4 @@
-// Last tested with zig 0.11.0-dev.4004+a57608217 on 2023-07-19T03:06:40Z
+// Last tested with zig 0.11.0-dev.4004+a57608217 on 2023-07-19T03:37:54Z
 //
 // args.zig - public domain command-line argument parser - felix-u
 //
@@ -714,7 +714,7 @@ pub fn parseAlloc(
             } // :cmd_arg
 
             if (cmd.kind == .single_pos and (!got_pos or argv.len == 1)) {
-                try printHelp(writer, argv[0], p, cmd);
+                try printHelp(errWriter, argv[0], p, cmd);
                 const cmd_i = if (p.cmds.len == 1) 0 else 1;
                 return errMsg(p.errMsg, Error.MissingArgument, errWriter, argv, cmd_i, null);
             }
