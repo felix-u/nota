@@ -75,7 +75,7 @@ pub fn main() !void {
             .buf_it = (try std.unicode.Utf8View.init(filebuf)).iterator(),
         };
 
-        if (debug_view) try stdout.print("=== TOKENS: BEG ===\n", .{});
+        if (debug_view) try stdout.print("=== TOK: BEG ===\n", .{});
 
         try token.fromBufAlloc(allocator, stderr, &parse_set);
 
@@ -89,13 +89,20 @@ pub fn main() !void {
                     .{ pos.row, pos.col, i, parse_set.buf[tok.beg_i..tok.end_i], tok.kind },
                 );
             }
-            try stdout.print("=== TOKENS: END ===\n", .{});
-            try stdout.print("=== AST: BEG ===\n", .{});
+            try stdout.print("=== TOK: END ===\n", .{});
+            try stdout.print("\n=== AST: BEG ===\n", .{});
         }
 
-        ast.fromToksAlloc(allocator, stderr, &parse_set) catch std.os.exit(1);
+        try ast.fromToksAlloc(allocator, stderr, &parse_set);
 
-        if (debug_view) try stdout.print("=== AST: END ===\n", .{});
+        if (debug_view) {
+            for (0..parse_set.nodes.len) |i| {
+                const node = parse_set.nodes.get(i);
+                try stdout.print("{any}\n", .{node});
+            }
+
+            try stdout.print("=== AST: END ===\n", .{});
+        }
 
         std.os.exit(0);
     }

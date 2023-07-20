@@ -1,3 +1,4 @@
+const ast = @import("ast.zig");
 const log = @import("log.zig");
 const std = @import("std");
 const token = @import("token.zig");
@@ -45,5 +46,8 @@ pub const Set = struct {
     filepath: []const u8 = undefined,
     buf: []const u8 = undefined,
     buf_it: std.unicode.Utf8Iterator = undefined,
-    toks: token.TokenList = .{},
+    toks: std.MultiArrayList(token.Token) = .{},
+    tok_it: ast.TokenIterator = undefined,
+    nodes: std.MultiArrayList(ast.Node) = .{},
+    exprs: std.MultiArrayList(ast.Expr) = .{},
 };

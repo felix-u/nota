@@ -1,3 +1,4 @@
+const ast = @import("ast.zig");
 const parse = @import("parse.zig");
 const std = @import("std");
 const token = @import("token.zig");
@@ -49,6 +50,9 @@ pub fn reportErr(writer: std.fs.File.Writer, comptime err: anyerror, set: *parse
         },
         inline token.Err.NoClosingQuote => {
             _ = try writer.write("expected quote to close string");
+        },
+        inline ast.Err.NoNodeName => {
+            try writer.print("expected node name preceding '{c}'", .{'{'});
         },
         inline else => unreachable,
     }

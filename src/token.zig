@@ -8,6 +8,8 @@ pub const Err = error{
 };
 
 pub const Kind = enum(u8) {
+    nil = 0,
+
     curly_left = '{',
     curly_right = '}',
     colon = ':',
@@ -25,12 +27,10 @@ pub const Kind = enum(u8) {
 };
 
 pub const Token = struct {
-    kind: Kind,
-    beg_i: u32,
-    end_i: u32,
+    kind: Kind = .nil,
+    beg_i: u32 = 0,
+    end_i: u32 = 0,
 };
-
-pub const TokenList = std.MultiArrayList(Token);
 
 const quote_pairs = "\"'`";
 
