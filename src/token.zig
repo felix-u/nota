@@ -12,6 +12,8 @@ pub const Kind = enum(u8) {
     chars = 128,
 
     str,
+    num,
+    date,
     symbol,
 
     eof,
@@ -80,10 +82,14 @@ pub fn fromBufAlloc(allocator: std.mem.Allocator, errWriter: std.fs.File.Writer,
                     return log.reportErr(errWriter, log.SyntaxErr.InvalidSyntax, set, @intCast(it.i - 1));
                 }
                 const beg_i: u32 = @intCast(it.i - 1);
-                while (it.nextCodepoint()) |_| {
-                    if (!parse.isValidSymbolChar(it.peek(1)[0])) break;
+                var this_kind: Kind = if (c1 >= '0' and c1 <= '9') .num else .symbol;
+                if (parse.isValidSymbolChar(it.peek(1)[0])) {
+                    while (it.nextCodepoint()) |c2| {
+                        if (c2 == '-') this_kind = .date;
+                        if (!parse.isValidSymbolChar(it.peek(1)[0])) break;
+                    }
                 }
-                try set.toks.append(allocator, .{ .beg_i = beg_i, .end_i = @intCast(it.i), .kind = .symbol });
+                try set.toks.append(allocator, .{ .beg_i = beg_i, .end_i = @intCast(it.i), .kind = this_kind });
             },
         }
     }
