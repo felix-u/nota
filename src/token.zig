@@ -1,6 +1,11 @@
-const std = @import("std");
 const log = @import("log.zig");
 const parse = @import("parse.zig");
+const std = @import("std");
+
+pub const Err = error{
+    InvalidSyntax,
+    NoClosingQuote,
+};
 
 pub const Kind = enum(u8) {
     curly_left = '{',
@@ -40,7 +45,7 @@ pub fn fromBufAlloc(allocator: std.mem.Allocator, errWriter: std.fs.File.Writer,
                 str: while (it.nextCodepoint()) |c2| {
                     if (it.peek(1)[0] == '\n') return log.reportErr(
                         errWriter,
-                        log.SyntaxErr.NoClosingQuote,
+                        Err.NoClosingQuote,
                         set,
                         @as(u32, @intCast(it.i)) - 1,
                     );
@@ -70,7 +75,7 @@ pub fn fromBufAlloc(allocator: std.mem.Allocator, errWriter: std.fs.File.Writer,
             },
             '/' => {
                 if (it.peek(1)[0] != '/') {
-                    return log.reportErr(errWriter, log.SyntaxErr.InvalidSyntax, set, @intCast(it.i - 1));
+                    return log.reportErr(errWriter, Err.InvalidSyntax, set, @intCast(it.i - 1));
                 }
                 if (it.nextCodepoint() == null) break :chars;
                 while (it.nextCodepoint()) |c2| {
@@ -79,7 +84,7 @@ pub fn fromBufAlloc(allocator: std.mem.Allocator, errWriter: std.fs.File.Writer,
             },
             else => {
                 if (!parse.isValidSymbolChar(@intCast(c1))) {
-                    return log.reportErr(errWriter, log.SyntaxErr.InvalidSyntax, set, @intCast(it.i - 1));
+                    return log.reportErr(errWriter, Err.InvalidSyntax, set, @intCast(it.i - 1));
                 }
                 const beg_i: u32 = @intCast(it.i - 1);
                 var this_kind: Kind = if (c1 >= '0' and c1 <= '9') .num else .symbol;

@@ -80,15 +80,12 @@ pub fn main() !void {
         if (debug_view) {
             for (0..parse_set.toks.len) |i| {
                 const tok = parse_set.toks.get(i);
-                var pos: log.filePos = .{ .set = &parse_set, .idx = tok.beg_i };
+                var pos: log.filePos = .{ .set = &parse_set, .i = tok.beg_i };
                 pos.computeCoords();
-                try stdout.print("{d}:{d}\t{d}\t\"{s}\"\t{}\n", .{
-                    pos.line,
-                    pos.col,
-                    i,
-                    parse_set.buf[tok.beg_i..tok.end_i],
-                    tok.kind,
-                });
+                try stdout.print(
+                    "{d}:{d}\t{d}\t\"{s}\"\t{}\n",
+                    .{ pos.row, pos.col, i, parse_set.buf[tok.beg_i..tok.end_i], tok.kind },
+                );
             }
             try stdout.print("=== TOKENS: END ===\n", .{});
         }

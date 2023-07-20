@@ -1,6 +1,5 @@
-const std = @import("std");
-const ascii = std.ascii;
 const log = @import("log.zig");
+const std = @import("std");
 const token = @import("token.zig");
 
 pub const types = [_][]const u8{
