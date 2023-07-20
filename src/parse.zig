@@ -1,6 +1,5 @@
 const std = @import("std");
 const ascii = std.ascii;
-const ast = @import("ast.zig");
 const log = @import("log.zig");
 const token = @import("token.zig");
 
@@ -30,22 +29,26 @@ pub fn ensureNotKeyword(
     comptime reserved_list: []const []const u8,
     comptime err: log.SyntaxErr,
     set: *Set,
-    str_start: u32,
+    str_beg: u32,
     str_end: u32,
 ) !void {
     inline for (reserved_list) |keyword| {
-        if (std.mem.eql(u8, set.buf[str_start..str_end], keyword)) {
-            return log.reportErr(errWriter, err, set, str_start);
+        if (std.mem.eql(u8, set.buf[str_beg..str_end], keyword)) {
+            return log.reportErr(errWriter, err, set, str_beg);
         }
+    }
+}
+
+pub fn isValidSymbolChar(c: u8) bool {
+    switch (c) {
+        '_', '.' => return true,
+        else => return ascii.isAlphanumeric(c),
     }
 }
 
 pub const Set = struct {
     filepath: []const u8 = undefined,
     buf: []const u8 = undefined,
-    buf_it: token.BufIterator = .{},
+    buf_it: std.unicode.Utf8Iterator = undefined,
     toks: token.TokenList = .{},
-    tok_it: ast.TokenIterator = .{},
-    nodes: ast.NodeList = .{},
-    exprs: ast.ExprList = .{},
 };

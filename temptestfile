@@ -1,5 +1,7 @@
+// comment
+
 week {
-    start = 2000-01-01
-    day { name = "mon" }
-    day { name = "tue" }
+    start = 2000_01_01 
+    day { name = mon }
+    day { name: str = tue }
 }

@@ -1,5 +1,4 @@
 const args = @import("args.zig");
-const ast = @import("ast.zig");
 const log = @import("log.zig");
 const parse = @import("parse.zig");
 const std = @import("std");
@@ -54,10 +53,10 @@ pub fn main() !void {
         var parse_set = parse.Set{
             .filepath = filepath,
             .buf = filebuf,
+            .buf_it = (try std.unicode.Utf8View.init(filebuf)).iterator(),
         };
 
-        token.parseFromBufAlloc(allocator, stdout, &parse_set, false) catch std.os.exit(1);
-        ast.parseFromTokenList(allocator, stdout, &parse_set, false) catch std.os.exit(1);
+        token.fromBufAlloc(allocator, stdout, &parse_set) catch std.os.exit(1);
 
         std.os.exit(0);
     }
@@ -66,43 +65,31 @@ pub fn main() !void {
         const filepath = args_parsed.print.pos;
         const filebuf = try readFileAlloc(allocator, filepath);
         defer allocator.free(filebuf);
-
         const debug_view = args_parsed.print.debug;
 
         var parse_set = parse.Set{
             .filepath = filepath,
             .buf = filebuf,
+            .buf_it = (try std.unicode.Utf8View.init(filebuf)).iterator(),
         };
 
         if (debug_view) try stdout.print("=== TOKENS: BEGIN ===\n", .{});
 
-        try token.parseFromBufAlloc(allocator, stdout, &parse_set, false);
+        try token.fromBufAlloc(allocator, stdout, &parse_set);
 
         if (debug_view) {
             for (0..parse_set.toks.len) |i| {
                 const item = parse_set.toks.get(i);
                 var position: log.filePos = .{ .set = &parse_set, .idx = item.idx };
                 position.computeCoords();
-                try stdout.print("{d}:{d}\t{d}\t\"{s}\"\t{}\n", .{
+                try stdout.print("{d}:{d}\t{d}\t{}\n", .{
                     position.line,
                     position.col,
                     i,
-                    item.lexeme(&parse_set),
                     item.kind,
                 });
             }
             try stdout.print("=== TOKENS: END ===\n", .{});
-
-            try stdout.print("=== AST: BEGIN ===\n", .{});
-        }
-
-        try ast.parseFromTokenList(allocator, stdout, &parse_set, false);
-
-        if (debug_view) {
-            try ast.printDebugView(stdout, &parse_set, 0, 0, std.math.lossyCast(u32, parse_set.nodes.len));
-            try stdout.print("=== AST: END ===\n", .{});
-        } else {
-            try ast.printNicely(stdout, &parse_set, 0, 0, std.math.lossyCast(u32, parse_set.nodes.len));
         }
 
         std.os.exit(0);
