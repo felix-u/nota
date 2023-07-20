@@ -22,35 +22,73 @@ pub const Kind = enum(u8) {
 pub const Token = struct {
     kind: Kind,
     idx: u32,
+
+    const Self = @This();
+
+    pub fn lexeme(self: *const Self, set: *parse.Set) []const u8 {
+        return switch (self.kind) {
+            else => &.{@intFromEnum(self.kind)},
+            .str => blk: {
+                const this_quote = set.buf[self.idx - 1];
+                inline for (quote_pairs) |quote| {
+                    if (this_quote == quote) {
+                        const it = &set.buf_it;
+                        const original_i = it.i;
+                        it.i = self.idx;
+
+                        while (it.nextCodepoint()) |c| {
+                            if (c != '\\' and it.peek(1)[0] == quote) break;
+                        }
+
+                        const end_i = it.i;
+                        it.i = original_i;
+
+                        break :blk set.buf[self.idx..end_i];
+                    }
+                }
+            },
+            .symbol => blk: {
+                const it = &set.buf_it;
+                const original_i = it.i;
+                it.i = self.idx;
+
+                while (it.nextCodepoint()) |_| {
+                    if (!parse.isValidSymbolChar(it.peek(1)[0])) break;
+                }
+
+                const end_i = it.i;
+                it.i = original_i;
+
+                break :blk set.buf[self.idx..end_i];
+            },
+            .eof => &.{},
+        };
+    }
 };
 
 pub const TokenList = std.MultiArrayList(Token);
 
 const quote_pairs = "\"'`";
 
-pub fn fromBufAlloc(
-    allocator: std.mem.Allocator,
-    errWriter: std.fs.File.Writer,
-    set: *parse.Set,
-) !void {
+pub fn fromBufAlloc(allocator: std.mem.Allocator, errWriter: std.fs.File.Writer, set: *parse.Set) !void {
     const it = &set.buf_it;
 
     chars: while (it.nextCodepoint()) |c1| {
         inline for (quote_pairs) |quote| {
             if (c1 == quote) {
-                const beg_i = it.i;
+                const beg_i = it.i + 1;
 
-                if (it.nextCodepoint() == null) break :chars;
-
-                while (it.nextCodepoint()) |c2| {
-                    if (c2 == '\n') return log.reportErr(
+                str: while (it.nextCodepoint()) |c2| {
+                    if (it.peek(1)[0] == '\n') return log.reportErr(
                         errWriter,
                         log.SyntaxErr.NoClosingQuote,
                         set,
                         @as(u32, @intCast(it.i)) - 1,
                     );
 
-                    if (c2 != '\\' and it.peek(1)[0] == quote) break;
+                    if (c2 == '\\' or it.peek(1)[0] != quote) continue :str;
+                    if (it.nextCodepoint() == null) break :chars;
+                    break :str;
                 }
 
                 try set.toks.append(allocator, .{ .idx = @intCast(beg_i - 1), .kind = .str });

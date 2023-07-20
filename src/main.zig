@@ -82,10 +82,11 @@ pub fn main() !void {
                 const item = parse_set.toks.get(i);
                 var position: log.filePos = .{ .set = &parse_set, .idx = item.idx };
                 position.computeCoords();
-                try stdout.print("{d}:{d}\t{d}\t{}\n", .{
+                try stdout.print("{d}:{d}\t{d}\t\"{s}\"\t{}\n", .{
                     position.line,
                     position.col,
                     i,
+                    item.lexeme(&parse_set),
                     item.kind,
                 });
             }

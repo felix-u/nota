@@ -39,11 +39,14 @@ pub fn ensureNotKeyword(
     }
 }
 
-pub fn isValidSymbolChar(c: u8) bool {
-    switch (c) {
-        '_', '.' => return true,
-        else => return ascii.isAlphanumeric(c),
-    }
+pub fn isValidSymbolChar(c: u21) bool {
+    return switch (c) {
+        '_', '.' => true,
+        else => !(c < '0' or
+            (c > '9' and c < 'A') or
+            (c > 'Z' and c < 'a') or
+            (c > 'z' and c < 128)),
+    };
 }
 
 pub const Set = struct {

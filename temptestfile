@@ -2,6 +2,6 @@
 
 week {
     start = 2000_01_01 
-    day { name = mon }
-    day { name: str = tue }
+    day { name = "mon" }
+    day { name: str = "tue" }
 }
