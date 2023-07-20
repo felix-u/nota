@@ -1,4 +1,5 @@
 const args = @import("args.zig");
+const ast = @import("ast.zig");
 const log = @import("log.zig");
 const parse = @import("parse.zig");
 const std = @import("std");
@@ -56,7 +57,8 @@ pub fn main() !void {
             .buf_it = (try std.unicode.Utf8View.init(filebuf)).iterator(),
         };
 
-        token.fromBufAlloc(allocator, stdout, &parse_set) catch std.os.exit(1);
+        token.fromBufAlloc(allocator, stderr, &parse_set) catch std.os.exit(1);
+        ast.fromToksAlloc(allocator, stderr, &parse_set) catch std.os.exit(1);
 
         std.os.exit(0);
     }
@@ -73,9 +75,9 @@ pub fn main() !void {
             .buf_it = (try std.unicode.Utf8View.init(filebuf)).iterator(),
         };
 
-        if (debug_view) try stdout.print("=== TOKENS: BEGIN ===\n", .{});
+        if (debug_view) try stdout.print("=== TOKENS: BEG ===\n", .{});
 
-        try token.fromBufAlloc(allocator, stdout, &parse_set);
+        try token.fromBufAlloc(allocator, stderr, &parse_set);
 
         if (debug_view) {
             for (0..parse_set.toks.len) |i| {
@@ -88,7 +90,12 @@ pub fn main() !void {
                 );
             }
             try stdout.print("=== TOKENS: END ===\n", .{});
+            try stdout.print("=== AST: BEG ===\n", .{});
         }
+
+        ast.fromToksAlloc(allocator, stderr, &parse_set) catch std.os.exit(1);
+
+        if (debug_view) try stdout.print("=== AST: END ===\n", .{});
 
         std.os.exit(0);
     }

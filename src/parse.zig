@@ -9,19 +9,12 @@ pub const types = [_][]const u8{
     "str",
 };
 
-pub const values = [_][]const u8{
+pub const bool_values = [_][]const u8{
     "true",
     "false",
 };
 
-pub const matches = [_][]const u8{
-    "up",
-    "down",
-    "to",
-    "through",
-};
-
-pub const reserved_all = types ++ values ++ matches;
+pub const reserved_all = types ++ bool_values;
 
 pub fn ensureNotKeyword(
     errWriter: std.fs.File.Writer,
