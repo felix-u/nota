@@ -35,22 +35,22 @@ pub fn fromBufAlloc(
 ) !void {
     const it = &set.buf_it;
 
-    chars: while (it.nextCodepoint()) |*c| {
+    chars: while (it.nextCodepoint()) |c1| {
         inline for (quote_pairs) |quote| {
-            if (c == quote) {
+            if (c1 == quote) {
                 const beg_i = it.i;
 
-                c = it.nextCodepoint() orelse break :chars;
+                if (it.nextCodepoint() == null) break :chars;
 
-                while (it.nextCodepoint() != null) : (c = set.buf[it.i]) {
-                    if (c == '\n') return log.reportErr(
+                while (it.nextCodepoint()) |c2| {
+                    if (c2 == '\n') return log.reportErr(
                         errWriter,
                         log.SyntaxErr.NoClosingQuote,
                         set,
-                        @as(u32, @intCast(it.i)) - 2,
+                        @as(u32, @intCast(it.i)) - 1,
                     );
 
-                    if (c != '\\' and it.peek(1)[0] == quote) break;
+                    if (c2 != '\\' and it.peek(1)[0] == quote) break;
                 }
 
                 try set.toks.append(allocator, .{ .idx = @intCast(beg_i - 1), .kind = .str });
@@ -58,7 +58,7 @@ pub fn fromBufAlloc(
             }
         }
 
-        switch (c) {
+        switch (c1) {
             '\n', '\t', ' ' => {},
             '{', '}', ':', '=', '.' => {
                 try set.toks.append(allocator, .{ .idx = @intCast(it.i - 1), .kind = @enumFromInt(set.buf[it.i - 1]) });
@@ -67,43 +67,22 @@ pub fn fromBufAlloc(
                 if (it.peek(1)[0] != '/') {
                     return log.reportErr(errWriter, log.SyntaxErr.InvalidSyntax, set, @intCast(it.i - 1));
                 }
-                c = it.nextCodepoint() orelse break :chars;
-                while (it.nextCodepoint() != null and set.buf[it.i - 1] != '\n') {}
+                if (it.nextCodepoint() == null) break :chars;
+                while (it.nextCodepoint()) |c2| {
+                    if (c2 == '\n') break;
+                }
             },
             else => {
-                if (!parse.isValidSymbolChar(it.peek(1)[0])) {
+                if (!parse.isValidSymbolChar(@intCast(c1))) {
                     return log.reportErr(errWriter, log.SyntaxErr.InvalidSyntax, set, @intCast(it.i - 1));
                 }
                 try set.toks.append(allocator, .{ .idx = @intCast(it.i - 1), .kind = .symbol });
-                c = it.nextCodepoint() orelse break :chars;
-                while (it.nextCodepoint() != null and parse.isValidSymbolChar(it.peek(1)[0])) {}
+                while (it.nextCodepoint()) |_| {
+                    if (!parse.isValidSymbolChar(it.peek(1)[0])) break;
+                }
             },
         }
     }
 
     try set.toks.append(allocator, .{ .idx = @intCast(it.i - 1), .kind = .eof });
 }
-
-pub const BufIterator = struct {
-    set: *parse.Set = undefined,
-    idx: u32 = 0,
-    const Self = @This();
-
-    pub fn peek(self: *Self) u8 {
-        return self.set.buf[self.idx];
-    }
-
-    pub fn peekNext(self: *Self) u8 {
-        return if (self.idx + 1 < self.set.buf.len) self.set.buf[self.idx + 1] else 0;
-    }
-
-    pub fn peekLast(self: *Self) u8 {
-        return if (self.idx > 0) self.set.buf[self.idx - 1] else 0;
-    }
-
-    pub fn skip(self: *Self) bool {
-        if (self.idx + 1 == self.set.buf.len) return false;
-        self.idx += 1;
-        return true;
-    }
-};
