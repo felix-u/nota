@@ -31,26 +31,20 @@ pub fn fromToksAlloc(allocator: std.mem.Allocator, errWriter: std.fs.File.Writer
             .curly_left => {
                 if (it.peekLast().kind != .symbol) return log.reportErr(errWriter, Err.NoNodeName, set, t.beg_i);
 
-                const tok_name_i = it.i - 1;
-                const expr_beg_i: u32 = @intCast(set.exprs.len);
-                const childs_beg_i: u32 = @intCast(set.nodes.len);
+                const node_to_fix_i = set.nodes.len;
+                try set.nodes.append(allocator, .{
+                    .tok_name_i = it.i - 1,
+                    .expr_beg_i = @intCast(set.exprs.len),
+                    .childs_beg_i = @intCast(set.nodes.len + 1),
+                });
 
                 // TODO: Recurse properly.
+
                 tok = it.inc();
-                if (tok == null) break :toks;
                 try fromToksAlloc(allocator, errWriter, set);
-                if (tok == null) break :toks;
 
-                const expr_end_i: u32 = @intCast(set.exprs.len);
-                const childs_end_i: u32 = @intCast(set.nodes.len);
-
-                try set.nodes.append(allocator, .{
-                    .tok_name_i = tok_name_i,
-                    .expr_beg_i = expr_beg_i,
-                    .expr_end_i = expr_end_i,
-                    .childs_beg_i = childs_beg_i,
-                    .childs_end_i = childs_end_i,
-                });
+                set.nodes.items(.expr_end_i)[node_to_fix_i] = @intCast(set.exprs.len);
+                set.nodes.items(.childs_end_i)[node_to_fix_i] = @intCast(set.nodes.len);
             },
             .curly_right => return,
             else => {},
@@ -83,3 +77,24 @@ pub const TokenIterator = struct {
         return if (self.i + 1 == self.toks.len) .{} else self.toks.get(self.i + 1);
     }
 };
+
+pub fn printDebug(writer: std.fs.File.Writer, set: *parse.Set, indent: u32, node_i: *u32) !void {
+    const childs_end_i = set.nodes.items(.childs_end_i)[node_i.*];
+    node_i.* += 1;
+
+    while (node_i.* < childs_end_i) : (node_i.* += 1) {
+        const node = set.nodes.get(node_i.*);
+        const name_tok = set.toks.get(node.tok_name_i);
+        const name = set.buf[name_tok.beg_i..name_tok.end_i];
+
+        _ = try writer.writeByteNTimes('\t', indent);
+        try writer.print("{d} {s}\n", .{ node_i.*, name });
+
+        _ = try writer.writeByteNTimes('\t', indent);
+        try writer.print("{}\n", .{node});
+
+        try printDebug(writer, set, indent + 1, node_i);
+    }
+
+    node_i.* -= 1;
+}

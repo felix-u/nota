@@ -93,13 +93,17 @@ pub fn main() !void {
             try stdout.print("\n=== AST: BEG ===\n", .{});
         }
 
+        try parse_set.nodes.append(allocator, .{ .childs_beg_i = 0 });
         try ast.fromToksAlloc(allocator, stderr, &parse_set);
+        parse_set.nodes.items(.childs_end_i)[0] = @intCast(parse_set.nodes.len);
 
         if (debug_view) {
-            for (0..parse_set.nodes.len) |i| {
-                const node = parse_set.nodes.get(i);
-                try stdout.print("{any}\n", .{node});
-            }
+            // for (0..parse_set.nodes.len) |i| {
+            //     const node = parse_set.nodes.get(i);
+            //     try stdout.print("{any}\n", .{node});
+            // }
+            var node_i: u32 = 0;
+            try ast.printDebug(stdout, &parse_set, 0, &node_i);
 
             try stdout.print("=== AST: END ===\n", .{});
         }
