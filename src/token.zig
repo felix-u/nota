@@ -2,8 +2,6 @@ const std = @import("std");
 const log = @import("log.zig");
 const parse = @import("parse.zig");
 
-const ascii = std.ascii;
-
 pub const Kind = enum(u8) {
     curly_left = '{',
     curly_right = '}',
@@ -21,49 +19,8 @@ pub const Kind = enum(u8) {
 
 pub const Token = struct {
     kind: Kind,
-    idx: u32,
-
-    const Self = @This();
-
-    pub fn lexeme(self: *const Self, set: *parse.Set) []const u8 {
-        return switch (self.kind) {
-            else => &.{@intFromEnum(self.kind)},
-            .str => blk: {
-                const this_quote = set.buf[self.idx - 1];
-                inline for (quote_pairs) |quote| {
-                    if (this_quote == quote) {
-                        const it = &set.buf_it;
-                        const original_i = it.i;
-                        it.i = self.idx;
-
-                        while (it.nextCodepoint()) |c| {
-                            if (c != '\\' and it.peek(1)[0] == quote) break;
-                        }
-
-                        const end_i = it.i;
-                        it.i = original_i;
-
-                        break :blk set.buf[self.idx..end_i];
-                    }
-                }
-            },
-            .symbol => blk: {
-                const it = &set.buf_it;
-                const original_i = it.i;
-                it.i = self.idx;
-
-                while (it.nextCodepoint()) |_| {
-                    if (!parse.isValidSymbolChar(it.peek(1)[0])) break;
-                }
-
-                const end_i = it.i;
-                it.i = original_i;
-
-                break :blk set.buf[self.idx..end_i];
-            },
-            .eof => &.{},
-        };
-    }
+    beg_i: u32,
+    end_i: u32,
 };
 
 pub const TokenList = std.MultiArrayList(Token);
@@ -91,7 +48,11 @@ pub fn fromBufAlloc(allocator: std.mem.Allocator, errWriter: std.fs.File.Writer,
                     break :str;
                 }
 
-                try set.toks.append(allocator, .{ .idx = @intCast(beg_i - 1), .kind = .str });
+                try set.toks.append(allocator, .{
+                    .beg_i = @intCast(beg_i - 1),
+                    .end_i = @intCast(it.i - 1),
+                    .kind = .str,
+                });
                 continue :chars;
             }
         }
@@ -99,7 +60,11 @@ pub fn fromBufAlloc(allocator: std.mem.Allocator, errWriter: std.fs.File.Writer,
         switch (c1) {
             '\n', '\t', ' ' => {},
             '{', '}', ':', '=', '.' => {
-                try set.toks.append(allocator, .{ .idx = @intCast(it.i - 1), .kind = @enumFromInt(set.buf[it.i - 1]) });
+                try set.toks.append(allocator, .{
+                    .beg_i = @intCast(it.i - 1),
+                    .end_i = @intCast(it.i),
+                    .kind = @enumFromInt(set.buf[it.i - 1]),
+                });
             },
             '/' => {
                 if (it.peek(1)[0] != '/') {
@@ -114,13 +79,14 @@ pub fn fromBufAlloc(allocator: std.mem.Allocator, errWriter: std.fs.File.Writer,
                 if (!parse.isValidSymbolChar(@intCast(c1))) {
                     return log.reportErr(errWriter, log.SyntaxErr.InvalidSyntax, set, @intCast(it.i - 1));
                 }
-                try set.toks.append(allocator, .{ .idx = @intCast(it.i - 1), .kind = .symbol });
+                const beg_i: u32 = @intCast(it.i - 1);
                 while (it.nextCodepoint()) |_| {
                     if (!parse.isValidSymbolChar(it.peek(1)[0])) break;
                 }
+                try set.toks.append(allocator, .{ .beg_i = beg_i, .end_i = @intCast(it.i), .kind = .symbol });
             },
         }
     }
 
-    try set.toks.append(allocator, .{ .idx = @intCast(it.i - 1), .kind = .eof });
+    try set.toks.append(allocator, .{ .beg_i = @intCast(it.i - 1), .end_i = @intCast(it.i - 1), .kind = .eof });
 }
