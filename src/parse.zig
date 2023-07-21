@@ -43,11 +43,12 @@ pub fn isValidSymbolChar(c: u21) bool {
 }
 
 pub const Set = struct {
-    filepath: []const u8 = undefined,
-    buf: []const u8 = undefined,
-    buf_it: std.unicode.Utf8Iterator = undefined,
+    filepath: []const u8,
+    buf: []const u8,
+    buf_it: std.unicode.Utf8Iterator,
     toks: std.MultiArrayList(token.Token) = .{},
-    tok_it: ast.TokenIterator = undefined,
+    tok_it: ast.TokenIterator = .{},
     nodes: std.MultiArrayList(ast.Node) = .{},
+    decls: std.MultiArrayList(ast.Decl) = .{},
     exprs: std.MultiArrayList(ast.Expr) = .{},
 };

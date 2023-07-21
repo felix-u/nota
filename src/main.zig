@@ -58,7 +58,7 @@ pub fn main() !void {
         };
 
         token.fromBufAlloc(allocator, stderr, &parse_set) catch std.os.exit(1);
-        ast.fromToksAlloc(allocator, stderr, &parse_set) catch std.os.exit(1);
+        ast.fromToksAlloc(allocator, stderr, &parse_set, false) catch std.os.exit(1);
 
         std.os.exit(0);
     }
@@ -93,17 +93,15 @@ pub fn main() !void {
             try stdout.print("\n=== AST: BEG ===\n", .{});
         }
 
-        try parse_set.nodes.append(allocator, .{ .childs_beg_i = 0 });
-        try ast.fromToksAlloc(allocator, stderr, &parse_set);
+        try parse_set.nodes.append(allocator, .{ .decl_beg_i = 0, .childs_beg_i = 0 });
+        try ast.fromToksAlloc(allocator, stderr, &parse_set, false);
         parse_set.nodes.items(.childs_end_i)[0] = @intCast(parse_set.nodes.len);
+        parse_set.nodes.items(.decl_end_i)[0] = parse_set.nodes.items(.decl_beg_i)[1];
 
         if (debug_view) {
-            // for (0..parse_set.nodes.len) |i| {
-            //     const node = parse_set.nodes.get(i);
-            //     try stdout.print("{any}\n", .{node});
-            // }
             var node_i: u32 = 0;
-            try ast.printDebug(stdout, &parse_set, 0, &node_i);
+            var decl_i: u32 = 0;
+            try ast.printDebug(stdout, &parse_set, 0, &node_i, &decl_i);
 
             try stdout.print("=== AST: END ===\n", .{});
         }

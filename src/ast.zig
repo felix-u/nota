@@ -4,23 +4,35 @@ const std = @import("std");
 const token = @import("token.zig");
 
 pub const Err = error{
+    NoClosingCurly,
     NoNodeName,
+    UnmatchedCurlyRight,
 };
 
 pub const Node = struct {
     tok_name_i: u32 = undefined,
-    expr_beg_i: u32 = undefined,
-    expr_end_i: u32 = undefined,
+    decl_beg_i: u32 = undefined,
+    decl_end_i: u32 = undefined,
     childs_beg_i: u32 = undefined,
     childs_end_i: u32 = undefined,
 };
 
-pub const Expr = struct {
-    beg_i: u32 = undefined,
-    end_i: u32 = undefined,
+pub const Decl = struct {
+    tok_name_i: u32 = undefined,
+    expr_i: u32 = undefined,
 };
 
-pub fn fromToksAlloc(allocator: std.mem.Allocator, errWriter: std.fs.File.Writer, set: *parse.Set) !void {
+pub const Expr = struct {
+    tok_beg_i: u32 = undefined,
+    tok_end_i: u32 = undefined,
+};
+
+pub fn fromToksAlloc(
+    allocator: std.mem.Allocator,
+    err_writer: std.fs.File.Writer,
+    set: *parse.Set,
+    comptime in_body: bool,
+) !void {
     const it = &set.tok_it;
     it.toks = &set.toks;
 
@@ -28,29 +40,43 @@ pub fn fromToksAlloc(allocator: std.mem.Allocator, errWriter: std.fs.File.Writer
 
     toks: while (tok) |t| : (tok = it.inc()) {
         switch (t.kind) {
-            .curly_left => {
-                if (it.peekLast().kind != .symbol) return log.reportErr(errWriter, Err.NoNodeName, set, t.beg_i);
-
-                const node_to_fix_i = set.nodes.len;
-                try set.nodes.append(allocator, .{
-                    .tok_name_i = it.i - 1,
-                    .expr_beg_i = @intCast(set.exprs.len),
-                    .childs_beg_i = @intCast(set.nodes.len + 1),
-                });
-
-                // TODO: Recurse properly.
-
-                tok = it.inc();
-                try fromToksAlloc(allocator, errWriter, set);
-
-                set.nodes.items(.expr_end_i)[node_to_fix_i] = @intCast(set.exprs.len);
-                set.nodes.items(.childs_end_i)[node_to_fix_i] = @intCast(set.nodes.len);
+            .symbol => if (it.inc()) |t2| switch (t2.kind) {
+                .curly_left => {
+                    tok = it.inc();
+                    try recurseInBody(allocator, err_writer, set);
+                },
+                .equals => {
+                    var decl = Decl{ .tok_name_i = it.i - 1, .expr_i = @intCast(set.exprs.len) };
+                    // TODO: Parse expression.
+                    tok = it.inc();
+                    try set.decls.append(allocator, decl);
+                },
+                else => {},
             },
-            .curly_right => return,
+            .curly_left => return log.reportErr(err_writer, Err.NoNodeName, set, t.beg_i),
+            .curly_right => {
+                if (in_body) return;
+                return log.reportErr(err_writer, Err.UnmatchedCurlyRight, set, t.beg_i);
+            },
+            .eof => if (in_body) return log.reportErr(err_writer, Err.NoClosingCurly, set, t.beg_i),
             else => {},
         }
         continue :toks;
     }
+}
+
+fn recurseInBody(allocator: std.mem.Allocator, err_writer: std.fs.File.Writer, set: *parse.Set) anyerror!void {
+    const node_to_fix_i = set.nodes.len;
+    try set.nodes.append(allocator, .{
+        .tok_name_i = set.tok_it.i - 2,
+        .decl_beg_i = @intCast(set.decls.len),
+        .childs_beg_i = @intCast(set.nodes.len + 1),
+    });
+
+    try fromToksAlloc(allocator, err_writer, set, true);
+
+    set.nodes.items(.decl_end_i)[node_to_fix_i] = @intCast(set.decls.len);
+    set.nodes.items(.childs_end_i)[node_to_fix_i] = @intCast(set.nodes.len);
 }
 
 pub const TokenIterator = struct {
@@ -78,9 +104,22 @@ pub const TokenIterator = struct {
     }
 };
 
-pub fn printDebug(writer: std.fs.File.Writer, set: *parse.Set, indent: u32, node_i: *u32) !void {
+pub fn printDebug(writer: std.fs.File.Writer, set: *parse.Set, indent: u32, node_i: *u32, decl_i: *u32) !void {
     const childs_end_i = set.nodes.items(.childs_end_i)[node_i.*];
+    const decl_end_i = set.nodes.items(.decl_end_i)[node_i.*];
     node_i.* += 1;
+
+    while (decl_i.* < decl_end_i) : (decl_i.* += 1) {
+        const decl = set.decls.get(decl_i.*);
+        const name_tok = set.toks.get(decl.tok_name_i);
+        const name = set.buf[name_tok.beg_i..name_tok.end_i];
+
+        _ = try writer.writeByteNTimes('\t', indent + 1);
+        try writer.print("decl {d}: {s}\n", .{ decl_i.*, name });
+
+        _ = try writer.writeByteNTimes('\t', indent + 1);
+        try writer.print("{}\n", .{decl});
+    }
 
     while (node_i.* < childs_end_i) : (node_i.* += 1) {
         const node = set.nodes.get(node_i.*);
@@ -88,12 +127,12 @@ pub fn printDebug(writer: std.fs.File.Writer, set: *parse.Set, indent: u32, node
         const name = set.buf[name_tok.beg_i..name_tok.end_i];
 
         _ = try writer.writeByteNTimes('\t', indent);
-        try writer.print("{d} {s}\n", .{ node_i.*, name });
+        try writer.print("node {d}: {s}\n", .{ node_i.*, name });
 
         _ = try writer.writeByteNTimes('\t', indent);
         try writer.print("{}\n", .{node});
 
-        try printDebug(writer, set, indent + 1, node_i);
+        try printDebug(writer, set, indent + 1, node_i, decl_i);
     }
 
     node_i.* -= 1;

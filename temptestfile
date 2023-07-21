@@ -1,6 +1,8 @@
 // comment
 
+year = 2000
+
 week {
     day { name = "mon" }
-    day { name: str = "tue" }
+    day { name = "tue" }
 }

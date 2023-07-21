@@ -4,7 +4,7 @@ const std = @import("std");
 const token = @import("token.zig");
 
 pub const filePos = struct {
-    set: *parse.Set = undefined,
+    set: *parse.Set,
     i: u32 = 0,
     row: u32 = 1,
     col: u32 = 1,
@@ -51,8 +51,14 @@ pub fn reportErr(writer: std.fs.File.Writer, comptime err: anyerror, set: *parse
         inline token.Err.NoClosingQuote => {
             _ = try writer.write("expected quote to close string");
         },
+        inline ast.Err.NoClosingCurly => {
+            try writer.print("expected '{c}' to terminate node body", .{'}'});
+        },
         inline ast.Err.NoNodeName => {
             try writer.print("expected node name preceding '{c}'", .{'{'});
+        },
+        inline ast.Err.UnmatchedCurlyRight => {
+            try writer.print("'{c}' is unmatched", .{'}'});
         },
         inline else => unreachable,
     }
