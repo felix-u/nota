@@ -38,11 +38,19 @@ pub const filePos = struct {
     }
 };
 
-pub fn reportErr(writer: std.fs.File.Writer, comptime err: anyerror, set: *parse.Set, i: u32) anyerror {
+pub fn reportErr(
+    writer: std.fs.File.Writer,
+    comptime err: anyerror,
+    set: *parse.Set,
+    i: u32,
+) anyerror {
     var pos = filePos{ .set = set, .i = i };
     pos.computeCoords();
 
-    try writer.print("{s}:{d}:{d}: error: ", .{ pos.set.filepath, pos.row, pos.col });
+    try writer.print(
+        "{s}:{d}:{d}: error: ",
+        .{ pos.set.filepath, pos.row, pos.col },
+    );
 
     switch (err) {
         inline token.Err.InvalidSyntax => {

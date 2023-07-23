@@ -46,26 +46,45 @@ pub fn fromToksAlloc(
                     try recurseInBody(allocator, err_writer, set);
                 },
                 .equals => {
-                    var decl = Decl{ .tok_name_i = it.i - 1, .expr_i = @intCast(set.exprs.len) };
+                    var decl = Decl{
+                        .tok_name_i = it.i - 1,
+                        .expr_i = @intCast(set.exprs.len),
+                    };
                     // TODO: Parse expression.
                     tok = it.inc();
                     try set.decls.append(allocator, decl);
                 },
                 else => {},
             },
-            .curly_left => return log.reportErr(err_writer, Err.NoNodeName, set, t.beg_i),
+            .curly_left => {
+                return log.reportErr(err_writer, Err.NoNodeName, set, t.beg_i);
+            },
             .curly_right => {
                 if (in_body) return;
-                return log.reportErr(err_writer, Err.UnmatchedCurlyRight, set, t.beg_i);
+                return log.reportErr(
+                    err_writer,
+                    Err.UnmatchedCurlyRight,
+                    set,
+                    t.beg_i,
+                );
             },
-            .eof => if (in_body) return log.reportErr(err_writer, Err.NoClosingCurly, set, t.beg_i),
+            .eof => if (in_body) return log.reportErr(
+                err_writer,
+                Err.NoClosingCurly,
+                set,
+                t.beg_i,
+            ),
             else => {},
         }
         continue :toks;
     }
 }
 
-fn recurseInBody(allocator: std.mem.Allocator, err_writer: std.fs.File.Writer, set: *parse.Set) anyerror!void {
+fn recurseInBody(
+    allocator: std.mem.Allocator,
+    err_writer: std.fs.File.Writer,
+    set: *parse.Set,
+) anyerror!void {
     const node_to_fix_i = set.nodes.len;
     try set.nodes.append(allocator, .{
         .tok_name_i = set.tok_it.i - 2,
@@ -100,11 +119,18 @@ pub const TokenIterator = struct {
     }
 
     pub fn peekNext(self: *Self) token.Token {
-        return if (self.i + 1 == self.toks.len) .{} else self.toks.get(self.i + 1);
+        if (self.i + 1 == self.toks.len) return .{};
+        return self.toks.get(self.i + 1);
     }
 };
 
-pub fn printDebug(writer: std.fs.File.Writer, set: *parse.Set, indent: u32, node_i: *u32, decl_i: *u32) !void {
+pub fn printDebug(
+    writer: std.fs.File.Writer,
+    set: *parse.Set,
+    indent: u32,
+    node_i: *u32,
+    decl_i: *u32,
+) !void {
     const childs_end_i = set.nodes.items(.childs_end_i)[node_i.*];
     const decl_end_i = set.nodes.items(.decl_end_i)[node_i.*];
     node_i.* += 1;

@@ -58,7 +58,9 @@ pub fn main() !void {
         };
 
         token.fromBufAlloc(allocator, stderr, &parse_set) catch std.os.exit(1);
-        ast.fromToksAlloc(allocator, stderr, &parse_set, false) catch std.os.exit(1);
+        ast.fromToksAlloc(allocator, stderr, &parse_set, false) catch {
+            std.os.exit(1);
+        };
 
         std.os.exit(0);
     }
@@ -84,19 +86,27 @@ pub fn main() !void {
                 const tok = parse_set.toks.get(i);
                 var pos: log.filePos = .{ .set = &parse_set, .i = tok.beg_i };
                 pos.computeCoords();
-                try stdout.print(
-                    "{d}:{d}\t{d}\t\"{s}\"\t{}\n",
-                    .{ pos.row, pos.col, i, parse_set.buf[tok.beg_i..tok.end_i], tok.kind },
-                );
+                try stdout.print("{d}:{d}\t{d}\t\"{s}\"\t{}\n", .{
+                    pos.row,
+                    pos.col,
+                    i,
+                    parse_set.buf[tok.beg_i..tok.end_i],
+                    tok.kind,
+                });
             }
             try stdout.print("=== TOK: END ===\n", .{});
             try stdout.print("\n=== AST: BEG ===\n", .{});
         }
 
-        try parse_set.nodes.append(allocator, .{ .decl_beg_i = 0, .childs_beg_i = 0 });
+        try parse_set.nodes.append(allocator, .{
+            .decl_beg_i = 0,
+            .childs_beg_i = 0,
+        });
         try ast.fromToksAlloc(allocator, stderr, &parse_set, false);
-        parse_set.nodes.items(.childs_end_i)[0] = @intCast(parse_set.nodes.len);
-        parse_set.nodes.items(.decl_end_i)[0] = parse_set.nodes.items(.decl_beg_i)[1];
+        parse_set.nodes.items(.childs_end_i)[0] =
+            @intCast(parse_set.nodes.len);
+        parse_set.nodes.items(.decl_end_i)[0] =
+            parse_set.nodes.items(.decl_beg_i)[1];
 
         if (debug_view) {
             var node_i: u32 = 0;
@@ -110,7 +120,10 @@ pub fn main() !void {
     }
 }
 
-fn readFileAlloc(allocator: std.mem.Allocator, filepath: []const u8) ![]const u8 {
+fn readFileAlloc(
+    allocator: std.mem.Allocator,
+    filepath: []const u8,
+) ![]const u8 {
     const cwd = std.fs.cwd();
 
     const infile = try cwd.openFile(filepath, .{ .mode = .read_only });
