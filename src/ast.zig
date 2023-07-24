@@ -14,13 +14,13 @@ pub const Err = error{
 pub const NodeMap = std.StringHashMap(std.ArrayList(u32));
 
 pub const Node = struct {
-    decls: std.ArrayList(u32) = undefined,
-    childs: std.ArrayList(u32) = undefined,
+    decls: std.ArrayList(u32),
+    childs: std.ArrayList(u32),
 };
 
 pub const Decl = struct {
-    tok_name_i: u32 = undefined,
-    expr_i: u32 = undefined,
+    tok_name_i: u32,
+    expr_i: u32,
 };
 
 pub const Expr = struct {
@@ -33,7 +33,7 @@ pub fn parseToks(
     set: *parse.Set,
     comptime in_body: bool,
 ) !void {
-    var it = set.tok_it;
+    const it = &set.tok_it;
 
     var tok: ?token.Token = it.peek();
 
@@ -69,21 +69,30 @@ pub fn parseToks(
 }
 
 fn recurseInBody(err_writer: Writer, set: *parse.Set) anyerror!void {
+    const allocator = set.allocator;
+
     const name_tok = set.toks.get(set.tok_it.i - 2);
     const name = name_tok.lexeme(set);
 
     const node_i: u32 = @intCast(set.nodes.len);
-    try set.nodes.append(set.allocator, .{});
+    try set.nodes.append(allocator, .{
+        .decls = undefined,
+        .childs = undefined,
+    });
 
-    const name_nodes = (try set.node_map.getOrPut(name)).value_ptr;
+    const name_nodes = (try set.node_map.getOrPutValue(
+        name,
+        std.ArrayList(u32).init(allocator),
+    )).value_ptr;
+
     try name_nodes.append(node_i);
 
     try parseToks(err_writer, set, true);
 }
 
 pub const TokenIterator = struct {
-    toks: *const std.MultiArrayList(token.Token) = undefined,
-    i: u32 = 0,
+    toks: *std.MultiArrayList(token.Token),
+    i: u32,
 
     const Self = @This();
 
@@ -113,6 +122,11 @@ pub fn printDebug(
     node_i: *u32,
 ) !void {
     node_i.* += 1;
+
+    var it = set.node_map.keyIterator();
+    while (it.next()) |i| {
+        std.debug.print("{s}\n", .{i.*});
+    }
 
     while (node_i.* < set.nodes.len) : (node_i.* += 1) {
         try writer.print("{any}\n", .{set.nodes.get(node_i.*)});

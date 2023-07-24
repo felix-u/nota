@@ -61,21 +61,21 @@ pub const Set = struct {
         filepath: []const u8,
         buf: []const u8,
     ) !*Self {
-        var toks: std.MultiArrayList(token.Token) = .{};
+        const self = try allocator.create(Self);
 
-        var self = Self{
+        self.* = .{
             .allocator = allocator,
             .filepath = filepath,
             .buf = buf,
             .buf_it = (try std.unicode.Utf8View.init(buf)).iterator(),
-            .toks = toks,
-            .tok_it = .{ .toks = &toks },
+            .toks = .{},
+            .tok_it = .{ .toks = &self.toks, .i = 0 },
             .node_map = ast.NodeMap.init(allocator),
             .nodes = .{},
             .decls = .{},
             .exprs = .{},
         };
 
-        return &self;
+        return self;
     }
 };
