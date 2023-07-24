@@ -30,13 +30,16 @@ pub const Token = struct {
     kind: Kind = .nil,
     beg_i: u32 = 0,
     end_i: u32 = 0,
+
+    const Self = @This();
+
+    pub fn lexeme(self: *const Self, set: *parse.Set) []const u8 {
+        return set.buf[self.beg_i..self.end_i];
+    }
 };
 
-pub fn fromBufAlloc(
-    allocator: std.mem.Allocator,
-    errWriter: std.fs.File.Writer,
-    set: *parse.Set,
-) !void {
+pub fn parseBuf(err_writer: std.fs.File.Writer, set: *parse.Set) !void {
+    const allocator = set.allocator;
     const it = &set.buf_it;
 
     chars: while (it.nextCodepoint()) |c1| switch (c1) {
@@ -50,7 +53,7 @@ pub fn fromBufAlloc(
         },
         '/' => {
             if (it.peek(1)[0] != '/') return log.reportErr(
-                errWriter,
+                err_writer,
                 Err.InvalidSyntax,
                 set,
                 @intCast(it.i - 1),
@@ -63,7 +66,7 @@ pub fn fromBufAlloc(
             const beg_i = it.i + 1;
             while (it.nextCodepoint()) |c2| {
                 if (it.peek(1)[0] == '\n') return log.reportErr(
-                    errWriter,
+                    err_writer,
                     Err.NoClosingQuote,
                     set,
                     @as(u32, @intCast(it.i)) - 1,
@@ -82,7 +85,7 @@ pub fn fromBufAlloc(
         },
         else => {
             if (!parse.isValidSymbolChar(@intCast(c1))) return log.reportErr(
-                errWriter,
+                err_writer,
                 Err.InvalidSyntax,
                 set,
                 @intCast(it.i - 1),

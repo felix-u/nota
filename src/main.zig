@@ -51,16 +51,10 @@ pub fn main() !void {
         const filebuf = try readFileAlloc(allocator, filepath);
         defer allocator.free(filebuf);
 
-        var parse_set = parse.Set{
-            .filepath = filepath,
-            .buf = filebuf,
-            .buf_it = (try std.unicode.Utf8View.init(filebuf)).iterator(),
-        };
+        const set = try parse.Set.init(allocator, filepath, filebuf);
 
-        token.fromBufAlloc(allocator, stderr, &parse_set) catch std.os.exit(1);
-        ast.fromToksAlloc(allocator, stderr, &parse_set, false) catch {
-            std.os.exit(1);
-        };
+        token.parseBuf(stderr, set) catch std.os.exit(1);
+        ast.parseToks(stderr, set, false) catch std.os.exit(1);
 
         std.os.exit(0);
     }
@@ -71,47 +65,32 @@ pub fn main() !void {
         defer allocator.free(filebuf);
         const debug_view = args_parsed.print.debug;
 
-        var parse_set = parse.Set{
-            .filepath = filepath,
-            .buf = filebuf,
-            .buf_it = (try std.unicode.Utf8View.init(filebuf)).iterator(),
-        };
+        const set = try parse.Set.init(allocator, filepath, filebuf);
 
         if (debug_view) try stdout.print("=== TOK: BEG ===\n", .{});
 
-        try token.fromBufAlloc(allocator, stderr, &parse_set);
+        try token.parseBuf(stderr, set);
 
         if (debug_view) {
-            for (0..parse_set.toks.len) |i| {
-                const tok = parse_set.toks.get(i);
-                var pos: log.filePos = .{ .set = &parse_set, .i = tok.beg_i };
+            for (0..set.toks.len) |i| {
+                const tok = set.toks.get(i);
+                var pos: log.filePos = .{ .set = set, .i = tok.beg_i };
                 pos.computeCoords();
-                try stdout.print("{d}:{d}\t{d}\t\"{s}\"\t{}\n", .{
-                    pos.row,
-                    pos.col,
-                    i,
-                    parse_set.buf[tok.beg_i..tok.end_i],
-                    tok.kind,
-                });
+                try stdout.print(
+                    "{d}:{d}\t{d}\t\"{s}\"\t{}\n",
+                    .{ pos.row, pos.col, i, tok.lexeme(set), tok.kind },
+                );
             }
             try stdout.print("=== TOK: END ===\n", .{});
             try stdout.print("\n=== AST: BEG ===\n", .{});
         }
 
-        try parse_set.nodes.append(allocator, .{
-            .decl_beg_i = 0,
-            .childs_beg_i = 0,
-        });
-        try ast.fromToksAlloc(allocator, stderr, &parse_set, false);
-        parse_set.nodes.items(.childs_end_i)[0] =
-            @intCast(parse_set.nodes.len);
-        parse_set.nodes.items(.decl_end_i)[0] =
-            parse_set.nodes.items(.decl_beg_i)[1];
+        try set.nodes.append(allocator, .{});
+        try ast.parseToks(stderr, set, false);
 
         if (debug_view) {
             var node_i: u32 = 0;
-            var decl_i: u32 = 0;
-            try ast.printDebug(stdout, &parse_set, 0, &node_i, &decl_i);
+            try ast.printDebug(stdout, set, &node_i);
 
             try stdout.print("=== AST: END ===\n", .{});
         }
