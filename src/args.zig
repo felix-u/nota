@@ -1,4 +1,4 @@
-// Last tested with zig 0.11.0-dev.4056+996eb0174 on 2023-07-23T20:47:50Z
+// Last tested with zig 0.11.0-dev.4191+1bf16b172 on 2023-07-24T04:01:48Z
 //
 // args.zig - public domain command-line argument parser - felix-u
 //
@@ -113,7 +113,7 @@
 //
 //   If any of the above conditions is not met, args.parseAlloc() will:
 //     1) print a helpful error messages, unless `ParseParams.err_msg = false`;
-//     2) return an Err.
+//     2) return an error.
 //
 //
 // Notes:
