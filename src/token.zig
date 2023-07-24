@@ -69,7 +69,7 @@ pub fn fromBufAlloc(
                     @as(u32, @intCast(it.i)) - 1,
                 );
 
-                if (c2 == '\\' or it.peek(1)[0] != '"') continue;
+                if (it.peek(1)[0] != '"' or c2 == '\\') continue;
                 if (it.nextCodepoint() == null) break :chars;
                 break;
             }
