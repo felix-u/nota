@@ -523,7 +523,7 @@ pub fn parseAlloc(
                     (flag.short != 0 and flag_cmp.short != 0) and
                     (flag.short == flag_cmp.short);
 
-                if (duplicate_flag) @compileError(std.fmt.comptimePrint(
+                if (!duplicate_flag) @compileError(std.fmt.comptimePrint(
                     "flags '{s}' and '{s}' belong to the same command " ++
                         "and cannot share their short form '{c}'",
                     .{ flag.long, flag_cmp.long, flag.short },
@@ -551,14 +551,18 @@ pub fn parseAlloc(
             break;
         }
     } else {
-        if (std.mem.eql(u8, argv[1], "--" ++ help_flag.long) or
-            std.mem.eql(u8, argv[1], "-" ++ .{help_flag.short}))
-        {
+        const requested_help =
+            std.mem.eql(u8, argv[1], "--" ++ help_flag.long) or
+            std.mem.eql(u8, argv[1], "-" ++ .{help_flag.short});
+
+        if (requested_help) {
             try printHelp(writer, argv[0], p, null);
             return null;
         }
 
-        if (std.mem.eql(u8, argv[1], "--" ++ ver_flag.long)) {
+        const requested_ver = std.mem.eql(u8, argv[1], "--" ++ ver_flag.long);
+
+        if (requested_ver) {
             try printVer(writer, argv[0], p);
             return null;
         }
@@ -586,7 +590,9 @@ fn procCmd(
     kinds: []ArgKind,
     result: *Cmd.listResultType(p.cmds),
 ) !?void {
-    @field(result, cmd.name).invoked = true;
+    var cmd_res = &@field(result, cmd.name);
+
+    cmd_res.invoked = true;
 
     var got_pos = false;
     var got_cmd = if (p.cmds.len == 1) true else false;
@@ -616,12 +622,10 @@ fn procCmd(
                         argv[i],
                     );
 
-                    @field(result, cmd.name).pos = arg;
+                    cmd_res.pos = arg;
                     got_pos = true;
                 },
-                inline .multi_pos => {
-                    @field(result, cmd.name).pos.appendAssumeCapacity(arg);
-                },
+                inline .multi_pos => cmd_res.pos.appendAssumeCapacity(arg),
             },
             .pos_marker => {},
             .short => for (arg[1..], 1..) |short, short_i| {
@@ -638,77 +642,62 @@ fn procCmd(
                 );
 
                 match: inline for (cmd.flags) |flag| {
-                    // Matched flag in short form.
-                    if (flag.short != 0 and flag.short == short) {
-                        switch (flag.kind) {
-                            inline .boolean => {
-                                @field(
-                                    @field(result, cmd.name),
-                                    flag.long,
-                                ) = true;
-                            },
-                            inline .single_pos => {
-                                if (short_i == arg.len - 1 and
-                                    (i == argv.len - 1 or kinds[i] != .pos))
-                                {
-                                    return errMsg(
-                                        p.err_msg,
-                                        Err.MissingArg,
-                                        err_writer,
-                                        .{argv[i][short_i]},
-                                    );
-                                }
+                    var flag_res = &@field(cmd_res, flag.long);
+                    const matched = flag.short != 0 and flag.short == short;
 
-                                // Format: -fval
+                    if (matched) switch (flag.kind) {
+                        inline .boolean => flag_res.* = true,
+                        inline .single_pos => {
+                            const no_pos = (short_i == arg.len - 1) and
+                                (i == argv.len - 1 or kinds[i] != .pos);
 
-                                if (short_i < arg.len - 1) {
-                                    @field(
-                                        @field(result, cmd.name),
-                                        flag.long,
-                                    ) = argv[i][short_i + 1 ..];
-                                    i += 1;
-                                    continue :cmd_arg;
-                                }
+                            if (no_pos) return errMsg(
+                                p.err_msg,
+                                Err.MissingArg,
+                                err_writer,
+                                .{argv[i][short_i]},
+                            );
 
-                                // Format: -f val
+                            // Format: -fval
 
-                                i += 1;
-                                @field(@field(result, cmd.name), flag.long) =
-                                    argv[i + 1];
+                            if (short_i < arg.len - 1) {
+                                flag_res = argv[i][short_i + 1 ..];
                                 i += 1;
                                 continue :cmd_arg;
-                            },
-                            inline .multi_pos => {
-                                if (short_i == arg.len - 1 and
-                                    (i == argv.len - 1 or kinds[i] != .pos))
-                                {
-                                    return errMsg(
-                                        p.err_msg,
-                                        Err.MissingArg,
-                                        err_writer,
-                                        .{argv[i][short_i]},
-                                    );
-                                }
+                            }
 
-                                if (short_i < arg.len - 1) @field(
-                                    @field(result, cmd.name),
-                                    flag.long,
-                                ).appendAssumeCapacity(
+                            // Format: -f val
+
+                            i += 1;
+                            flag_res = argv[i];
+                            i += 1;
+                            continue :cmd_arg;
+                        },
+                        inline .multi_pos => {
+                            const no_pos = (short_i == arg.len - 1) and
+                                (i == argv.len - 1 or kinds[i] != .pos);
+
+                            if (no_pos) return errMsg(
+                                p.err_msg,
+                                Err.MissingArg,
+                                err_writer,
+                                .{argv[i][short_i]},
+                            );
+
+                            if (short_i < arg.len - 1) {
+                                flag_res.appendAssumeCapacity(
                                     argv[i][short_i + 1 ..],
                                 );
+                            }
 
+                            i += 1;
+                            while (i < argv.len and kinds[i - 1] == .pos) {
+                                flag_res.appendAssumeCapacity(argv[i]);
                                 i += 1;
-                                while (i < argv.len and kinds[i - 1] == .pos) {
-                                    @field(
-                                        @field(result, cmd.name),
-                                        flag.long,
-                                    ).appendAssumeCapacity(argv[i]);
-                                    i += 1;
-                                } else continue :cmd_arg;
-                            },
-                        }
-                        break :match;
-                    }
+                            } else continue :cmd_arg;
+                        },
+                    };
+                    if (matched) break :match;
                 } else return errMsg(
                     p.err_msg,
                     Err.InvalidFlag,
@@ -717,7 +706,10 @@ fn procCmd(
                 );
             },
             .long => {
-                if (std.mem.eql(u8, arg[2..], help_flag.long)) {
+                const requested_help =
+                    std.mem.eql(u8, arg[2..], help_flag.long);
+
+                if (requested_help) {
                     try printHelp(writer, argv[0], p, cmd);
                     return null;
                 }
@@ -730,89 +722,76 @@ fn procCmd(
                 );
 
                 match: inline for (cmd.flags) |flag| {
-                    const equals_syntax = if (flag.kind != .boolean and
+                    var flag_res = &@field(cmd_res, flag.long);
+
+                    const equals_syntax =
+                        (flag.kind != .boolean and
                         std.mem.startsWith(u8, arg[2..], flag.long) and
                         (arg[2..].len > flag.long.len + 1) and
-                        (arg[2 + flag.long.len] == '='))
-                    {
-                        true;
-                    } else false;
+                        (arg[2 + flag.long.len] == '='));
 
-                    if (equals_syntax or
-                        std.mem.eql(u8, arg[2..], flag.long))
-                    {
-                        // Matched flag in long form.
+                    const matched_long = std.mem.eql(u8, arg[2..], flag.long);
+                    const matched = equals_syntax or matched_long;
 
-                        switch (flag.kind) {
-                            inline .boolean => {
-                                @field(
-                                    @field(result, cmd.name),
-                                    flag.long,
-                                ) = true;
-                                i += 1;
-                                continue :cmd_arg;
-                            },
-                            inline .single_pos => {
-                                if (!equals_syntax and
-                                    (i == argv.len - 1 or kinds[i] != .pos))
-                                {
-                                    return errMsg(
-                                        p.err_msg,
-                                        Err.MissingArg,
-                                        err_writer,
-                                        argv[i],
-                                    );
-                                }
+                    if (matched) switch (flag.kind) {
+                        inline .boolean => {
+                            flag_res.* = true;
+                            i += 1;
+                            continue :cmd_arg;
+                        },
+                        inline .single_pos => {
+                            const no_pos_after_arg =
+                                (i == argv.len - 1 or kinds[i] != .pos);
 
-                                if (equals_syntax) {
-                                    @field(
-                                        @field(result, cmd.name),
-                                        flag.long,
-                                    ) = argv[i]["--".len +
-                                        flag.long.len + "=".len ..];
-                                } else {
-                                    i += 1;
-                                    @field(
-                                        @field(result, cmd.name),
-                                        flag.long,
-                                    ) = argv[i];
-                                }
-
-                                i += 1;
-                                continue :cmd_arg;
-                            },
-                            inline .multi_pos => {
-                                if (!equals_syntax and
-                                    (i == argv.len - 1 or kinds[i] != .pos))
-                                {
-                                    return errMsg(
-                                        p.err_msg,
-                                        Err.MissingArg,
-                                        err_writer,
-                                        argv[i],
-                                    );
-                                }
-
-                                if (equals_syntax) @field(
-                                    @field(result, cmd.name),
-                                    flag.long,
-                                ).appendAssumeCapacity(
-                                    argv[i]["--".len +
-                                        flag.long.len + "=".len ..],
+                            if (!equals_syntax and no_pos_after_arg) {
+                                return errMsg(
+                                    p.err_msg,
+                                    Err.MissingArg,
+                                    err_writer,
+                                    argv[i],
                                 );
+                            }
 
+                            if (equals_syntax) {
+                                const start_offset =
+                                    "--=".len + flag.long.len + "=".len;
+                                flag_res = argv[i][start_offset..];
+                            } else {
                                 i += 1;
-                                while (i < argv.len and kinds[i - 1] == .pos) {
-                                    @field(
-                                        @field(result, cmd.name),
-                                        flag.long,
-                                    ).appendAssumeCapacity(argv[i]);
-                                    i += 1;
-                                } else continue :cmd_arg;
-                            },
-                        }
-                        break :match;
-                    }
+                                flag_res = argv[i];
+                            }
+
+                            i += 1;
+                            continue :cmd_arg;
+                        },
+                        inline .multi_pos => {
+                            const no_pos_after_arg =
+                                (i == argv.len - 1 or kinds[i] != .pos);
+
+                            if (!equals_syntax and no_pos_after_arg) {
+                                return errMsg(
+                                    p.err_msg,
+                                    Err.MissingArg,
+                                    err_writer,
+                                    argv[i],
+                                );
+                            }
+
+                            if (equals_syntax) {
+                                const start_offset =
+                                    "--=".len + flag.long.len + "=".len;
+                                const pos = argv[i][start_offset..];
+                                flag_res.appendAssumeCapacity(pos);
+                            }
+
+                            i += 1;
+                            while (i < argv.len and kinds[i - 1] == .pos) {
+                                flag_res.appendAssumeCapacity(argv[i]);
+                                i += 1;
+                            } else continue :cmd_arg;
+                        },
+                    };
+                    if (matched) break :match;
                 } else return errMsg(
                     p.err_msg,
                     Err.InvalidFlag,
@@ -827,42 +806,25 @@ fn procCmd(
         continue :cmd_arg;
     } // :cmd_arg
 
-    if (cmd.kind == .single_pos and (!got_pos or argv.len == 1)) {
+    const no_pos = (cmd.kind == .single_pos) and (!got_pos or argv.len == 1);
+
+    if (no_pos) {
         try printHelp(err_writer, argv[0], p, cmd);
         const cmd_i = if (p.cmds.len == 1) 0 else 1;
         return errMsg(p.err_msg, Err.MissingArg, err_writer, argv[cmd_i]);
     }
 
     inline for (cmd.flags) |flag| {
+        var flag_res = &@field(cmd_res, flag.long);
+
         if (flag.required) switch (flag.kind) {
-            inline .boolean => {
-                if (@field(@field(result, cmd.name), flag.long) ==
-                    false)
-                {
-                    return errMsg(
-                        p.err_msg,
-                        Err.MissingFlag,
-                        err_writer,
-                        argv[0],
-                    );
-                }
+            inline .boolean => if (flag_res == false) {
+                return errMsg(p.err_msg, Err.MissingFlag, err_writer, argv[0]);
             },
-            inline .single_pos => {
-                if (@field(@field(result, cmd.name), flag.long).pos ==
-                    null)
-                {
-                    return errMsg(
-                        p.err_msg,
-                        Err.MissingFlag,
-                        err_writer,
-                        argv[0],
-                    );
-                }
+            inline .single_pos => if (flag_res.pos == null) {
+                return errMsg(p.err_msg, Err.MissingFlag, err_writer, argv[0]);
             },
-            inline .multi_pos => if (@field(
-                @field(result, cmd.name),
-                flag.long,
-            ).items.len == 0) {
+            inline .multi_pos => if (flag_res.items.len == 0) {
                 return errMsg(p.err_msg, Err.MissingFlag, err_writer, argv[0]);
             },
         };
