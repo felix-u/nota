@@ -109,8 +109,8 @@ pub fn parseBuf(err_writer: std.fs.File.Writer, set: *parse.Set) !void {
     };
 
     try set.toks.append(allocator, .{
-        .beg_i = @intCast(it.i - 1),
-        .end_i = @intCast(it.i - 1),
+        .beg_i = if (it.i > 0) @intCast(it.i - 1) else 0,
+        .end_i = if (it.i > 0) @intCast(it.i - 1) else 0,
         .kind = .eof,
     });
 }
