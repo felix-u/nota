@@ -1,15 +1,13 @@
 const std = @import("std");
 
 pub fn build(b: *std.Build) !void {
-
     const exe_name = "nota";
     const exe_version = "0.3";
 
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-
-    const cc_shared_flags = [_][]const u8 {
+    const cc_shared_flags = [_][]const u8{
         "-std=c99",
         "-Wall",
         "-Wextra",
@@ -32,7 +30,6 @@ pub fn build(b: *std.Build) !void {
         "-march=native",
     };
 
-
     const exe = b.addExecutable(.{
         .name = exe_name,
         .target = target,
@@ -40,8 +37,7 @@ pub fn build(b: *std.Build) !void {
     });
     exe.addCSourceFile("src/main.c", &cc_shared_flags);
     exe.linkLibC();
-    exe.install();
-
+    b.installArtifact(exe);
 
     const debug_step = b.step("debug", "build debug exe");
     const debug_exe = b.addExecutable(.{
@@ -53,14 +49,13 @@ pub fn build(b: *std.Build) !void {
     debug_exe.linkLibC();
     debug_step.dependOn(&b.addInstallArtifact(debug_exe).step);
 
-    const run_cmd = debug_exe.run();
+    const run_cmd = b.addRunArtifact(debug_exe);
     run_cmd.step.dependOn(debug_step);
     if (b.args) |args| {
         run_cmd.addArgs(args);
     }
     const run_step = b.step("run", "run the debug build");
     run_step.dependOn(&run_cmd.step);
-
 
     const release_step = b.step("release", "build release exe");
     const release_exe = b.addExecutable(.{
@@ -74,12 +69,11 @@ pub fn build(b: *std.Build) !void {
     release_exe.strip = true;
     release_step.dependOn(&b.addInstallArtifact(release_exe).step);
 
-
     const cross_step = b.step("cross", "cross-compile for all targets");
-    const target_architectures = [_][]const u8 {
+    const target_architectures = [_][]const u8{
         "x86_64", "aarch64",
     };
-    const target_OSes = [_][]const u8 {
+    const target_OSes = [_][]const u8{
         "linux", "macos", "windows",
     };
     inline for (target_architectures) |target_arch| {
@@ -87,16 +81,15 @@ pub fn build(b: *std.Build) !void {
             const triple = target_arch ++ "-" ++ target_OS;
             const cross_target = std.zig.CrossTarget.parse(.{ .arch_os_abi = triple }) catch unreachable;
             const cross_exe = b.addExecutable(.{
-                .name = b.fmt("{s}-v{s}-{s}", .{exe_name, exe_version, triple}),
+                .name = b.fmt("{s}-v{s}-{s}", .{ exe_name, exe_version, triple }),
                 .target = cross_target,
                 .optimize = .ReleaseSafe,
             });
-            cross_exe.addCSourceFile("src/main.c", &(cc_shared_flags ++ .{ "-static" }));
+            cross_exe.addCSourceFile("src/main.c", &(cc_shared_flags ++ .{"-static"}));
             cross_exe.disable_sanitize_c = true;
             cross_exe.strip = true;
             cross_exe.linkLibC();
             cross_step.dependOn(&b.addInstallArtifact(cross_exe).step);
         }
     }
-
 }
