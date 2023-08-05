@@ -125,22 +125,12 @@ pub fn printDebug(
 
     var it = set.node_map.keyIterator();
     while (it.next()) |i| {
-        std.debug.print("{s}\n", .{i.*});
+        const name_num = set.node_map.get(i.*).?.items.len;
+        std.debug.print("{d} of {s}\n", .{ name_num, i.* });
     }
 
     while (node_i.* < set.nodes.len) : (node_i.* += 1) {
         try writer.print("{any}\n", .{set.nodes.get(node_i.*)});
-        // const node = set.nodes.get(node_i.*);
-        // const name_tok = set.toks.get(node.tok_name_i);
-        // const name = set.buf[name_tok.beg_i..name_tok.end_i];
-
-        // _ = try writer.writeByteNTimes('\t', indent);
-        // try writer.print("node {d}: {s}\n", .{ node_i.*, name });
-
-        // _ = try writer.writeByteNTimes('\t', indent);
-        // try writer.print("{}\n", .{node});
-
-        // try printDebug(writer, set, indent + 1, node_i);
     }
 
     node_i.* -= 1;

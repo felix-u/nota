@@ -74,5 +74,5 @@ fn makeStep(
         .linkage = options.linkage,
     });
     exe.strip = if (mode == .Debug) false else true;
-    step.dependOn(&b.addInstallArtifact(exe).step);
+    step.dependOn(&b.addInstallArtifact(exe, .{}).step);
 }
