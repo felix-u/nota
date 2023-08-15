@@ -76,10 +76,16 @@ pub fn main() !void {
                 const tok = set.toks.get(i);
                 var pos: log.filePos = .{ .set = set, .i = tok.beg_i };
                 pos.computeCoords();
-                try stdout.print(
-                    "{d}:{d}\t{d}\t\"{s}\"\t{}\n",
+                if (tok.kind < 128) try stdout.print(
+                    "{d}:{d}\t{d}\t{s}\t{c}\n",
                     .{ pos.row, pos.col, i, tok.lexeme(set), tok.kind },
-                );
+                ) else {
+                    const tok_kind: token.Kind = @enumFromInt(tok.kind);
+                    try stdout.print(
+                        "{d}:{d}\t{d}\t{s}\t{}\n",
+                        .{ pos.row, pos.col, i, tok.lexeme(set), tok_kind },
+                    );
+                }
             }
             try stdout.print("=== TOK: END ===\n", .{});
             try stdout.print("\n=== AST: BEG ===\n", .{});

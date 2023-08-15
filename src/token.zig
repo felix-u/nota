@@ -8,15 +8,11 @@ pub const Err = error{
 };
 
 pub const Kind = enum(u8) {
-    nil = 0,
-
-    curly_left = '{',
-    curly_right = '}',
-    colon = ':',
-    equals = '=',
-    dot = '.',
-
     chars = 128,
+
+    // In order not to pollute this type with all the ASCII syntax characters,
+    // they're not included here. Token.kind: u8 is either a syntax character
+    // or an enum value below this comment.
 
     str,
     num,
@@ -27,7 +23,7 @@ pub const Kind = enum(u8) {
 };
 
 pub const Token = struct {
-    kind: Kind = .nil,
+    kind: u8 = 0,
     beg_i: u32 = 0,
     end_i: u32 = 0,
 
@@ -43,12 +39,12 @@ pub fn parseBuf(err_writer: std.fs.File.Writer, set: *parse.Set) !void {
     const it = &set.buf_it;
 
     chars: while (it.nextCodepoint()) |c1| switch (c1) {
-        '\n', '\t', ' ' => {},
+        '\r', '\n', '\t', ' ' => {},
         '{', '}', ':', '=', '.' => {
             try set.toks.append(allocator, .{
                 .beg_i = @intCast(it.i - 1),
                 .end_i = @intCast(it.i),
-                .kind = @enumFromInt(set.buf[it.i - 1]),
+                .kind = set.buf[it.i - 1],
             });
         },
         '/' => {
@@ -80,7 +76,7 @@ pub fn parseBuf(err_writer: std.fs.File.Writer, set: *parse.Set) !void {
             try set.toks.append(allocator, .{
                 .beg_i = @intCast(beg_i - 1),
                 .end_i = @intCast(it.i - 1),
-                .kind = .str,
+                .kind = @intFromEnum(Kind.str),
             });
         },
         else => {
@@ -103,7 +99,7 @@ pub fn parseBuf(err_writer: std.fs.File.Writer, set: *parse.Set) !void {
             try set.toks.append(allocator, .{
                 .beg_i = beg_i,
                 .end_i = @intCast(it.i),
-                .kind = this_kind,
+                .kind = @intFromEnum(this_kind),
             });
         },
     };
@@ -111,6 +107,6 @@ pub fn parseBuf(err_writer: std.fs.File.Writer, set: *parse.Set) !void {
     try set.toks.append(allocator, .{
         .beg_i = if (it.i > 0) @intCast(it.i - 1) else 0,
         .end_i = if (it.i > 0) @intCast(it.i - 1) else 0,
-        .kind = .eof,
+        .kind = @intFromEnum(Kind.eof),
     });
 }

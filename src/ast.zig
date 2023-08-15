@@ -1,3 +1,29 @@
+// Note: should look at Zig data-oriented AST example.
+//
+// const Node = struct {
+//     tag: Tag,
+//     main_token: u32,
+//     data: Data,
+//
+//     const Data = struct {
+//         lhs: u32,
+//         rhs: u32,
+//     };
+//
+//     const Tag = enum {
+//         var_decl_simple,
+//         var_decl_typed,
+//         var_decl_aligned,
+//         if_simple,
+//         if_full,
+//         while_simple,
+//         while_full,
+//         ...
+//     };
+// };
+//
+// const NodeList = std.MultiArrayList(Node);
+
 const log = @import("log.zig");
 const parse = @import("parse.zig");
 const std = @import("std");
@@ -38,21 +64,23 @@ pub fn parseToks(
     var tok: ?token.Token = it.peek();
 
     while (tok) |t| : (tok = it.inc()) switch (t.kind) {
-        .symbol => if (it.inc()) |t2| switch (t2.kind) {
-            .curly_left => {
-                tok = it.inc();
-                try recurseInBody(err_writer, set);
-            },
-            .equals => {
-                // TODO: Parse decl and expression.
-                tok = it.inc();
-            },
-            else => {},
+        @intFromEnum(token.Kind.symbol) => {
+            if (it.inc()) |t2| switch (t2.kind) {
+                '{' => {
+                    tok = it.inc();
+                    try recurseInBody(err_writer, set);
+                },
+                '=' => {
+                    // TODO: Parse decl and expression.
+                    tok = it.inc();
+                },
+                else => {},
+            };
         },
-        .curly_left => {
+        '{' => {
             return log.reportErr(err_writer, Err.NoNodeName, set, t.beg_i);
         },
-        .curly_right => {
+        '}' => {
             if (in_body) return;
             return log.reportErr(
                 err_writer,
@@ -61,7 +89,7 @@ pub fn parseToks(
                 t.beg_i,
             );
         },
-        .eof => if (in_body) {
+        @intFromEnum(token.Kind.eof) => if (in_body) {
             return log.reportErr(err_writer, Err.NoClosingCurly, set, t.beg_i);
         },
         else => {},
