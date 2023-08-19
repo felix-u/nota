@@ -1,29 +1,3 @@
-// Note: should look at Zig data-oriented AST example.
-//
-// const Node = struct {
-//     tag: Tag,
-//     main_token: u32,
-//     data: Data,
-//
-//     const Data = struct {
-//         lhs: u32,
-//         rhs: u32,
-//     };
-//
-//     const Tag = enum {
-//         var_decl_simple,
-//         var_decl_typed,
-//         var_decl_aligned,
-//         if_simple,
-//         if_full,
-//         while_simple,
-//         while_full,
-//         ...
-//     };
-// };
-//
-// const NodeList = std.MultiArrayList(Node);
-
 const log = @import("log.zig");
 const parse = @import("parse.zig");
 const std = @import("std");
@@ -37,21 +11,19 @@ pub const Err = error{
     UnmatchedCurlyRight,
 };
 
-pub const NodeMap = std.StringHashMap(std.ArrayList(u32));
-
 pub const Node = struct {
-    decls: std.ArrayList(u32),
-    childs: std.ArrayList(u32),
-};
+    tag: Tag,
+    data: Data,
 
-pub const Decl = struct {
-    tok_name_i: u32,
-    expr_i: u32,
-};
+    const Data = struct {
+        lhs: u32,
+        rhs: u32,
+    };
 
-pub const Expr = struct {
-    tok_beg_i: u32 = undefined,
-    tok_end_i: u32 = undefined,
+    const Tag = enum(u8) {
+        var_decl,
+        node_decl,
+    };
 };
 
 pub fn parseToks(

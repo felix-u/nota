@@ -49,10 +49,7 @@ pub const Set = struct {
     buf_it: std.unicode.Utf8Iterator,
     toks: std.MultiArrayList(token.Token),
     tok_it: ast.TokenIterator,
-    node_map: ast.NodeMap,
     nodes: std.MultiArrayList(ast.Node),
-    decls: std.MultiArrayList(ast.Decl),
-    exprs: std.MultiArrayList(ast.Expr),
 
     const Self = @This();
 
@@ -70,10 +67,7 @@ pub const Set = struct {
             .buf_it = (try std.unicode.Utf8View.init(buf)).iterator(),
             .toks = .{},
             .tok_it = .{ .toks = &self.toks, .i = 0 },
-            .node_map = ast.NodeMap.init(allocator),
             .nodes = .{},
-            .decls = .{},
-            .exprs = .{},
         };
 
         return self;
