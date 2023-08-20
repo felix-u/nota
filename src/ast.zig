@@ -1,29 +1,3 @@
-// Note: should look at Zig data-oriented AST example.
-//
-// const Node = struct {
-//     tag: Tag,
-//     main_token: u32,
-//     data: Data,
-//
-//     const Data = struct {
-//         lhs: u32,
-//         rhs: u32,
-//     };
-//
-//     const Tag = enum {
-//         var_decl_simple,
-//         var_decl_typed,
-//         var_decl_aligned,
-//         if_simple,
-//         if_full,
-//         while_simple,
-//         while_full,
-//         ...
-//     };
-// };
-//
-// const NodeList = std.MultiArrayList(Node);
-
 const log = @import("log.zig");
 const parse = @import("parse.zig");
 const std = @import("std");
@@ -37,22 +11,26 @@ pub const Err = error{
     UnmatchedCurlyRight,
 };
 
-pub const NodeMap = std.StringHashMap(std.ArrayList(u32));
-
 pub const Node = struct {
-    decls: std.ArrayList(u32),
-    childs: std.ArrayList(u32),
+    tag: Tag = .root_node,
+    data: Data = .{},
+
+    const Data = struct {
+        lhs: u32 = 0,
+        rhs: u32 = 0,
+    };
+
+    const Tag = enum(u8) {
+        // ignore lhs and rhs
+        root_node,
+        // lhs is name
+        var_decl,
+        // lhs is name
+        node_decl,
+    };
 };
 
-pub const Decl = struct {
-    tok_name_i: u32,
-    expr_i: u32,
-};
-
-pub const Expr = struct {
-    tok_beg_i: u32 = undefined,
-    tok_end_i: u32 = undefined,
-};
+pub const NodeList = std.MultiArrayList(Node);
 
 pub fn parseToks(
     err_writer: Writer,
@@ -98,22 +76,16 @@ pub fn parseToks(
 
 fn recurseInBody(err_writer: Writer, set: *parse.Set) anyerror!void {
     const allocator = set.allocator;
+    const it = &set.tok_it;
 
-    const name_tok = set.toks.get(set.tok_it.i - 2);
-    const name = name_tok.lexeme(set);
+    const node_name_i = it.i - 2;
 
-    const node_i: u32 = @intCast(set.nodes.len);
     try set.nodes.append(allocator, .{
-        .decls = undefined,
-        .childs = undefined,
+        .tag = .node_decl,
+        .data = .{
+            .lhs = node_name_i,
+        },
     });
-
-    const name_nodes = (try set.node_map.getOrPutValue(
-        name,
-        std.ArrayList(u32).init(allocator),
-    )).value_ptr;
-
-    try name_nodes.append(node_i);
 
     try parseToks(err_writer, set, true);
 }
@@ -150,12 +122,6 @@ pub fn printDebug(
     node_i: *u32,
 ) !void {
     node_i.* += 1;
-
-    var it = set.node_map.keyIterator();
-    while (it.next()) |i| {
-        const name_num = set.node_map.get(i.*).?.items.len;
-        std.debug.print("{d} of {s}\n", .{ name_num, i.* });
-    }
 
     while (node_i.* < set.nodes.len) : (node_i.* += 1) {
         try writer.print("{any}\n", .{set.nodes.get(node_i.*)});

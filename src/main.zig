@@ -91,10 +91,7 @@ pub fn main() !void {
             try stdout.print("\n=== AST: BEG ===\n", .{});
         }
 
-        try set.nodes.append(allocator, .{
-            .decls = undefined,
-            .childs = undefined,
-        });
+        try set.nodes.append(allocator, .{});
         try ast.parseToks(stderr, set, false);
 
         if (debug_view) {
