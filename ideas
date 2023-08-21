@@ -1,0 +1,19 @@
+Week -> {
+    for i: 0..7 { day {
+        name = switch i {
+            0: "Monday"
+            1: "Tuesday"
+            2: "Wednesday"
+            3: "Thursday"
+            4: "Friday"
+            5: "Saturday"
+            6: "Sunday"
+        }
+        date = ^.date + 1d * i
+        for _: ^.day.* | ! date { _ }
+    }}
+}
+
+week: Week {
+    date = 2000-01-01
+}

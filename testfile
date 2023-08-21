@@ -1,64 +1,31 @@
-test { field: str = "somefield" }
+// comment
 
-section {
-    name = "Name 1"
-    time: date = 2000-01-01 20:00
-    done = false
-}
+// 0
 
-section {
-    name = "Name 2"
-    time: date = 2020-01-01
-    moretext = "this is a section"
-}
-
-section {
-    name = "Name 3"
-    subsection { text = "wow, a subsection!" }
-    subsection {
-        name = "A name"
-        time = 1990-01-01 12:00
-        done = false
-        meaning_of_life = 42
-        subsubsection {
-            done = true
-            ^.time + 25d7h
-            text = "A subsection of a subsection. Stunning."
-        }
-    }
-}
+year = 2000
 
 week {
-    start = 2023-05-01
-    every(.day)[i] {
-        .start + (i * 1d)
-    }
-    day { name = "mon" }
-    day { name = "tue" }
-    day { name = "wed" }
-    day { name = "thu" }
-    day { name = "fri" }
-    day { name = "sat" }
-    day { name = "sun" }
-}
+    // 1
 
-books {
-    series {
-        title = "Harry Potter"
-        author = "J. K. Rowling"
-        genres = ["fiction", "fantasy", "magic"]
+    day { 
+        // 2
+        name = "mon" 
+        test1 {
+            // 3
+        } 
+    }
+    // 1
 
-        every(.book) { .author .genres }
-        book {
-            title = "Harry Potter and the Philosopher's Stone"
-            read = true
-        }
+    day { 
+        // 4
+        name = "tue" 
+        test2 {
+            // 5
+        } 
+        // 4
     }
-    book {
-        title = "The Catcher in the Rye"
-        author = "J.D. Salinger"
-        pages = 277
-        read = true
-        genres = ["fiction", "coming of age"]
-    }
+    // 1
 }
+// 0
+year = 2000
+

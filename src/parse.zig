@@ -50,6 +50,7 @@ pub const Set = struct {
     toks: std.MultiArrayList(token.Token),
     tok_it: ast.TokenIterator,
     nodes: ast.NodeList,
+    childs: ast.Childs,
 
     const Self = @This();
 
@@ -68,7 +69,14 @@ pub const Set = struct {
             .toks = .{},
             .tok_it = .{ .toks = &self.toks, .i = 0 },
             .nodes = .{},
+            .childs = ast.Childs.init(allocator),
         };
+
+        try self.nodes.append(allocator, .{});
+
+        try self.childs.append(
+            try std.ArrayList(u32).initCapacity(self.allocator, 1),
+        );
 
         return self;
     }

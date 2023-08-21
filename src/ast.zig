@@ -21,22 +21,42 @@ pub const Node = struct {
     };
 
     const Tag = enum(u8) {
-        // ignore lhs and rhs
+        // lhs unused.
+        // rhs is the index into childs_list of the node, or 0 if there are no
+        // children.
         root_node,
-        // lhs is name
-        var_decl,
-        // lhs is name
-        node_decl,
+        // rhs is the index of a string, date, or number.
+        // lhs = rhs
+        var_decl_literal,
+        // rhs is the index of the start of a separately parsed expression.
+        // lhs = rhs..
+        var_decl_complex,
+        // lhs = { }
+        // rhs is the index into childs_list of the node, or 0 if there are no
+        // children.
+        node_decl_simple,
     };
 };
 
 pub const NodeList = std.MultiArrayList(Node);
 
-pub fn parseToks(
+pub const Childs = std.ArrayList(std.ArrayList(u32));
+
+pub fn parseTreeFromToks(
     err_writer: Writer,
     set: *parse.Set,
-    comptime in_body: bool,
 ) !void {
+    var childs_i: u32 = 0;
+    try parseTreeFromToksRecurse(err_writer, set, 0, &childs_i);
+}
+
+pub fn parseTreeFromToksRecurse(
+    err_writer: Writer,
+    set: *parse.Set,
+    depth: u32,
+    childs_i: *u32,
+) !void {
+    const allocator = set.allocator;
     const it = &set.tok_it;
 
     var tok: ?token.Token = it.peek();
@@ -46,11 +66,29 @@ pub fn parseToks(
             if (it.inc()) |t2| switch (t2.kind) {
                 '{' => {
                     tok = it.inc();
-                    try recurseInBody(err_writer, set);
+                    if (tok != null and tok.?.kind != '}') {
+                        try recurseInBody(err_writer, set, depth, childs_i);
+                    } else {
+                        try appendChild(set, depth, childs_i);
+                        const node_name_i = it.i - 2;
+                        try set.nodes.append(allocator, .{
+                            .tag = .node_decl_simple,
+                            .data = .{ .lhs = node_name_i, .rhs = 0 },
+                        });
+                    }
                 },
                 '=' => {
-                    // TODO: Parse decl and expression.
+                    // TODO: Implement properly.
                     tok = it.inc();
+                    const var_name_i = it.i - 2;
+                    try appendChild(set, depth, childs_i);
+                    try set.nodes.append(allocator, .{
+                        .tag = .var_decl_literal,
+                        .data = .{
+                            .lhs = var_name_i,
+                            .rhs = it.i,
+                        },
+                    });
                 },
                 else => {},
             };
@@ -59,7 +97,7 @@ pub fn parseToks(
             return log.reportErr(err_writer, Err.NoNodeName, set, t.beg_i);
         },
         '}' => {
-            if (in_body) return;
+            if (depth != 0) return;
             return log.reportErr(
                 err_writer,
                 Err.UnmatchedCurlyRight,
@@ -67,27 +105,48 @@ pub fn parseToks(
                 t.beg_i,
             );
         },
-        @intFromEnum(token.Kind.eof) => if (in_body) {
+        @intFromEnum(token.Kind.eof) => if (depth != 0) {
             return log.reportErr(err_writer, Err.NoClosingCurly, set, t.beg_i);
         },
         else => {},
     };
 }
 
-fn recurseInBody(err_writer: Writer, set: *parse.Set) anyerror!void {
+fn recurseInBody(
+    err_writer: Writer,
+    set: *parse.Set,
+    depth: u32,
+    childs_i: *u32,
+) anyerror!void {
     const allocator = set.allocator;
     const it = &set.tok_it;
 
     const node_name_i = it.i - 2;
 
+    try appendChild(set, depth, childs_i);
+
+    const temp_childs_i = childs_i.*;
+    childs_i.* = @intCast(set.childs.items.len);
+
     try set.nodes.append(allocator, .{
-        .tag = .node_decl,
-        .data = .{
-            .lhs = node_name_i,
-        },
+        .tag = .node_decl_simple,
+        .data = .{ .lhs = node_name_i, .rhs = childs_i.* },
     });
 
-    try parseToks(err_writer, set, true);
+    try parseTreeFromToksRecurse(err_writer, set, depth + 1, childs_i);
+
+    childs_i.* = temp_childs_i;
+}
+
+fn appendChild(set: *parse.Set, depth: u32, childs_i: *u32) !void {
+    _ = depth;
+
+    if (childs_i.* == set.childs.items.len) try set.childs.append(
+        try std.ArrayList(u32).initCapacity(set.allocator, 1),
+    );
+
+    var list = &set.childs.items[childs_i.*];
+    try list.append(@intCast(set.nodes.len));
 }
 
 pub const TokenIterator = struct {
@@ -116,16 +175,54 @@ pub const TokenIterator = struct {
     }
 };
 
-pub fn printDebug(
+pub fn printDebugRecurse(
     writer: Writer,
     set: *parse.Set,
-    node_i: *u32,
+    node_i: u32,
+    indent_level: u32,
 ) !void {
-    node_i.* += 1;
+    const node = set.nodes.get(node_i);
 
-    while (node_i.* < set.nodes.len) : (node_i.* += 1) {
-        try writer.print("{any}\n", .{set.nodes.get(node_i.*)});
+    try writer.writeByteNTimes('\t', indent_level);
+    try writer.print("{any} {any}\n", .{ node.tag, node.data });
+
+    if (node.tag != .root_node and node.data.rhs == 0) return;
+    if (node.tag != .root_node and
+        node.tag != .node_decl_simple)
+    {
+        return;
+    }
+    const childs = set.childs.items[node.data.rhs];
+
+    for (childs.items) |i| {
+        try printDebugRecurse(writer, set, i, indent_level + 1);
     }
 
-    node_i.* -= 1;
+    // try writer.writeByteNTimes('\t', indent_level);
+    // std.debug.print("childs: {any}\n", .{childs.items});
+
+}
+
+pub fn printDebug(writer: Writer, set: *parse.Set) !void {
+    _ = try writer.write("NODES:\n");
+    var node_i: usize = 0;
+    while (node_i < set.nodes.len) : (node_i += 1) {
+        try writer.print("{d}\t{any}\n", .{ node_i, set.nodes.get(node_i) });
+    }
+
+    try writer.writeByte('\n');
+
+    _ = try writer.write("CHILDS:\n");
+    var child_i: usize = 0;
+    while (child_i < set.childs.items.len) : (child_i += 1) {
+        try writer.print(
+            "{d}\t{any}\n",
+            .{ child_i, set.childs.items[child_i].items },
+        );
+    }
+
+    try writer.writeByte('\n');
+
+    _ = try writer.write("TREE:\n");
+    try printDebugRecurse(writer, set, 0, 0);
 }

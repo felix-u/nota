@@ -53,8 +53,8 @@ pub fn main() !void {
 
         const set = try parse.Set.init(allocator, filepath, filebuf);
 
-        token.parseBuf(stderr, set) catch std.os.exit(1);
-        ast.parseToks(stderr, set, false) catch std.os.exit(1);
+        token.parseToksFromBuf(stderr, set) catch std.os.exit(1);
+        ast.parseTreeFromToks(stderr, set) catch std.os.exit(1);
 
         std.os.exit(0);
     }
@@ -69,7 +69,7 @@ pub fn main() !void {
 
         if (debug_view) try stdout.print("=== TOK: BEG ===\n", .{});
 
-        try token.parseBuf(stderr, set);
+        try token.parseToksFromBuf(stderr, set);
 
         if (debug_view) {
             for (0..set.toks.len) |i| {
@@ -91,12 +91,10 @@ pub fn main() !void {
             try stdout.print("\n=== AST: BEG ===\n", .{});
         }
 
-        try set.nodes.append(allocator, .{});
-        try ast.parseToks(stderr, set, false);
+        try ast.parseTreeFromToks(stderr, set);
 
         if (debug_view) {
-            var node_i: u32 = 0;
-            try ast.printDebug(stdout, set, &node_i);
+            try ast.printDebug(stdout, set);
 
             try stdout.print("=== AST: END ===\n", .{});
         }

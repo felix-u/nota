@@ -2,6 +2,8 @@ const log = @import("log.zig");
 const parse = @import("parse.zig");
 const std = @import("std");
 
+const Writer = std.fs.File.Writer;
+
 pub const Err = error{
     InvalidSyntax,
     NoClosingQuote,
@@ -34,7 +36,7 @@ pub const Token = struct {
     }
 };
 
-pub fn parseBuf(err_writer: std.fs.File.Writer, set: *parse.Set) !void {
+pub fn parseToksFromBuf(err_writer: Writer, set: *parse.Set) !void {
     const allocator = set.allocator;
     const it = &set.buf_it;
     var last_i = it.i;
