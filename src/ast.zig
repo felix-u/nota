@@ -28,10 +28,7 @@ pub const Node = struct {
         // rhs is the index of a string, date, or number.
         // lhs = rhs
         var_decl_literal,
-        // rhs is the index of the start of a separately parsed expression.
-        // lhs = rhs..
-        var_decl_complex,
-        // lhs = { }
+        // lhs { }
         // rhs is the index into childs_list of the node, or 0 if there are no
         // children.
         node_decl_simple,
@@ -46,15 +43,14 @@ pub fn parseTreeFromToks(
     err_writer: Writer,
     set: *parse.Set,
 ) !void {
-    var childs_i: u32 = 0;
-    try parseTreeFromToksRecurse(err_writer, set, 0, &childs_i);
+    try parseTreeFromToksRecurse(err_writer, set, 0, 0);
 }
 
 pub fn parseTreeFromToksRecurse(
     err_writer: Writer,
     set: *parse.Set,
     depth: u32,
-    childs_i: *u32,
+    childs_i: u32,
 ) !void {
     const allocator = set.allocator;
     const it = &set.tok_it;
@@ -116,7 +112,7 @@ fn recurseInBody(
     err_writer: Writer,
     set: *parse.Set,
     depth: u32,
-    childs_i: *u32,
+    childs_i: u32,
 ) anyerror!void {
     const allocator = set.allocator;
     const it = &set.tok_it;
@@ -125,27 +121,24 @@ fn recurseInBody(
 
     try appendChild(set, depth, childs_i);
 
-    const temp_childs_i = childs_i.*;
-    childs_i.* = @intCast(set.childs.items.len);
+    const recurse_childs_i: u32 = @intCast(set.childs.items.len);
 
     try set.nodes.append(allocator, .{
         .tag = .node_decl_simple,
-        .data = .{ .lhs = node_name_i, .rhs = childs_i.* },
+        .data = .{ .lhs = node_name_i, .rhs = recurse_childs_i },
     });
 
-    try parseTreeFromToksRecurse(err_writer, set, depth + 1, childs_i);
-
-    childs_i.* = temp_childs_i;
+    try parseTreeFromToksRecurse(err_writer, set, depth + 1, recurse_childs_i);
 }
 
-fn appendChild(set: *parse.Set, depth: u32, childs_i: *u32) !void {
+fn appendChild(set: *parse.Set, depth: u32, childs_i: u32) !void {
     _ = depth;
 
-    if (childs_i.* == set.childs.items.len) try set.childs.append(
+    if (childs_i == set.childs.items.len) try set.childs.append(
         try std.ArrayList(u32).initCapacity(set.allocator, 1),
     );
 
-    var list = &set.childs.items[childs_i.*];
+    var list = &set.childs.items[childs_i];
     try list.append(@intCast(set.nodes.len));
 }
 
@@ -197,10 +190,6 @@ pub fn printDebugRecurse(
     for (childs.items) |i| {
         try printDebugRecurse(writer, set, i, indent_level + 1);
     }
-
-    // try writer.writeByteNTimes('\t', indent_level);
-    // std.debug.print("childs: {any}\n", .{childs.items});
-
 }
 
 pub fn printDebug(writer: Writer, set: *parse.Set) !void {
@@ -225,4 +214,58 @@ pub fn printDebug(writer: Writer, set: *parse.Set) !void {
 
     _ = try writer.write("TREE:\n");
     try printDebugRecurse(writer, set, 0, 0);
+}
+
+pub fn printNicely(writer: Writer, set: *parse.Set) !void {
+    try printNicelyRecurse(writer, set, 0, 0, true);
+}
+
+pub fn printNicelyRecurse(
+    writer: Writer,
+    set: *parse.Set,
+    node_i: u32,
+    indent_level: u32,
+    comptime outer_node: bool,
+) !void {
+    const node = set.nodes.get(node_i);
+
+    if (!outer_node) {
+        try writer.writeByteNTimes('\t', indent_level);
+        switch (node.tag) {
+            .root_node => unreachable,
+            .var_decl_literal => {
+                const var_name = set.toks.get(node.data.lhs).lexeme(set);
+                const literal = set.toks.get(node.data.rhs).lexeme(set);
+                try writer.print("{s} = {s}\n", .{ var_name, literal });
+            },
+            .node_decl_simple => {
+                const node_name = set.toks.get(node.data.lhs).lexeme(set);
+                try writer.print("{s} {{\n", .{node_name});
+            },
+        }
+    }
+
+    if (node.tag != .root_node and node.data.rhs == 0) return;
+    if (node.tag != .root_node and
+        node.tag != .node_decl_simple)
+    {
+        return;
+    }
+
+    const childs = set.childs.items[node.data.rhs];
+
+    const childs_indent_level =
+        if (outer_node) indent_level else indent_level + 1;
+
+    for (childs.items) |i| {
+        try printNicelyRecurse(writer, set, i, childs_indent_level, false);
+    }
+
+    switch (node.tag) {
+        .node_decl_simple => {
+            try writer.writeByteNTimes('\t', indent_level);
+            _ = try writer.write("}\n");
+        },
+        else => {},
+    }
 }

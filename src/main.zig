@@ -95,8 +95,9 @@ pub fn main() !void {
 
         if (debug_view) {
             try ast.printDebug(stdout, set);
-
             try stdout.print("=== AST: END ===\n", .{});
+        } else {
+            try ast.printNicely(stdout, set);
         }
 
         std.os.exit(0);
