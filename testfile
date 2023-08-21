@@ -1,31 +1,9 @@
 // comment
 
-// 0
-
 year = 2000
 
 week {
-    // 1
-
-    day { 
-        // 2
-        name = "mon" 
-        test1 {
-            // 3
-        } 
-    }
-    // 1
-
-    day { 
-        // 4
-        name = "tue" 
-        test2 {
-            // 5
-        } 
-        // 4
-    }
-    // 1
+    day { name = "mon" }
+    day { name = "tue" }
 }
-// 0
-year = 2000
 
