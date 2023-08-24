@@ -1,4 +1,4 @@
-// Last tested with zig 0.11.0-dev.4191+1bf16b172 on 2023-07-24T04:01:48Z
+// Last tested with zig 0.12.0-dev.164+7a834e258 on 2023-08-24T18:00:34Z
 //
 // args.zig - public domain command-line argument parser - felix-u
 //
@@ -702,7 +702,7 @@ fn procCmd(
                     p.err_msg,
                     Err.InvalidFlag,
                     err_writer,
-                    argv[i],
+                    &.{argv[i][short_i]},
                 );
             },
             .long => {
