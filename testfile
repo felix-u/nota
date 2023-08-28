@@ -1,9 +1,28 @@
-// comment
-
-year = 2000
-
 week {
-    day { name = "mon" }
-    day { name = "tue" }
+    date = 2023_12_11Z
+    day { 
+        name = "mon" 
+        date = 2023_12_11Z
+        task {
+            date = 2023_12_11Z
+            desc = "do something"
+            done = false
+        }
+    }
+    day { 
+        name = "tue" 
+        date = 2023_12_12Z
+        task {
+            date = 2023_12_12Z
+            desc = "do something else"
+            done = true
+        }
+    }
 }
 
+todo {
+    for {}
+    // task: all(task) {
+    //     if task.date > #now and !task.done { task }
+    // }
+}

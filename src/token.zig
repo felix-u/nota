@@ -10,6 +10,7 @@ pub const Err = error{
 };
 
 pub const Kind = enum(u8) {
+    none = 0,
     chars = 128,
 
     // In order not to pollute this type with all the ASCII syntax characters,
@@ -22,6 +23,20 @@ pub const Kind = enum(u8) {
     symbol,
 
     eof,
+
+    // Used later by AST:
+
+    keyword_beg,
+
+    true,
+    false,
+
+    control_beg,
+    @"for",
+    @"if",
+    control_end,
+
+    keyword_end,
 };
 
 pub const Token = struct {
@@ -44,7 +59,7 @@ pub fn parseToksFromBuf(err_writer: Writer, set: *parse.Set) !void {
     chars: while (it.nextCodepoint()) |c1| : (last_i = it.i) {
         switch (c1) {
             '\r', '\n', '\t', ' ' => {},
-            '{', '}', ':', '=', '.' => {
+            '{', '}', '(', ')', '=', ':', '!', '>', '<', '#' => {
                 try set.toks.append(allocator, .{
                     .beg_i = @intCast(last_i),
                     .end_i = @intCast(it.i),

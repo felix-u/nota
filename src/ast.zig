@@ -6,6 +6,7 @@ const token = @import("token.zig");
 const Writer = std.fs.File.Writer;
 
 pub const Err = error{
+    FloatingSymbol,
     NoClosingCurly,
     NoNodeName,
     UnmatchedCurlyRight,
@@ -65,7 +66,7 @@ pub fn parseTreeFromToksRecurse(
                     if (tok != null and tok.?.kind != '}') {
                         try recurseInBody(err_writer, set, depth, childs_i);
                     } else {
-                        try appendChild(set, depth, childs_i);
+                        try appendChild(set, childs_i);
                         const node_name_i = it.i - 2;
                         try set.nodes.append(allocator, .{
                             .tag = .node_decl_simple,
@@ -77,7 +78,7 @@ pub fn parseTreeFromToksRecurse(
                     // TODO: Implement properly.
                     tok = it.inc();
                     const var_name_i = it.i - 2;
-                    try appendChild(set, depth, childs_i);
+                    try appendChild(set, childs_i);
                     try set.nodes.append(allocator, .{
                         .tag = .var_decl_literal,
                         .data = .{
@@ -86,7 +87,23 @@ pub fn parseTreeFromToksRecurse(
                         },
                     });
                 },
-                else => {},
+                else => {
+                    const keyword = parse.keyword(t.lexeme(set));
+                    if (keyword == .none) return log.reportErr(
+                        err_writer,
+                        Err.FloatingSymbol,
+                        set,
+                        t.beg_i,
+                    );
+
+                    try parseKeyword(
+                        err_writer,
+                        set,
+                        depth,
+                        childs_i,
+                        keyword,
+                    );
+                },
             };
         },
         '{' => {
@@ -119,7 +136,7 @@ fn recurseInBody(
 
     const node_name_i = it.i - 2;
 
-    try appendChild(set, depth, childs_i);
+    try appendChild(set, childs_i);
 
     const recurse_childs_i: u32 = @intCast(set.childs.items.len);
 
@@ -131,15 +148,35 @@ fn recurseInBody(
     try parseTreeFromToksRecurse(err_writer, set, depth + 1, recurse_childs_i);
 }
 
-fn appendChild(set: *parse.Set, depth: u32, childs_i: u32) !void {
-    _ = depth;
-
+fn appendChild(set: *parse.Set, childs_i: u32) !void {
     if (childs_i == set.childs.items.len) try set.childs.append(
         try std.ArrayList(u32).initCapacity(set.allocator, 1),
     );
 
     var list = &set.childs.items[childs_i];
     try list.append(@intCast(set.nodes.len));
+}
+
+fn parseKeyword(
+    err_writer: Writer,
+    set: *parse.Set,
+    depth: u32,
+    childs_i: u32,
+    keyword: token.Kind,
+) !void {
+    _ = err_writer;
+    _ = set;
+    _ = depth;
+    _ = childs_i;
+
+    // TODO
+
+    switch (keyword) {
+        else => {
+            std.debug.print("UNIMPLEMENTED: {any}\n", .{keyword});
+            @panic("UNIMPLEMENTED");
+        },
+    }
 }
 
 pub const TokenIterator = struct {
@@ -237,6 +274,7 @@ pub fn printNicelyRecurse(
                 const var_name = set.toks.get(node.data.lhs).lexeme(set);
                 const literal = set.toks.get(node.data.rhs).lexeme(set);
                 try writer.print("{s} = {s}\n", .{ var_name, literal });
+                return;
             },
             .node_decl_simple => {
                 const node_name = set.toks.get(node.data.lhs).lexeme(set);
@@ -245,7 +283,12 @@ pub fn printNicelyRecurse(
         }
     }
 
-    if (node.tag != .root_node and node.data.rhs == 0) return;
+    if (node.tag != .root_node and node.data.rhs == 0) {
+        try writer.writeByteNTimes('\t', indent_level);
+        _ = try writer.write("}\n");
+        return;
+    }
+
     if (node.tag != .root_node and
         node.tag != .node_decl_simple)
     {

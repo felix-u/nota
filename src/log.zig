@@ -59,14 +59,17 @@ pub fn reportErr(
         inline token.Err.NoClosingQuote => {
             _ = try writer.write("expected quote to close string");
         },
+        inline ast.Err.FloatingSymbol => {
+            _ = try writer.write("expected '{' or '=' after symbol");
+        },
         inline ast.Err.NoClosingCurly => {
-            try writer.print("expected '{c}' to terminate node body", .{'}'});
+            _ = try writer.write("expected '}' to terminate node body");
         },
         inline ast.Err.NoNodeName => {
-            try writer.print("expected node name preceding '{c}'", .{'{'});
+            _ = try writer.write("expected node name preceding '{'");
         },
         inline ast.Err.UnmatchedCurlyRight => {
-            try writer.print("'{c}' is unmatched", .{'}'});
+            _ = try writer.write("'}' is unmatched");
         },
         inline else => unreachable,
     }
