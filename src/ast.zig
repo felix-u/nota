@@ -9,6 +9,7 @@ pub const Err = error{
     FloatingSymbol,
     NoClosingCurly,
     NoNodeName,
+    UnexpectedKeyword,
     UnmatchedCurlyRight,
 };
 
@@ -60,51 +61,54 @@ pub fn parseTreeFromToksRecurse(
 
     while (tok) |t| : (tok = it.inc()) switch (t.kind) {
         @intFromEnum(token.Kind.symbol) => {
-            if (it.inc()) |t2| switch (t2.kind) {
-                '{' => {
-                    tok = it.inc();
-                    if (tok != null and tok.?.kind != '}') {
-                        try recurseInBody(err_writer, set, depth, childs_i);
-                    } else {
-                        try appendChild(set, childs_i);
-                        const node_name_i = it.i - 2;
-                        try set.nodes.append(allocator, .{
-                            .tag = .node_decl_simple,
-                            .data = .{ .lhs = node_name_i, .rhs = 0 },
-                        });
-                    }
-                },
-                '=' => {
-                    // TODO: Implement properly.
-                    tok = it.inc();
-                    const var_name_i = it.i - 2;
-                    try appendChild(set, childs_i);
-                    try set.nodes.append(allocator, .{
-                        .tag = .var_decl_literal,
-                        .data = .{
-                            .lhs = var_name_i,
-                            .rhs = it.i,
-                        },
-                    });
-                },
-                else => {
-                    const keyword = parse.keyword(t.lexeme(set));
-                    if (keyword == .none) return log.reportErr(
-                        err_writer,
-                        Err.FloatingSymbol,
-                        set,
-                        t.beg_i,
-                    );
+            const keyword = parse.keyword(t.lexeme(set));
+            if (keyword == .none) {
+                if (it.inc()) |t2| switch (t2.kind) {
+                    '{' => {
+                        if (keyword != .none) return log.reportErr(
+                            err_writer,
+                            Err.UnexpectedKeyword,
+                            set,
+                            t.beg_i,
+                        );
 
-                    try parseKeyword(
+                        tok = it.inc();
+                        if (tok != null and tok.?.kind != '}') {
+                            try recurseInBody(
+                                err_writer,
+                                set,
+                                depth,
+                                childs_i,
+                            );
+                        } else {
+                            try appendChild(set, childs_i);
+                            const node_name_i = it.i - 2;
+                            try set.nodes.append(allocator, .{
+                                .tag = .node_decl_simple,
+                                .data = .{ .lhs = node_name_i, .rhs = 0 },
+                            });
+                        }
+                    },
+                    '=' => {
+                        // TODO: Implement properly.
+                        tok = it.inc();
+                        const var_name_i = it.i - 2;
+                        try appendChild(set, childs_i);
+                        try set.nodes.append(allocator, .{
+                            .tag = .var_decl_literal,
+                            .data = .{ .lhs = var_name_i, .rhs = it.i },
+                        });
+                    },
+                    else => return log.reportErr(
                         err_writer,
+                        token.Err.InvalidSyntax,
                         set,
-                        depth,
-                        childs_i,
-                        keyword,
-                    );
-                },
-            };
+                        t2.beg_i,
+                    ),
+                };
+            } else {
+                try parseKeyword(err_writer, set, depth, childs_i, keyword);
+            }
         },
         '{' => {
             return log.reportErr(err_writer, Err.NoNodeName, set, t.beg_i);
@@ -165,13 +169,22 @@ fn parseKeyword(
     keyword: token.Kind,
 ) !void {
     _ = err_writer;
-    _ = set;
     _ = depth;
     _ = childs_i;
 
-    // TODO
+    const allocator = set.allocator;
+    const it = &set.tok_it;
+    _ = allocator;
+
+    var tok: ?token.Token = it.peek();
 
     switch (keyword) {
+        .@"for" => {
+            while (tok) |t| : (tok = it.inc()) switch (t.kind) {
+                '{' => {},
+                else => {},
+            };
+        },
         else => {
             std.debug.print("UNIMPLEMENTED: {any}\n", .{keyword});
             @panic("UNIMPLEMENTED");
