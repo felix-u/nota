@@ -180,10 +180,11 @@ fn parseKeyword(
 
     switch (keyword) {
         .@"for" => {
-            while (tok) |t| : (tok = it.inc()) switch (t.kind) {
-                '{' => {},
-                else => {},
-            };
+            _ = tok;
+            // while (tok) |t| : (tok = it.inc()) switch (t.kind) {
+            //     '{' => {},
+            //     else => {},
+            // };
         },
         else => {
             std.debug.print("UNIMPLEMENTED: {any}\n", .{keyword});
