@@ -177,15 +177,15 @@ fn parseKeyword(
     _ = allocator;
 
     var tok: ?token.Token = it.peek();
+    _ = tok;
 
     switch (keyword) {
-        .@"for" => {
-            _ = tok;
-            // while (tok) |t| : (tok = it.inc()) switch (t.kind) {
-            //     '{' => {},
-            //     else => {},
-            // };
-        },
+        // .@"for" => {
+        //     while (tok) |t| : (tok = it.inc()) switch (t.kind) {
+        //         '{' => {},
+        //         else => {},
+        //     };
+        // },
         else => {
             std.debug.print("UNIMPLEMENTED: {any}\n", .{keyword});
             @panic("UNIMPLEMENTED");
