@@ -1,27 +1,27 @@
 week {
-    date = 2023_12_11Z
+    date = 2023_12_11Z;
     day { 
-        name = "mon" 
-        date = 2023_12_11Z
+        name = "mon";
+        date = 2023_12_11Z;
         task {
-            date = 2023_12_11Z
-            desc = "do something"
-            done = false
+            date = 2023_12_11Z;
+            desc = "do something";
+            done = false;
         }
     }
     day { 
-        name = "tue" 
-        date = 2023_12_12Z
+        name = "tue";
+        date = 2023_12_12Z;
         task {
-            date = 2023_12_12Z
-            desc = "do something else"
-            done = true
+            date = 2023_12_12Z;
+            desc = "do something else";
+            done = true;
         }
     }
 }
 
 todo {
-    for {}
+    for task: all(task) {
     // task: all(task) {
     //     if task.date > #now and !task.done { task }
     // }

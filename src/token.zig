@@ -59,7 +59,7 @@ pub fn parseToksFromBuf(err_writer: Writer, set: *parse.Set) !void {
     chars: while (it.nextCodepoint()) |c1| : (last_i = it.i) {
         switch (c1) {
             '\r', '\n', '\t', ' ' => {},
-            '{', '}', '(', ')', '=', ':', '!', '>', '<', '#' => {
+            '{', '}', '(', ')', '=', ';', ':', '!', '>', '<', '#' => {
                 try set.toks.append(allocator, .{
                     .beg_i = @intCast(last_i),
                     .end_i = @intCast(it.i),

@@ -9,6 +9,7 @@ pub const Err = error{
     FloatingSymbol,
     NoClosingCurly,
     NoNodeName,
+    UnexpectedCurlyLeft,
     UnexpectedKeyword,
     UnmatchedCurlyRight,
 };
@@ -23,6 +24,13 @@ pub const Node = struct {
     };
 
     const Tag = enum(u8) {
+        // for lhs: ... { ... }
+        // rhs is the index into childs_list of the for expression.
+        for_expr,
+        // lhs { }
+        // rhs is the index into childs_list of the node, or 0 if there are no
+        // children.
+        node_decl_simple,
         // lhs unused.
         // rhs is the index into childs_list of the node, or 0 if there are no
         // children.
@@ -30,10 +38,6 @@ pub const Node = struct {
         // rhs is the index of a string, date, or number.
         // lhs = rhs
         var_decl_literal,
-        // lhs { }
-        // rhs is the index into childs_list of the node, or 0 if there are no
-        // children.
-        node_decl_simple,
     };
 };
 
@@ -90,13 +94,22 @@ pub fn parseTreeFromToksRecurse(
                         }
                     },
                     '=' => {
-                        // TODO: Implement properly.
-                        tok = it.inc();
-                        const var_name_i = it.i - 2;
+                        while (tok) |t3| : (tok = it.inc()) switch (t3.kind) {
+                            ';' => break,
+                            '{' => return log.reportErr(
+                                err_writer,
+                                Err.UnexpectedCurlyLeft,
+                                set,
+                                t3.beg_i,
+                            ),
+                            else => {},
+                        };
+
+                        const var_name_i = it.i - 3;
                         try appendChild(set, childs_i);
                         try set.nodes.append(allocator, .{
                             .tag = .var_decl_literal,
-                            .data = .{ .lhs = var_name_i, .rhs = it.i },
+                            .data = .{ .lhs = var_name_i, .rhs = it.i - 1 },
                         });
                     },
                     else => return log.reportErr(
@@ -170,22 +183,27 @@ fn parseKeyword(
 ) !void {
     _ = err_writer;
     _ = depth;
-    _ = childs_i;
 
     const allocator = set.allocator;
     const it = &set.tok_it;
-    _ = allocator;
 
     var tok: ?token.Token = it.peek();
-    _ = tok;
 
     switch (keyword) {
-        // .@"for" => {
-        //     while (tok) |t| : (tok = it.inc()) switch (t.kind) {
-        //         '{' => {},
-        //         else => {},
-        //     };
-        // },
+        .@"for" => {
+            var iterator_i: u32 = 0;
+            const for_childs_i: u32 = @intCast(set.childs.items.len);
+            while (tok) |t| : (tok = it.inc()) switch (t.kind) {
+                ':' => iterator_i = it.i - 1,
+                '{' => break,
+                else => continue,
+            };
+            try appendChild(set, childs_i);
+            try set.nodes.append(allocator, .{
+                .tag = .for_expr,
+                .data = .{ .lhs = iterator_i, .rhs = for_childs_i },
+            });
+        },
         else => {
             std.debug.print("UNIMPLEMENTED: {any}\n", .{keyword});
             @panic("UNIMPLEMENTED");
@@ -283,16 +301,20 @@ pub fn printNicelyRecurse(
     if (!outer_node) {
         try writer.writeByteNTimes('\t', indent_level);
         switch (node.tag) {
-            .root_node => unreachable,
-            .var_decl_literal => {
-                const var_name = set.toks.get(node.data.lhs).lexeme(set);
-                const literal = set.toks.get(node.data.rhs).lexeme(set);
-                try writer.print("{s} = {s}\n", .{ var_name, literal });
-                return;
+            .for_expr => {
+                const iterator_name = set.toks.get(node.data.lhs).lexeme(set);
+                try writer.print("for {s} {{\n", .{iterator_name});
             },
             .node_decl_simple => {
                 const node_name = set.toks.get(node.data.lhs).lexeme(set);
                 try writer.print("{s} {{\n", .{node_name});
+            },
+            .root_node => unreachable,
+            .var_decl_literal => {
+                const var_name = set.toks.get(node.data.lhs).lexeme(set);
+                const literal = set.toks.get(node.data.rhs).lexeme(set);
+                try writer.print("{s} = {s};\n", .{ var_name, literal });
+                return;
             },
         }
     }

@@ -68,6 +68,9 @@ pub fn reportErr(
         inline ast.Err.NoNodeName => {
             _ = try writer.write("expected node name preceding '{'");
         },
+        inline ast.Err.UnexpectedCurlyLeft => {
+            _ = try writer.write("unexpected '{'");
+        },
         inline ast.Err.UnexpectedKeyword => {
             _ = try writer.write("unexpected keyword");
         },
