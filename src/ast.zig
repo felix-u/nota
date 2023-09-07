@@ -6,6 +6,7 @@ const token = @import("token.zig");
 const Writer = std.fs.File.Writer;
 
 pub const Err = error{
+    EmptyBody,
     FloatingSymbol,
     NoClosingCurly,
     NoNodeName,
@@ -142,6 +143,8 @@ pub fn parseTreeFromToksRecurse(
     };
 }
 
+// TODO: recurseInBody should comptime switch on node tag
+
 fn recurseInBody(
     err_writer: Writer,
     set: *parse.Set,
@@ -180,10 +183,7 @@ fn parseKeyword(
     depth: u32,
     childs_i: u32,
     keyword: token.Kind,
-) !void {
-    _ = err_writer;
-    _ = depth;
-
+) anyerror!void {
     const allocator = set.allocator;
     const it = &set.tok_it;
 
@@ -195,7 +195,23 @@ fn parseKeyword(
             const for_childs_i: u32 = @intCast(set.childs.items.len);
             while (tok) |t| : (tok = it.inc()) switch (t.kind) {
                 ':' => iterator_i = it.i - 1,
-                '{' => break,
+                '{' => {
+                    tok = it.inc();
+                    if (tok != null and tok.?.kind != '}') {
+                        try parseTreeFromToksRecurse(
+                            err_writer,
+                            set,
+                            depth + 1,
+                            for_childs_i,
+                        );
+                        // try recurseInBody(err_writer, set, depth, childs_i);
+                    } else return log.reportErr(
+                        err_writer,
+                        Err.EmptyBody,
+                        set,
+                        t.beg_i,
+                    );
+                },
                 else => continue,
             };
             try appendChild(set, childs_i);
@@ -203,6 +219,7 @@ fn parseKeyword(
                 .tag = .for_expr,
                 .data = .{ .lhs = iterator_i, .rhs = for_childs_i },
             });
+            return;
         },
         else => {
             std.debug.print("UNIMPLEMENTED: {any}\n", .{keyword});
@@ -219,7 +236,7 @@ pub const TokenIterator = struct {
 
     pub fn inc(self: *Self) ?token.Token {
         self.i += 1;
-        if (self.i == self.toks.len) return null;
+        if (self.i >= self.toks.len) return null;
         return self.toks.get(self.i);
     }
 
@@ -248,12 +265,14 @@ pub fn printDebugRecurse(
     try writer.writeByteNTimes('\t', indent_level);
     try writer.print("{any} {any}\n", .{ node.tag, node.data });
 
-    if (node.tag != .root_node and node.data.rhs == 0) return;
-    if (node.tag != .root_node and
-        node.tag != .node_decl_simple)
-    {
-        return;
+    switch (node.tag) {
+        .root_node => {},
+        .node_decl_simple,
+        .for_expr,
+        => if (node.data.rhs == 0) return,
+        else => return,
     }
+
     const childs = set.childs.items[node.data.rhs];
 
     for (childs.items) |i| {

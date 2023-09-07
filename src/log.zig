@@ -59,6 +59,9 @@ pub fn reportErr(
         inline token.Err.NoClosingQuote => {
             _ = try writer.write("expected quote to close string");
         },
+        inline ast.Err.EmptyBody => {
+            _ = try writer.write("empty body invalid in this context");
+        },
         inline ast.Err.FloatingSymbol => {
             _ = try writer.write("expected '{' or '=' after symbol");
         },
