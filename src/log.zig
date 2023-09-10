@@ -68,6 +68,9 @@ pub fn reportErr(
         inline ast.Err.NoClosingCurly => {
             _ = try writer.write("expected '}' to terminate node body");
         },
+        inline ast.Err.NoIteratorLabel => {
+            _ = try writer.write("expected iterator label: 'for label: ...'");
+        },
         inline ast.Err.NoNodeName => {
             _ = try writer.write("expected node name preceding '{'");
         },

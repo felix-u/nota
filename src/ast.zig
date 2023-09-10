@@ -9,6 +9,7 @@ pub const Err = error{
     EmptyBody,
     FloatingSymbol,
     NoClosingCurly,
+    NoIteratorLabel,
     NoNodeName,
     UnexpectedCurlyLeft,
     UnexpectedKeyword,
@@ -84,6 +85,8 @@ pub fn parseTreeFromToksRecurse(
                                 set,
                                 depth,
                                 childs_i,
+                                .node_decl_simple,
+                                it.i - 2,
                             );
                         } else {
                             try appendChild(set, childs_i);
@@ -143,26 +146,25 @@ pub fn parseTreeFromToksRecurse(
     };
 }
 
-// TODO: recurseInBody should comptime switch on node tag
-
 fn recurseInBody(
     err_writer: Writer,
     set: *parse.Set,
     depth: u32,
     childs_i: u32,
+    comptime tag: Node.Tag,
+    lhs: u32,
 ) anyerror!void {
     const allocator = set.allocator;
     const it = &set.tok_it;
-
-    const node_name_i = it.i - 2;
+    _ = it;
 
     try appendChild(set, childs_i);
 
     const recurse_childs_i: u32 = @intCast(set.childs.items.len);
 
     try set.nodes.append(allocator, .{
-        .tag = .node_decl_simple,
-        .data = .{ .lhs = node_name_i, .rhs = recurse_childs_i },
+        .tag = tag,
+        .data = .{ .lhs = lhs, .rhs = recurse_childs_i },
     });
 
     try parseTreeFromToksRecurse(err_writer, set, depth + 1, recurse_childs_i);
@@ -185,41 +187,44 @@ fn parseKeyword(
     keyword: token.Kind,
 ) anyerror!void {
     const allocator = set.allocator;
+    _ = allocator;
     const it = &set.tok_it;
 
     var tok: ?token.Token = it.peek();
 
     switch (keyword) {
         .@"for" => {
-            var iterator_i: u32 = 0;
-            const for_childs_i: u32 = @intCast(set.childs.items.len);
+            if (it.inc() == null) return;
+            const lhs = it.i;
             while (tok) |t| : (tok = it.inc()) switch (t.kind) {
-                ':' => iterator_i = it.i - 1,
-                '{' => {
-                    tok = it.inc();
-                    if (tok != null and tok.?.kind != '}') {
-                        try parseTreeFromToksRecurse(
+                ':' => while (tok) |t2| : (tok = it.inc()) switch (t2.kind) {
+                    '{' => {
+                        tok = it.inc();
+                        if (tok != null and tok.?.kind != '}') {
+                            try recurseInBody(
+                                err_writer,
+                                set,
+                                depth,
+                                childs_i,
+                                .for_expr,
+                                lhs,
+                            );
+                        } else return log.reportErr(
                             err_writer,
+                            Err.EmptyBody,
                             set,
-                            depth + 1,
-                            for_childs_i,
+                            t2.beg_i,
                         );
-                        // try recurseInBody(err_writer, set, depth, childs_i);
-                    } else return log.reportErr(
-                        err_writer,
-                        Err.EmptyBody,
-                        set,
-                        t.beg_i,
-                    );
+                    },
+                    else => continue,
                 },
-                else => continue,
+                else => return log.reportErr(
+                    err_writer,
+                    Err.NoIteratorLabel,
+                    set,
+                    t.beg_i,
+                ),
             };
-            try appendChild(set, childs_i);
-            try set.nodes.append(allocator, .{
-                .tag = .for_expr,
-                .data = .{ .lhs = iterator_i, .rhs = for_childs_i },
-            });
-            return;
         },
         else => {
             std.debug.print("UNIMPLEMENTED: {any}\n", .{keyword});
