@@ -155,8 +155,6 @@ fn recurseInBody(
     lhs: u32,
 ) anyerror!void {
     const allocator = set.allocator;
-    const it = &set.tok_it;
-    _ = it;
 
     try appendChild(set, childs_i);
 
@@ -194,37 +192,41 @@ fn parseKeyword(
 
     switch (keyword) {
         .@"for" => {
-            if (it.inc() == null) return;
+            tok = it.inc();
             const lhs = it.i;
-            while (tok) |t| : (tok = it.inc()) switch (t.kind) {
-                ':' => while (tok) |t2| : (tok = it.inc()) switch (t2.kind) {
-                    '{' => {
-                        tok = it.inc();
-                        if (tok != null and tok.?.kind != '}') {
-                            try recurseInBody(
+            while (tok) |t| : (tok = it.inc()) {
+                tok = it.inc();
+                if (it.inc() == null) return;
+                switch (tok.?.kind) {
+                    ':' => while (tok) |t2| : (tok = it.inc()) switch (t2.kind) {
+                        '{' => {
+                            tok = it.inc();
+                            if (tok != null and tok.?.kind != '}') {
+                                try recurseInBody(
+                                    err_writer,
+                                    set,
+                                    depth,
+                                    childs_i,
+                                    .for_expr,
+                                    lhs,
+                                );
+                            } else return log.reportErr(
                                 err_writer,
+                                Err.EmptyBody,
                                 set,
-                                depth,
-                                childs_i,
-                                .for_expr,
-                                lhs,
+                                t2.beg_i,
                             );
-                        } else return log.reportErr(
-                            err_writer,
-                            Err.EmptyBody,
-                            set,
-                            t2.beg_i,
-                        );
+                        },
+                        else => continue,
                     },
-                    else => continue,
-                },
-                else => return log.reportErr(
-                    err_writer,
-                    Err.NoIteratorLabel,
-                    set,
-                    t.beg_i,
-                ),
-            };
+                    else => return log.reportErr(
+                        err_writer,
+                        Err.NoIteratorLabel,
+                        set,
+                        t.beg_i,
+                    ),
+                }
+            }
         },
         else => {
             std.debug.print("UNIMPLEMENTED: {any}\n", .{keyword});
