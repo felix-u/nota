@@ -21,9 +21,6 @@ week {
 }
 
 todo {
-    fort {
-        test = "test";
-    }
     for task: all(task) {
         test = "test";
     }

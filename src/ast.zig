@@ -351,10 +351,13 @@ pub fn printNicelyRecurse(
         return;
     }
 
-    if (node.tag != .root_node and
-        node.tag != .node_decl_simple)
-    {
-        return;
+    var print_closing_curly = false;
+    switch (node.tag) {
+        .root_node => {},
+        .node_decl_simple,
+        .for_expr,
+        => print_closing_curly = true,
+        else => return,
     }
 
     const childs = set.childs.items[node.data.rhs];
@@ -366,11 +369,8 @@ pub fn printNicelyRecurse(
         try printNicelyRecurse(writer, set, i, childs_indent_level, false);
     }
 
-    switch (node.tag) {
-        .node_decl_simple => {
-            try writer.writeByteNTimes('\t', indent_level);
-            _ = try writer.write("}\n");
-        },
-        else => {},
+    if (print_closing_curly) {
+        try writer.writeByteNTimes('\t', indent_level);
+        _ = try writer.write("}\n");
     }
 }
