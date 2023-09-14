@@ -196,7 +196,7 @@ fn parseKeyword(
             const lhs = it.i;
             while (tok) |t| : (tok = it.inc()) {
                 tok = it.inc();
-                if (it.inc() == null) return;
+                if (tok == null) return;
                 switch (tok.?.kind) {
                     ':' => while (tok) |t2| : (tok = it.inc()) switch (t2.kind) {
                         '{' => {
