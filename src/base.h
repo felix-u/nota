@@ -4,8 +4,8 @@
 
 #include <stdbool.h>
 
+#include <stddef.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 typedef   uint8_t    u8;
 typedef  uint16_t   u16;
@@ -33,5 +33,10 @@ typedef struct str8 {
 #define str8_lit(s) (str8){ .len = sizeof(s) - 1, .str = (u8 *)s }
 
 #define str8_expand(s) (s).str, (s).len
+
+typedef struct arena {
+    void *mem;
+    usize offset;
+} arena;
 
 #endif // BASE_H

@@ -1,18 +1,30 @@
-This is a sentence nota should know absolutely nothing about.
-
-@Section(Name 1)[2000-01-01 20:00] <> {}
-
-@Section (Name 2 ) [
-                    2020-01-01
-                    ]{
-    This is the Section, with terrible whitespace. }
-
-@Section(Name 3) {
-    @Subsection { wow, a subsection! }
-    @Subsection(A Name)[1990-01-01.12:00] < > {
-        OOh, another!
-        More filler.
-        Filler     again.
-        @Subsubsection <x> { A subsection of a subsection. Stunning. }
+week {
+    date = 2023_12_11Z;
+    day { 
+        name = "mon";
+        date = 2023_12_11Z;
+        task {
+            date = 2023_12_11Z;
+            desc = "do something";
+            done = false;
+        }
     }
+    day { 
+        name = "tue";
+        date = 2023_12_12Z;
+        task {
+            date = 2023_12_12Z;
+            desc = "do something else";
+            done = true;
+        }
+    }
+}
+
+todo {
+    for task: all(task) {
+        test = "test";
+    }
+    // task: all(task) {
+    //     if task.date > #now and !task.done { task }
+    // }
 }
