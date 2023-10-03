@@ -1,7 +1,7 @@
+#include "base.h"
+
 #include <locale.h>
 #include <math.h>
-#include <stdbool.h>
-#include <stdlib.h>
 #include <stdio.h>
 #include <strings.h>
 #include <time.h>
@@ -10,9 +10,8 @@
 
 #define ARGS_IMPLEMENTATION
 #define ARGS_BINARY_NAME "nota"
-#define ARGS_BINARY_VERSION "0.3"
+#define ARGS_BINARY_VERSION "0.4-dev"
 #include "args.h"
-#include "int_types.h"
 #define NODE_IMPLEMENTATION
 #include "node.h"
 #define WSTRING_IMPLEMENTATION
@@ -44,14 +43,14 @@ double currentTimeToDouble(void);
 
 
 SortOption sort_mode = SORT_NONE;
-double user_date = 0;
+f64 user_date = 0;
 Cutoff cutoff_mode = CUT_NONE;
 
 
 int main(int argc, char **argv) {
 
     setlocale(LC_ALL, "");
-    if (getenv("NOTA_NO_COLOR") == NULL && getenv("NOTA_NO_COLOUR") == NULL) ansi_stateSet();
+    if (!getenv("NOTA_NO_COLOR") && !getenv("NOTA_NO_COLOUR")) ansi_stateSet();
 
     args_Flag after_flag = {
         .name_short = 'a',

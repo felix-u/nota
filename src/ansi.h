@@ -1,5 +1,6 @@
+#include "base.h"
+
 #include <stdarg.h>
-#include <stdbool.h>
 #include <strings.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -70,29 +71,31 @@ void ansi_stateSet(void);
 #ifdef ANSI_IMPLEMENTATION
 
 void ansi_reset(void) {
-    if (ansi_enabled) printf("%s%s%s", ANSI_BEG, ANSI_FMT_RESET, ANSI_END);
+    if (!ansi_enabled) return;
+
+    printf("%s%s%s", ANSI_BEG, ANSI_FMT_RESET, ANSI_END);
 }
 
 
 void ansi_set(const char *str, ...) {
-    if (ansi_enabled) {
-        va_list args;
-        va_start(args, str);
+    if (!ansi_enabled) return;
 
-        printf(ANSI_BEG);
-        vprintf(str, args);
-        printf(ANSI_END);
+    va_list args;
+    va_start(args, str);
 
-        va_end(args);
-    }
+    printf(ANSI_BEG);
+    vprintf(str, args);
+    printf(ANSI_END);
+
+    va_end(args);
 }
 
 
 void ansi_stateSet(void) {
-    if (isatty(STDOUT_FILENO)
-     && getenv("NO_COLOR") == NULL && getenv("NO_COLOUR") == NULL
-     && strncasecmp(getenv("TERM"), "dumb", 4))
-    {
+    if (isatty(STDOUT_FILENO) &&
+        !getenv("NO_COLOR") && !getenv("NO_COLOUR") &&
+        strncasecmp(getenv("TERM"), "dumb", 4)
+    ) {
         ansi_enabled = true;
     }
 }

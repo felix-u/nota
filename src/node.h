@@ -1,6 +1,7 @@
+#include "base.h"
+
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdbool.h>
 #include <stddef.h>
 #include <unistd.h>
 #include <wchar.h>
@@ -27,8 +28,8 @@ const node_DelimiterSet DLM_TEXT = { '{', '}' };
 
 
 typedef struct node_Array {
-    size_t len;
-    size_t cap;
+    usize len;
+    usize cap;
     struct node *nodes;
 } node_Array;
 
@@ -37,25 +38,25 @@ typedef struct node {
     wstring name;
     wstring desc;
     wstring date;
-    double date_num;
-    bool tag;
+    f64 date_num;
+    b8 tag;
     wstring text;
-    bool hidden;
+    b8 hidden;
     struct node_Array children;
     char *filename;
-    size_t line_num;
+    usize line_num;
 } node;
 
 #endif // node_TYPE
 
 
-node_Array node_Array_init(size_t init_size);
+node_Array node_Array_init(usize init_size);
 void node_Array_append(node_Array *arr, node node);
-void node_Array_toBuf(node_Array *arr, node *buf, size_t *idx);
+void node_Array_toBuf(node_Array *arr, node *buf, usize *idx);
 
-node node_process(FILE *file, node *parent, char *filename, size_t *line_num, size_t *nodes_num);
-void node_processChildren(node *node, FILE *file, char *filename, size_t *line_num, size_t *nodes_num);
-void node_printFmt(node node, size_t indent_level, size_t num_current, size_t num_max);
+node node_process(FILE *file, node *parent, char *filename, usize *line_num, usize *nodes_num);
+void node_processChildren(node *node, FILE *file, char *filename, usize *line_num, usize *nodes_num);
+void node_printFmt(node node, usize indent_level, usize num_current, usize num_max);
 int node_compareDateAscending(const void *a, const void *b);
 int node_compareDateDescending(const void *a, const void *b);
 void node_free(node node);
@@ -63,7 +64,7 @@ void node_free(node node);
 
 #ifdef NODE_IMPLEMENTATION
 
-node_Array node_Array_init(size_t init_size) {
+node_Array node_Array_init(usize init_size) {
     return (node_Array){
         0,
         init_size,
@@ -80,8 +81,8 @@ void node_Array_append(node_Array *arr, node n) {
 }
 
 
-void node_Array_toBuf(node_Array *arr, node *buf, size_t *idx) {
-    for (size_t i = 0; i < arr->len; i++) {
+void node_Array_toBuf(node_Array *arr, node *buf, usize *idx) {
+    for (usize i = 0; i < arr->len; i++) {
         buf[*idx] = arr->nodes[i];
         (*idx)++;
         node_Array_toBuf(&arr->nodes[i].children, buf, idx);
@@ -89,7 +90,7 @@ void node_Array_toBuf(node_Array *arr, node *buf, size_t *idx) {
 }
 
 
-node node_process(FILE *file, node *parent, char *filename, size_t *line_num, size_t *nodes_num) {
+node node_process(FILE *file, node *parent, char *filename, usize *line_num, usize *nodes_num) {
 
     node this_node = {
         .parent   = parent,
@@ -246,7 +247,7 @@ node node_process(FILE *file, node *parent, char *filename, size_t *line_num, si
 }
 
 
-void node_processChildren(node *n, FILE *file, char *filename, size_t *line_num, size_t *nodes_num) {
+void node_processChildren(node *n, FILE *file, char *filename, usize *line_num, usize *nodes_num) {
     wint_t c;
     while ((c = fgetwc(file)) != WEOF) {
         wchar_t wc = (wchar_t)c;
@@ -260,11 +261,11 @@ void node_processChildren(node *n, FILE *file, char *filename, size_t *line_num,
 
 
 bool node_show_line_num = false;
-void node_printFmt(node n, size_t indent_level, size_t num_current, size_t num_max) {
+void node_printFmt(node n, usize indent_level, usize num_current, usize num_max) {
 
     if (n.hidden) return;
 
-    for (size_t i = 0; i < indent_level; i++) putchar('\t');
+    for (usize i = 0; i < indent_level; i++) putchar('\t');
 
     if (n.tag) {
         ansi_set("%s;%s", ANSI_BG_YELLOW, ANSI_FG_BLACK);
@@ -310,17 +311,17 @@ void node_printFmt(node n, size_t indent_level, size_t num_current, size_t num_m
     putchar('\n');
 
     if (n.text.len > 0) {
-        for (size_t i = 0; i < indent_level; i++) putchar('\t');
-        for (size_t i = 0; i < n.text.len; i++) {
+        for (usize i = 0; i < indent_level; i++) putchar('\t');
+        for (usize i = 0; i < n.text.len; i++) {
             printf("%lc", n.text.wstr[i]);
             if (n.text.wstr[i] == '\n') {
-                for (size_t j = 0; j < indent_level; j++) putchar('\t');
+                for (usize j = 0; j < indent_level; j++) putchar('\t');
             }
         }
         putchar('\n');
     }
 
-    for (size_t i = 0; i < n.children.len; i++) {
+    for (usize i = 0; i < n.children.len; i++) {
         node_printFmt(n.children.nodes[i], indent_level + 1, i, n.children.len);
     }
 
@@ -344,7 +345,7 @@ void node_free(node n) {
     if (n.desc.wstr != NULL) free(n.desc.wstr);
     if (n.date.wstr != NULL) free(n.date.wstr);
     if (n.text.wstr != NULL) free(n.text.wstr);
-    for (size_t i = 0; i < n.children.len; i++) {
+    for (usize i = 0; i < n.children.len; i++) {
         node_free(n.children.nodes[i]);
     }
     free(n.children.nodes);

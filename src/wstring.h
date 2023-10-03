@@ -1,4 +1,5 @@
-#include <stdbool.h>
+#include "base.h"
+
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -10,8 +11,8 @@
 #define WSTRING_TYPE
 
 typedef struct wstring {
-    size_t len;
-    size_t cap;
+    usize len;
+    usize cap;
     wchar_t *wstr;
 } wstring;
 
@@ -20,7 +21,7 @@ typedef struct wstring {
 
 bool iswspaceNotNewline(wchar_t c);
 
-wstring wstring_init(size_t init_size);
+wstring wstring_init(usize init_size);
 wstring wstring_initFromCstr(const char *cstr);
 wchar_t *wstring_initToWcptr(wstring str);
 void wstring_free(wstring wstr);
@@ -36,7 +37,7 @@ bool wstring_containsNewline(wstring *arr);
 void wstring_print(wstring str);
 void wstring_println(wstring str);
 
-double wstring_toDouble(wstring str);
+f64 wstring_toDouble(wstring str);
 
 
 #ifdef WSTRING_IMPLEMENTATION
@@ -47,23 +48,23 @@ bool iswspaceNotNewline(wchar_t c) {
 }
 
 
-wstring wstring_init(size_t init_size) {
+wstring wstring_init(usize init_size) {
     return (wstring){
         0,
         init_size,
-        (wchar_t *)malloc(init_size * sizeof(wchar_t))
+        malloc(init_size * sizeof(wchar_t))
     };
 }
 
 
 wstring wstring_initFromCstr(const char *cstr) {
-    const size_t cstr_len = strlen(cstr) + 1;
+    const usize cstr_len = strlen(cstr) + 1;
     wstring wstr_return = {
         cstr_len,
         cstr_len,
         malloc(cstr_len * sizeof(wchar_t))
     };
-    for (size_t i = 0; i < cstr_len; i++) {
+    for (usize i = 0; i < cstr_len; i++) {
         mbtowc(wstr_return.wstr + i, cstr + i, 4);
     }
     return wstr_return;
@@ -78,21 +79,21 @@ void wstring_free(wstring wstr) {
 void wstring_append(wstring *arr, wchar_t c) {
     if (arr->len == arr->cap) {
         arr->cap *= 2;
-        arr->wstr = (wchar_t *)realloc(arr->wstr, arr->cap * sizeof(wchar_t));
+        arr->wstr = realloc(arr->wstr, arr->cap * sizeof(wchar_t));
     }
     arr->wstr[arr->len++] = c;
 }
 
 
 void wstring_appendNewlinesFromWstring(wstring *target, wstring *from) {
-    for (size_t i = 0; i < from->len; i++) {
+    for (usize i = 0; i < from->len; i++) {
         if (from->wstr[i] == '\n') wstring_append(target, '\n');
     }
 }
 
 
 void wstring_appendWstring(wstring *target, wstring *from) {
-    for (size_t i = 0; i < from->len; i++) wstring_append(target, from->wstr[i]);
+    for (usize i = 0; i < from->len; i++) wstring_append(target, from->wstr[i]);
 }
 
 
@@ -106,7 +107,7 @@ void wstring_nullTerminate(wstring *arr) {
 
 
 bool wstring_containsNewline(wstring *arr) {
-    for (size_t i = 0; i < arr->len; i++) {
+    for (usize i = 0; i < arr->len; i++) {
         if (arr->wstr[i] == '\n') return true;
     }
     return false;
@@ -114,7 +115,7 @@ bool wstring_containsNewline(wstring *arr) {
 
 
 void wstring_print(wstring str) {
-    for (size_t i = 0; i < str.len; i++) printf("%lc", str.wstr[i]);
+    for (usize i = 0; i < str.len; i++) printf("%lc", str.wstr[i]);
 }
 
 
@@ -125,7 +126,7 @@ void wstring_println(wstring str) {
 
 
 void wstring_removeSurroundingWhitespace(wstring *str) {
-    for (size_t i = 0; i < str->len; i++) {
+    for (usize i = 0; i < str->len; i++) {
         if (!iswspace(str->wstr[i])) {
             if (i > 0) {
                 str->len -= i;
@@ -137,21 +138,21 @@ void wstring_removeSurroundingWhitespace(wstring *str) {
 
     for (int i = str->len - 1; i >= 0; i--) {
         if (!iswspace(str->wstr[i])) {
-            if ((size_t)i < str->len) str->len = i + 1;
+            if ((usize)i < str->len) str->len = i + 1;
             return;
         }
     }
 }
 
 
-double wstring_toDouble(wstring str) {
+f64 wstring_toDouble(wstring str) {
 
-    double ret = 0;
+    f64 ret = 0;
 
     char cbuf_int[str.len];
     bool found_decimal = false;
-    size_t int_idx = 0;
-    size_t int_cstr_idx = 0;
+    usize int_idx = 0;
+    usize int_cstr_idx = 0;
 
     for (; int_cstr_idx < str.len; int_cstr_idx++) {
         char c = (char)str.wstr[int_cstr_idx];
@@ -168,16 +169,16 @@ double wstring_toDouble(wstring str) {
 
     if (found_decimal) {
         char cbuf_dec[str.len - int_cstr_idx];
-        size_t dec_idx = 0;
-        for (size_t dec_cstr_idx = int_cstr_idx + 1; dec_cstr_idx < str.len; dec_cstr_idx++) {
+        usize dec_idx = 0;
+        for (usize dec_cstr_idx = int_cstr_idx + 1; dec_cstr_idx < str.len; dec_cstr_idx++) {
             char c = (char)str.wstr[dec_cstr_idx];
             if (c >= '0' && c <= '9') {
                 cbuf_dec[dec_idx] = (char)str.wstr[dec_cstr_idx];
                 dec_idx++;
             }
         }
-        float dec_add = atof(cbuf_dec);
-        for (size_t i = 0; i < dec_idx; i++) {
+        f32 dec_add = atof(cbuf_dec);
+        for (usize i = 0; i < dec_idx; i++) {
             dec_add /= 10;
         }
         ret += dec_add;
@@ -189,7 +190,7 @@ double wstring_toDouble(wstring str) {
 
 wchar_t *wstring_initToWcptr(wstring str) {
     wchar_t *wcptr = malloc(sizeof(wchar_t) * str.len + 1);
-    for (size_t i = 0; i < str.len; i++) {
+    for (usize i = 0; i < str.len; i++) {
         wcptr[i] = str.wstr[i];
     }
     wcptr[str.len] = '\0';
