@@ -21,9 +21,9 @@ week {
 }
 
 todo {
-    for task: all(task) {
-        test = "test";
-    }
+    // for task: all(task) {
+    //     test = "test";
+    // }
     // task: all(task) {
     //     if task.date > #now and !task.done { task }
     // }

@@ -68,65 +68,62 @@ pub fn parseTreeFromToksRecurse(
 
     while (tok) |t| : (tok = it.inc()) switch (t.kind) {
         @intFromEnum(token.Kind.symbol) => {
-            const keyword = parse.keyword(t.lexeme(set));
-            if (keyword == .none) {
-                if (it.inc()) |t2| switch (t2.kind) {
-                    '{' => {
-                        if (keyword != .none) return log.reportErr(
+            if (it.inc()) |t2| switch (t2.kind) {
+                @intFromEnum(token.Kind.@"for"),
+                @intFromEnum(token.Kind.@"if"),
+                => try parseKeyword(
+                    err_writer,
+                    set,
+                    depth,
+                    childs_i,
+                    @enumFromInt(t2.kind),
+                ),
+                '{' => {
+                    tok = it.inc();
+                    if (tok != null and tok.?.kind != '}') {
+                        try recurseInBody(
                             err_writer,
-                            Err.UnexpectedKeyword,
                             set,
-                            t.beg_i,
+                            depth,
+                            childs_i,
+                            .node_decl_simple,
+                            it.i - 2,
                         );
-
-                        tok = it.inc();
-                        if (tok != null and tok.?.kind != '}') {
-                            try recurseInBody(
-                                err_writer,
-                                set,
-                                depth,
-                                childs_i,
-                                .node_decl_simple,
-                                it.i - 2,
-                            );
-                        } else {
-                            try appendChild(set, childs_i);
-                            const node_name_i = it.i - 2;
-                            try set.nodes.append(allocator, .{
-                                .tag = .node_decl_simple,
-                                .data = .{ .lhs = node_name_i, .rhs = 0 },
-                            });
-                        }
-                    },
-                    '=' => {
-                        while (tok) |t3| : (tok = it.inc()) switch (t3.kind) {
-                            ';' => break,
-                            '{' => return log.reportErr(
-                                err_writer,
-                                Err.UnexpectedCurlyLeft,
-                                set,
-                                t3.beg_i,
-                            ),
-                            else => {},
-                        };
-
-                        const var_name_i = it.i - 3;
+                    } else {
                         try appendChild(set, childs_i);
+                        const node_name_i = it.i - 2;
                         try set.nodes.append(allocator, .{
-                            .tag = .var_decl_literal,
-                            .data = .{ .lhs = var_name_i, .rhs = it.i - 1 },
+                            .tag = .node_decl_simple,
+                            .data = .{ .lhs = node_name_i, .rhs = 0 },
                         });
-                    },
-                    else => return log.reportErr(
-                        err_writer,
-                        token.Err.InvalidSyntax,
-                        set,
-                        t2.beg_i,
-                    ),
-                };
-            } else {
-                try parseKeyword(err_writer, set, depth, childs_i, keyword);
-            }
+                    }
+                },
+                '=' => {
+                    while (tok) |t3| : (tok = it.inc()) switch (t3.kind) {
+                        ';' => break,
+                        '{' => return log.reportErr(
+                            err_writer,
+                            Err.UnexpectedCurlyLeft,
+                            set,
+                            t3.beg_i,
+                        ),
+                        else => {},
+                    };
+
+                    const var_name_i = it.i - 3;
+                    try appendChild(set, childs_i);
+                    try set.nodes.append(allocator, .{
+                        .tag = .var_decl_literal,
+                        .data = .{ .lhs = var_name_i, .rhs = it.i - 1 },
+                    });
+                },
+                else => return log.reportErr(
+                    err_writer,
+                    token.Err.InvalidSyntax,
+                    set,
+                    t2.beg_i,
+                ),
+            };
         },
         '{' => {
             return log.reportErr(err_writer, Err.NoNodeName, set, t.beg_i);
@@ -366,19 +363,24 @@ pub fn printNicelyRecurse(
                 switch (var_type) {
                     .str => {
                         if (clr) try ansi.set(writer, &.{ansi.fg_cyan});
-                        try writer.print("\"{s}\";\n", .{literal});
+                        try writer.print("\"{s}\"", .{literal});
                         if (clr) try ansi.reset(writer);
                     },
-                    .num => {
-                        if (clr) try ansi.set(writer, &.{ansi.fg_cyan});
-                        try writer.print("{s};\n", .{literal});
+                    .num, .true, .false => {
+                        if (clr) try ansi.set(
+                            writer,
+                            &.{ ansi.fg_cyan, ansi.fmt_bold },
+                        );
+                        try writer.print("{s}", .{literal});
                         if (clr) try ansi.reset(writer);
                     },
                     .symbol => {
-                        try writer.print("{s};\n", .{literal});
+                        try writer.print("{s}", .{literal});
                     },
                     else => unreachable,
                 }
+
+                _ = try writer.write(";\n");
 
                 return;
             },
