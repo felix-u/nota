@@ -97,7 +97,7 @@ pub fn main() !void {
             try ast.printDebug(stdout, set);
             try stdout.print("=== AST: END ===\n", .{});
         } else {
-            try ast.printNicely(stdout, set);
+            try ast.printNicely(stdout, .ansi_clr_enabled, set);
         }
 
         std.os.exit(0);

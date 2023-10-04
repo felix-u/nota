@@ -1,3 +1,4 @@
+const ansi = @import("ansi.zig");
 const log = @import("log.zig");
 const parse = @import("parse.zig");
 const std = @import("std");
@@ -255,6 +256,10 @@ pub const TokenIterator = struct {
     }
 };
 
+fn writeIndent(writer: Writer, how_many_times: usize) !void {
+    for (how_many_times) |_| _ = try writer.write(" " ** 4);
+}
+
 pub fn printDebugRecurse(
     writer: Writer,
     set: *parse.Set,
@@ -263,7 +268,7 @@ pub fn printDebugRecurse(
 ) !void {
     const node = set.nodes.get(node_i);
 
-    try writer.writeByteNTimes('\t', indent_level);
+    try writeIndent(writer, indent_level);
     try writer.print("{any} {any}\n", .{ node.tag, node.data });
 
     switch (node.tag) {
@@ -305,42 +310,83 @@ pub fn printDebug(writer: Writer, set: *parse.Set) !void {
     try printDebugRecurse(writer, set, 0, 0);
 }
 
-pub fn printNicely(writer: Writer, set: *parse.Set) !void {
-    try printNicelyRecurse(writer, set, 0, 0, true);
+const AnsiClrState = enum {
+    ansi_clr_disabled,
+    ansi_clr_enabled,
+};
+
+pub fn printNicely(
+    writer: Writer,
+    comptime ansi_clr: AnsiClrState,
+    set: *parse.Set,
+) !void {
+    try printNicelyRecurse(writer, ansi_clr, set, 0, 0, true);
 }
 
 pub fn printNicelyRecurse(
     writer: Writer,
+    comptime ansi_clr: AnsiClrState,
     set: *parse.Set,
     node_i: u32,
     indent_level: u32,
-    comptime outer_node: bool,
+    comptime in_root_node: bool,
 ) !void {
+    const clr = if (ansi_clr == .ansi_clr_enabled) true else false;
+
     const node = set.nodes.get(node_i);
 
-    if (!outer_node) {
-        try writer.writeByteNTimes('\t', indent_level);
+    if (!in_root_node) {
+        try writeIndent(writer, indent_level);
         switch (node.tag) {
             .for_expr => {
+                if (clr) try ansi.set(writer, &.{ansi.fg_red});
+                _ = try writer.write("for ");
+                if (clr) try ansi.reset(writer);
+
                 const iterator_name = set.toks.get(node.data.lhs).lexeme(set);
-                try writer.print("for {s} {{\n", .{iterator_name});
+                try writer.print("{s} {{\n", .{iterator_name});
             },
             .node_decl_simple => {
                 const node_name = set.toks.get(node.data.lhs).lexeme(set);
-                try writer.print("{s} {{\n", .{node_name});
+
+                if (clr) try ansi.set(writer, &.{ansi.fmt_bold});
+                try writer.print("{s}", .{node_name});
+                if (clr) try ansi.reset(writer);
+
+                _ = try writer.write(" {\n");
             },
             .root_node => unreachable,
             .var_decl_literal => {
                 const var_name = set.toks.get(node.data.lhs).lexeme(set);
+                try writer.print("{s} = ", .{var_name});
                 const literal = set.toks.get(node.data.rhs).lexeme(set);
-                try writer.print("{s} = {s};\n", .{ var_name, literal });
+
+                const var_type: token.Kind =
+                    @enumFromInt(set.toks.items(.kind)[node.data.rhs]);
+                switch (var_type) {
+                    .str => {
+                        if (clr) try ansi.set(writer, &.{ansi.fg_cyan});
+                        try writer.print("\"{s}\";\n", .{literal});
+                        if (clr) try ansi.reset(writer);
+                    },
+                    .num => {
+                        if (clr) try ansi.set(writer, &.{ansi.fg_cyan});
+                        try writer.print("{s};\n", .{literal});
+                        if (clr) try ansi.reset(writer);
+                    },
+                    .symbol => {
+                        try writer.print("{s};\n", .{literal});
+                    },
+                    else => unreachable,
+                }
+
                 return;
             },
         }
     }
 
     if (node.tag != .root_node and node.data.rhs == 0) {
-        try writer.writeByteNTimes('\t', indent_level);
+        try writeIndent(writer, indent_level);
         _ = try writer.write("}\n");
         return;
     }
@@ -357,14 +403,19 @@ pub fn printNicelyRecurse(
     const childs = set.childs.items[node.data.rhs];
 
     const childs_indent_level =
-        if (outer_node) indent_level else indent_level + 1;
+        if (in_root_node) indent_level else indent_level + 1;
 
-    for (childs.items) |i| {
-        try printNicelyRecurse(writer, set, i, childs_indent_level, false);
-    }
+    for (childs.items) |i| try printNicelyRecurse(
+        writer,
+        ansi_clr,
+        set,
+        i,
+        childs_indent_level,
+        false,
+    );
 
     if (print_closing_curly) {
-        try writer.writeByteNTimes('\t', indent_level);
+        try writeIndent(writer, indent_level);
         _ = try writer.write("}\n");
     }
 }

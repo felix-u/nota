@@ -20,6 +20,7 @@ pub const Kind = enum(u8) {
     str,
     num,
     date,
+    boolean,
     symbol,
 
     eof,
