@@ -1,3 +1,4 @@
+const ansi = @import("ansi.zig");
 const args = @import("args.zig");
 const ast = @import("ast.zig");
 const log = @import("log.zig");
@@ -31,6 +32,14 @@ pub fn main() !void {
                         .short = 'd',
                         .long = "debug",
                         .desc = "Enable debugging-oriented formatting",
+                    },
+                    args.Flag{
+                        .long = "noclr",
+                        .desc = "Disable ANSI colour in output",
+                    },
+                    args.Flag{
+                        .long = "clr",
+                        .desc = "Force ANSI colour in output",
                     },
                 },
             },
@@ -97,7 +106,13 @@ pub fn main() !void {
             try ast.printDebug(stdout, set);
             try stdout.print("=== AST: END ===\n", .{});
         } else {
-            try ast.printNicely(stdout, .ansi_clr_enabled, set);
+            const use_ansi_clr = args_parsed.print.clr or
+                (ansi.shouldUse() and !args_parsed.print.noclr);
+            if (use_ansi_clr) {
+                try ast.printNicely(stdout, .ansi_clr_enabled, set);
+            } else {
+                try ast.printNicely(stdout, .ansi_clr_disabled, set);
+            }
         }
 
         std.os.exit(0);

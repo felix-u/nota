@@ -523,7 +523,7 @@ pub fn parseAlloc(
                     (flag.short != 0 and flag_cmp.short != 0) and
                     (flag.short == flag_cmp.short);
 
-                if (!duplicate_flag) @compileError(std.fmt.comptimePrint(
+                if (duplicate_flag) @compileError(std.fmt.comptimePrint(
                     "flags '{s}' and '{s}' belong to the same command " ++
                         "and cannot share their short form '{c}'",
                     .{ flag.long, flag_cmp.long, flag.short },
