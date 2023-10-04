@@ -44,7 +44,8 @@ typedef struct Token {
 bool token_from_buf(Parse_Context *pctx) {
     u8 c = 0;
 
-    for (u32 i = 0; i < pctx->buf.len; i += 1, c = pctx->buf[c]) switch (c) {
+    for (u32 i = 0; i < pctx->buf.len; i += 1, c = pctx->buf.str[i]) {
+        switch (c) {
         case ' ': case '\n': case '\t': case '\r': 
             break;
         case '{': case '}': case '(': case ')': case '=': case ';': case ':':
@@ -59,6 +60,7 @@ bool token_from_buf(Parse_Context *pctx) {
             break;
         default:
             // TODO: num or symbol
+            break;
         }
     }
 
