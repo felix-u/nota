@@ -50,9 +50,14 @@ pub fn build(b: *std.Build) void {
     inline for (target_arches) |target_arch| {
         inline for (target_oses) |target_os| {
             const triple = target_arch ++ "-" ++ target_os;
-            const cross_target = std.zig.CrossTarget.parse(.{ .arch_os_abi = triple }) catch unreachable;
+            const cross_target = std.zig.CrossTarget.parse(
+                .{ .arch_os_abi = triple },
+            ) catch unreachable;
             makeStep(b, cross_step, .ReleaseFast, .{
-                .name = b.fmt("{s}-v{s}-{s}", .{ exe_name, exe_version, triple }),
+                .name = b.fmt(
+                    "{s}-v{s}-{s}",
+                    .{ exe_name, exe_version, triple },
+                ),
                 .root_source_file = .{ .path = root_source_file },
                 .target = cross_target,
             });
