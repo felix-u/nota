@@ -330,60 +330,66 @@ pub fn printNicelyRecurse(
 
     const node = set.nodes.get(node_i);
 
-    if (!in_root_node) {
-        try writeIndent(writer, indent_level);
-        switch (node.tag) {
-            .for_expr => {
-                if (clr) try ansi.set(writer, &.{ansi.fg_red});
-                _ = try writer.write("for ");
-                if (clr) try ansi.reset(writer);
+    try writeIndent(writer, indent_level);
 
-                const iterator_name = set.toks.get(node.data.lhs).lexeme(set);
-                try writer.print("{s} {{\n", .{iterator_name});
-            },
-            .node_decl_simple => {
-                const node_name = set.toks.get(node.data.lhs).lexeme(set);
+    if (!in_root_node) switch (node.tag) {
+        .for_expr => {
+            if (clr) try ansi.set(writer, &.{ansi.fg_red});
+            _ = try writer.write("for ");
+            if (clr) try ansi.reset(writer);
 
-                if (clr) try ansi.set(writer, &.{ansi.fmt_bold});
-                try writer.print("{s}", .{node_name});
-                if (clr) try ansi.reset(writer);
+            const iterator_name = set.toks.get(node.data.lhs).lexeme(set);
+            try writer.print("{s}: ", .{iterator_name});
 
-                _ = try writer.write(" {\n");
-            },
-            .root_node => unreachable,
-            .var_decl_literal => {
-                const var_name = set.toks.get(node.data.lhs).lexeme(set);
-                try writer.print("{s} = ", .{var_name});
-                const literal = set.toks.get(node.data.rhs).lexeme(set);
+            if (clr) try ansi.set(writer, &.{ansi.fg_magenta});
+            const selector_i = node.data.lhs + 2;
+            try printToOpenCurly(writer, set, selector_i);
+            if (clr) try ansi.reset(writer);
 
-                const var_type: token.Kind =
-                    @enumFromInt(set.toks.items(.kind)[node.data.rhs]);
-                switch (var_type) {
-                    .str => {
-                        if (clr) try ansi.set(writer, &.{ansi.fg_cyan});
-                        try writer.print("\"{s}\"", .{literal});
-                        if (clr) try ansi.reset(writer);
-                    },
-                    .num, .true, .false => {
-                        if (clr) try ansi.set(
-                            writer,
-                            &.{ ansi.fg_cyan, ansi.fmt_bold },
-                        );
-                        try writer.print("{s}", .{literal});
-                        if (clr) try ansi.reset(writer);
-                    },
-                    .symbol => {
-                        try writer.print("{s}", .{literal});
-                    },
-                    else => unreachable,
-                }
+            _ = try writer.write(" {\n");
+        },
+        .node_decl_simple => {
+            const node_name = set.toks.get(node.data.lhs).lexeme(set);
 
-                _ = try writer.write(";\n");
+            if (clr) try ansi.set(writer, &.{ansi.fmt_bold});
+            try writer.print("{s}", .{node_name});
+            if (clr) try ansi.reset(writer);
 
-                return;
-            },
-        }
-    }
+            _ = try writer.write(" {\n");
+        },
+        .root_node => unreachable,
+        .var_decl_literal => {
+            const var_name = set.toks.get(node.data.lhs).lexeme(set);
+            try writer.print("{s} = ", .{var_name});
+            const literal = set.toks.get(node.data.rhs).lexeme(set);
+
+            const var_type: token.Kind =
+                @enumFromInt(set.toks.items(.kind)[node.data.rhs]);
+            switch (var_type) {
+                .str => {
+                    if (clr) try ansi.set(writer, &.{ansi.fg_cyan});
+                    try writer.print("\"{s}\"", .{literal});
+                    if (clr) try ansi.reset(writer);
+                },
+                .num, .true, .false => {
+                    if (clr) try ansi.set(
+                        writer,
+                        &.{ ansi.fg_cyan, ansi.fmt_bold },
+                    );
+                    try writer.print("{s}", .{literal});
+                    if (clr) try ansi.reset(writer);
+                },
+                .symbol => {
+                    try writer.print("{s}", .{literal});
+                },
+                else => unreachable,
+            }
+
+            _ = try writer.write(";\n");
+
+            return;
+        },
+    };
 
     if (node.tag != .root_node and node.data.rhs == 0) {
         try writeIndent(writer, indent_level);
@@ -418,4 +424,17 @@ pub fn printNicelyRecurse(
         try writeIndent(writer, indent_level);
         _ = try writer.write("}\n");
     }
+}
+
+fn printToOpenCurly(writer: Writer, set: *parse.Set, _tok_i: u32) !void {
+    const buf_beg_i = set.toks.items(.beg_i)[_tok_i];
+
+    var tok_i = _tok_i;
+    while (set.toks.items(.kind)[tok_i] != '{') {
+        tok_i += 1;
+    }
+
+    const buf_end_i = set.toks.items(.end_i)[tok_i - 1];
+
+    _ = try writer.write(set.buf[buf_beg_i..buf_end_i]);
 }
