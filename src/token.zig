@@ -32,7 +32,6 @@ pub const Kind = enum(u8) {
 
     control,
     @"for",
-    @"if",
     control_end,
 
     keyword_end,
@@ -122,7 +121,7 @@ pub fn parseToksFromBuf(err_writer: Writer, set: *parse.Set) !void {
 
             const keyword = parse.keyword(set.buf[beg_i..it.i]);
             this_kind = switch (keyword) {
-                .true, .false, .@"for", .@"if" => keyword,
+                .true, .false, .@"for" => keyword,
                 else => this_kind,
             };
 

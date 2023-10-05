@@ -69,15 +69,6 @@ pub fn parseTreeFromToksRecurse(
     while (tok) |t| : (tok = it.inc()) switch (t.kind) {
         @intFromEnum(token.Kind.symbol) => {
             if (it.inc()) |t2| switch (t2.kind) {
-                @intFromEnum(token.Kind.@"for"),
-                @intFromEnum(token.Kind.@"if"),
-                => try parseKeyword(
-                    err_writer,
-                    set,
-                    depth,
-                    childs_i,
-                    @enumFromInt(t2.kind),
-                ),
                 '{' => {
                     tok = it.inc();
                     if (tok != null and tok.?.kind != '}') {
@@ -137,6 +128,13 @@ pub fn parseTreeFromToksRecurse(
                 t.beg_i,
             );
         },
+        @intFromEnum(token.Kind.@"for") => try parseKeyword(
+            err_writer,
+            set,
+            depth,
+            childs_i,
+            @enumFromInt(t.kind),
+        ),
         @intFromEnum(token.Kind.eof) => if (depth != 0) {
             return log.reportErr(err_writer, Err.NoClosingCurly, set, t.beg_i);
         },
