@@ -27,17 +27,25 @@ pub const Node = struct {
     };
 
     const Tag = enum(u8) {
+        // lhs is the index to the first token of the filter.
+        // rhs is the index into childs_list of the filter being piped into,
+        // or 0 if there is no pipe.
+        filter,
+
         // for lhs: ... { ... }
         // rhs is the index into childs_list of the for expression.
         for_expr,
+
         // lhs { }
         // rhs is the index into childs_list of the node, or 0 if there are no
         // children.
         node_decl_simple,
+
         // lhs unused.
         // rhs is the index into childs_list of the node, or 0 if there are no
         // children.
         root_node,
+
         // rhs is the index of a string, date, or number.
         // lhs = rhs
         var_decl_literal,
