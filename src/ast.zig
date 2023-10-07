@@ -341,6 +341,7 @@ pub fn printNicelyRecurse(
     try writeIndent(writer, indent_level);
 
     if (!in_root_node) switch (node.tag) {
+        .filter => unreachable,
         .for_expr => {
             if (clr) try ansi.set(writer, &.{ansi.fg_red});
             _ = try writer.write("for ");
