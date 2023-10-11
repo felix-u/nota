@@ -64,12 +64,19 @@ pub fn parseToksFromBuf(err_writer: Writer, set: *parse.Set) !void {
             });
         },
         '/' => {
-            if (set.buf[it.i] != '/') return log.reportErr(
-                err_writer,
-                Err.InvalidSyntax,
-                set,
-                @intCast(last_i),
-            );
+            if (set.buf[it.i] != '/') {
+                try set.toks.append(allocator, .{
+                    .beg_i = @intCast(last_i),
+                    .end_i = @intCast(last_i + 1),
+                    .kind = '/',
+                });
+                return log.reportErr(
+                    err_writer,
+                    Err.InvalidSyntax,
+                    set,
+                    @intCast(set.toks.len - 1),
+                );
+            }
 
             last_i = it.i;
             if (it.nextCodepoint() == null) break :chars;
@@ -80,12 +87,19 @@ pub fn parseToksFromBuf(err_writer: Writer, set: *parse.Set) !void {
         '"' => {
             const beg_i = it.i + 1;
             while (it.nextCodepoint()) |c2| : (last_i = it.i) {
-                if (set.buf[it.i] == '\n') return log.reportErr(
-                    err_writer,
-                    Err.NoClosingQuote,
-                    set,
-                    @as(u32, @intCast(it.i)) - 1,
-                );
+                if (set.buf[it.i] == '\n') {
+                    try set.toks.append(allocator, .{
+                        .beg_i = @intCast(last_i),
+                        .end_i = @intCast(last_i + 1),
+                        .kind = '\n',
+                    });
+                    return log.reportErr(
+                        err_writer,
+                        Err.NoClosingQuote,
+                        set,
+                        @intCast(set.toks.len - 1),
+                    );
+                }
 
                 if (set.buf[it.i] != '"' or c2 == '\\') continue;
                 last_i = it.i;

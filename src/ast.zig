@@ -60,14 +60,14 @@ pub fn parseTreeFromToks(
     err_writer: Writer,
     set: *parse.Set,
 ) !void {
-    try parseTreeFromToksRecurse(err_writer, set, 0, 0);
+    try parseTreeFromToksRecurse(err_writer, set, 0, true);
 }
 
 pub fn parseTreeFromToksRecurse(
     err_writer: Writer,
     set: *parse.Set,
-    depth: u32,
     childs_i: u32,
+    comptime in_root_node: bool,
 ) !void {
     const allocator = set.allocator;
     const it = &set.tok_it;
@@ -83,7 +83,6 @@ pub fn parseTreeFromToksRecurse(
                         try recurseInBody(
                             err_writer,
                             set,
-                            depth,
                             childs_i,
                             .node_decl_simple,
                             it.i - 2,
@@ -104,7 +103,7 @@ pub fn parseTreeFromToksRecurse(
                             err_writer,
                             Err.UnexpectedCurlyLeft,
                             set,
-                            t3.beg_i,
+                            it.i,
                         ),
                         else => {},
                     };
@@ -120,31 +119,30 @@ pub fn parseTreeFromToksRecurse(
                     err_writer,
                     token.Err.InvalidSyntax,
                     set,
-                    t2.beg_i,
+                    it.i,
                 ),
             };
         },
         '{' => {
-            return log.reportErr(err_writer, Err.NoNodeName, set, t.beg_i);
+            return log.reportErr(err_writer, Err.NoNodeName, set, it.i);
         },
         '}' => {
-            if (depth != 0) return;
+            if (!in_root_node) return;
             return log.reportErr(
                 err_writer,
                 Err.UnmatchedCurlyRight,
                 set,
-                t.beg_i,
+                it.i,
             );
         },
         @intFromEnum(token.Kind.@"for") => try parseKeyword(
             err_writer,
             set,
-            depth,
             childs_i,
             @enumFromInt(t.kind),
         ),
-        @intFromEnum(token.Kind.eof) => if (depth != 0) {
-            return log.reportErr(err_writer, Err.NoClosingCurly, set, t.beg_i);
+        @intFromEnum(token.Kind.eof) => if (!in_root_node) {
+            return log.reportErr(err_writer, Err.NoClosingCurly, set, it.i);
         },
         else => {},
     };
@@ -153,7 +151,6 @@ pub fn parseTreeFromToksRecurse(
 fn recurseInBody(
     err_writer: Writer,
     set: *parse.Set,
-    depth: u32,
     childs_i: u32,
     comptime tag: Node.Tag,
     lhs: u32,
@@ -169,7 +166,7 @@ fn recurseInBody(
         .data = .{ .lhs = lhs, .rhs = recurse_childs_i },
     });
 
-    try parseTreeFromToksRecurse(err_writer, set, depth + 1, recurse_childs_i);
+    try parseTreeFromToksRecurse(err_writer, set, recurse_childs_i, false);
 }
 
 fn appendChild(set: *parse.Set, childs_i: u32) !void {
@@ -184,7 +181,6 @@ fn appendChild(set: *parse.Set, childs_i: u32) !void {
 fn parseKeyword(
     err_writer: Writer,
     set: *parse.Set,
-    depth: u32,
     childs_i: u32,
     keyword: token.Kind,
 ) anyerror!void {
@@ -199,14 +195,13 @@ fn parseKeyword(
         const lhs = it.i;
         tok = it.inc();
         if (tok == null) return;
-        while (tok) |t| : (tok = it.inc()) switch (tok.?.kind) {
+        while (tok) |_| : (tok = it.inc()) switch (tok.?.kind) {
             ':' => while (tok) |t2| : (tok = it.inc()) switch (t2.kind) {
                 '{' => {
                     tok = it.inc();
                     if (tok != null and tok.?.kind != '}') try recurseInBody(
                         err_writer,
                         set,
-                        depth,
                         childs_i,
                         .for_expr,
                         lhs,
@@ -214,7 +209,7 @@ fn parseKeyword(
                         err_writer,
                         Err.EmptyBody,
                         set,
-                        t2.beg_i,
+                        it.i,
                     );
                 },
                 else => continue,
@@ -223,7 +218,7 @@ fn parseKeyword(
                 err_writer,
                 Err.NoIteratorLabel,
                 set,
-                t.beg_i,
+                it.i,
             ),
         };
         return;
@@ -231,6 +226,20 @@ fn parseKeyword(
 
     std.debug.print("UNIMPLEMENTED: {any}\n", .{keyword});
     @panic("UNIMPLEMENTED");
+}
+
+fn parseFilter(err_writer: Writer, set: *parse.Set) !void {
+    _ = err_writer;
+
+    const allocator = set.allocator;
+    _ = allocator;
+    const it = &set.tok_it;
+    var tok: ?token.Token = it.peek();
+
+    while (tok) |_| : (tok = it.inc()) switch (tok.?.kind) {
+        '{' => break,
+        else => {},
+    };
 }
 
 pub const TokenIterator = struct {

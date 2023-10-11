@@ -42,9 +42,9 @@ pub fn reportErr(
     writer: std.fs.File.Writer,
     comptime err: anyerror,
     set: *parse.Set,
-    i: u32,
+    tok_i: u32,
 ) anyerror {
-    var pos = filePos{ .set = set, .i = i };
+    var pos = filePos{ .set = set, .i = set.toks.items(.beg_i)[tok_i] };
     pos.computeCoords();
 
     try writer.print(
