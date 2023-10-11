@@ -28,6 +28,10 @@ pub const Kind = enum(u8) {
 
     // Mostly used by AST later.
 
+    op_beg,
+    equals,
+    op_end,
+
     keyword_beg,
 
     control,
@@ -56,11 +60,24 @@ pub fn parseToksFromBuf(err_writer: Writer, set: *parse.Set) !void {
 
     chars: while (it.nextCodepoint()) |c1| : (last_i = it.i) switch (c1) {
         '\r', '\n', '\t', ' ' => {},
-        '{', '}', '(', ')', '=', ';', ':', '!', '>', '<', '#' => {
+        '=' => {
+            const next = it.nextCodepoint();
+            if (next == null) break :chars;
+            if (next.? == '=') try set.toks.append(allocator, .{
+                .beg_i = @intCast(last_i),
+                .end_i = @intCast(it.i),
+                .kind = @intFromEnum(Kind.equals),
+            }) else try set.toks.append(allocator, .{
+                .beg_i = @intCast(last_i),
+                .end_i = @intCast(last_i + 1),
+                .kind = set.buf[last_i],
+            });
+        },
+        '{', '}', '(', ')', ';', ':', '!', '>', '<', '@', '|' => {
             try set.toks.append(allocator, .{
                 .beg_i = @intCast(last_i),
                 .end_i = @intCast(it.i),
-                .kind = set.buf[last_i],
+                .kind = @intCast(c1),
             });
         },
         '/' => {
@@ -68,7 +85,7 @@ pub fn parseToksFromBuf(err_writer: Writer, set: *parse.Set) !void {
                 try set.toks.append(allocator, .{
                     .beg_i = @intCast(last_i),
                     .end_i = @intCast(last_i + 1),
-                    .kind = '/',
+                    .kind = @intCast(c1),
                 });
                 return log.reportErr(
                     err_writer,
@@ -91,7 +108,7 @@ pub fn parseToksFromBuf(err_writer: Writer, set: *parse.Set) !void {
                     try set.toks.append(allocator, .{
                         .beg_i = @intCast(last_i),
                         .end_i = @intCast(last_i + 1),
-                        .kind = '\n',
+                        .kind = @intCast(c1),
                     });
                     return log.reportErr(
                         err_writer,
@@ -114,12 +131,19 @@ pub fn parseToksFromBuf(err_writer: Writer, set: *parse.Set) !void {
             });
         },
         else => {
-            if (!parse.isValidSymbolChar(@intCast(c1))) return log.reportErr(
-                err_writer,
-                Err.InvalidSyntax,
-                set,
-                @intCast(last_i),
-            );
+            if (!parse.isValidSymbolChar(@intCast(c1))) {
+                try set.toks.append(allocator, .{
+                    .beg_i = @intCast(last_i),
+                    .end_i = @intCast(last_i + 1),
+                    .kind = @intCast(c1),
+                });
+                return log.reportErr(
+                    err_writer,
+                    Err.InvalidSyntax,
+                    set,
+                    @intCast(set.toks.len - 1),
+                );
+            }
 
             const beg_i: u32 = @intCast(last_i);
 

@@ -21,7 +21,7 @@ week {
 }
 
 todo {
-    for task: all(task) {
+    for task: (@all | .@name == "task") {
         test = "test";
     }
 }

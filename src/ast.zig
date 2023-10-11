@@ -27,12 +27,8 @@ pub const Node = struct {
     };
 
     const Tag = enum(u8) {
-        // lhs is the index to the first token of the filter.
-        // rhs is the index into childs_list of the filter being piped into,
-        // or 0 if there is no pipe.
-        filter,
-
-        // for lhs: ... { ... }
+        // for lhs... { ... }
+        // lhs is the index into filter_list of the filter.
         // rhs is the index into childs_list of the for expression.
         for_expr,
 
@@ -228,18 +224,25 @@ fn parseKeyword(
     @panic("UNIMPLEMENTED");
 }
 
-fn parseFilter(err_writer: Writer, set: *parse.Set) !void {
-    _ = err_writer;
-
+fn parseFilter(
+    err_writer: Writer,
+    set: *parse.Set,
+    comptime stop_char: u8,
+) !void {
     const allocator = set.allocator;
     _ = allocator;
     const it = &set.tok_it;
+
+    const filter_i = it.i;
+
     var tok: ?token.Token = it.peek();
 
     while (tok) |_| : (tok = it.inc()) switch (tok.?.kind) {
-        '{' => break,
-        else => {},
+        stop_char => return,
+        else => continue,
     };
+
+    return log.reportErr(err_writer, Err.NoFilterEnd, set, filter_i);
 }
 
 pub const TokenIterator = struct {
@@ -350,7 +353,6 @@ pub fn printNicelyRecurse(
     try writeIndent(writer, indent_level);
 
     if (!in_root_node) switch (node.tag) {
-        .filter => unreachable,
         .for_expr => {
             if (clr) try ansi.set(writer, &.{ansi.fg_red});
             _ = try writer.write("for ");
