@@ -60,10 +60,10 @@ pub fn main() !void {
         const filebuf = try readFileAlloc(allocator, filepath);
         defer allocator.free(filebuf);
 
-        const set = try parse.Set.init(allocator, filepath, filebuf);
+        const ctx = try parse.Context.init(allocator, filepath, filebuf);
 
-        token.parseToksFromBuf(stderr, set) catch std.os.exit(1);
-        ast.parseTreeFromToks(stderr, set) catch std.os.exit(1);
+        token.parseToksFromBuf(stderr, ctx) catch std.os.exit(1);
+        ast.parseTreeFromToks(stderr, ctx) catch std.os.exit(1);
 
         std.os.exit(0);
     }
@@ -74,25 +74,25 @@ pub fn main() !void {
         defer allocator.free(filebuf);
         const debug_view = args_parsed.print.debug;
 
-        const set = try parse.Set.init(allocator, filepath, filebuf);
+        const ctx = try parse.Context.init(allocator, filepath, filebuf);
 
         if (debug_view) try stdout.print("=== TOK: BEG ===\n", .{});
 
-        try token.parseToksFromBuf(stderr, set);
+        try token.parseToksFromBuf(stderr, ctx);
 
         if (debug_view) {
-            for (0..set.toks.len) |i| {
-                const tok = set.toks.get(i);
-                var pos: log.filePos = .{ .set = set, .i = tok.beg_i };
+            for (0..ctx.toks.len) |i| {
+                const tok = ctx.toks.get(i);
+                var pos: log.filePos = .{ .ctx = ctx, .i = tok.beg_i };
                 pos.computeCoords();
                 if (tok.kind < 128) try stdout.print(
                     "{d}:{d}\t{d}\t{s}\t{c}\n",
-                    .{ pos.row, pos.col, i, tok.lexeme(set), tok.kind },
+                    .{ pos.row, pos.col, i, tok.lexeme(ctx), tok.kind },
                 ) else {
                     const tok_kind: token.Kind = @enumFromInt(tok.kind);
                     try stdout.print(
                         "{d}:{d}\t{d}\t{s}\t{}\n",
-                        .{ pos.row, pos.col, i, tok.lexeme(set), tok_kind },
+                        .{ pos.row, pos.col, i, tok.lexeme(ctx), tok_kind },
                     );
                 }
             }
@@ -100,18 +100,18 @@ pub fn main() !void {
             try stdout.print("\n=== AST: BEG ===\n", .{});
         }
 
-        try ast.parseTreeFromToks(stderr, set);
+        try ast.parseTreeFromToks(stderr, ctx);
 
         if (debug_view) {
-            try ast.printDebug(stdout, set);
+            try ast.printDebug(stdout, ctx);
             try stdout.print("=== AST: END ===\n", .{});
         } else {
             const use_ansi_clr = args_parsed.print.clr or
                 (ansi.shouldUse() and !args_parsed.print.noclr);
             if (use_ansi_clr) {
-                try ast.printNicely(stdout, .ansi_clr_enabled, set);
+                try ast.printNicely(stdout, .ansi_clr_enabled, ctx);
             } else {
-                try ast.printNicely(stdout, .ansi_clr_disabled, set);
+                try ast.printNicely(stdout, .ansi_clr_disabled, ctx);
             }
         }
 

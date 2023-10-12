@@ -4,7 +4,7 @@ const std = @import("std");
 const token = @import("token.zig");
 
 pub const filePos = struct {
-    set: *parse.Set,
+    ctx: *parse.Context,
     i: u32 = 0,
     row: u32 = 1,
     col: u32 = 1,
@@ -15,7 +15,7 @@ pub const filePos = struct {
         var row_num: u32 = 1;
         var i: u32 = 0;
         while (i <= self.i) : (i += 1) {
-            if (self.set.buf[i] != '\n') continue;
+            if (self.ctx.buf[i] != '\n') continue;
             last_newline_i = i;
             row_num += 1;
         }
@@ -25,31 +25,31 @@ pub const filePos = struct {
 
     pub fn getLine(self: *filePos) []const u8 {
         var end_i = self.i;
-        while (self.set.buf[end_i] != '\n' and end_i < self.set.buf.len) {
+        while (self.ctx.buf[end_i] != '\n' and end_i < self.ctx.buf.len) {
             end_i += 1;
         }
 
         var beg_i = if (self.i == 0) 0 else self.i - 1;
-        while (self.set.buf[beg_i] != '\n' and beg_i - 1 > 0) {
+        while (self.ctx.buf[beg_i] != '\n' and beg_i - 1 > 0) {
             beg_i -= 1;
         }
 
-        return self.set.buf[beg_i..end_i];
+        return self.ctx.buf[beg_i..end_i];
     }
 };
 
 pub fn reportErr(
     writer: std.fs.File.Writer,
     comptime err: anyerror,
-    set: *parse.Set,
+    ctx: *parse.Context,
     tok_i: u32,
 ) anyerror {
-    var pos = filePos{ .set = set, .i = set.toks.items(.beg_i)[tok_i] };
+    var pos = filePos{ .ctx = ctx, .i = ctx.toks.items(.beg_i)[tok_i] };
     pos.computeCoords();
 
     try writer.print(
         "{s}:{d}:{d}: error: ",
-        .{ pos.set.filepath, pos.row, pos.col },
+        .{ pos.ctx.filepath, pos.row, pos.col },
     );
 
     switch (err) {

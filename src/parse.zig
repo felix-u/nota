@@ -24,7 +24,7 @@ pub fn isValidSymbolChar(c: u21) bool {
     };
 }
 
-pub const Set = struct {
+pub const Context = struct {
     allocator: std.mem.Allocator,
     filepath: []const u8,
     buf: []const u8,

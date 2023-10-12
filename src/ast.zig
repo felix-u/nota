@@ -17,17 +17,17 @@ pub const Err = error{
     UnmatchedCurlyRight,
 };
 
+const Data = struct {
+    lhs: u32 = 0,
+    rhs: u32 = 0,
+};
+
 pub const Node = struct {
     tag: Tag = .root_node,
     data: Data = .{},
 
-    const Data = struct {
-        lhs: u32 = 0,
-        rhs: u32 = 0,
-    };
-
     const Tag = enum(u8) {
-        // for lhs... { ... }
+        // for symbol: lhs { ... }
         // lhs is the index into filter_list of the filter.
         // rhs is the index into childs_list of the for expression.
         for_expr,
@@ -52,21 +52,31 @@ pub const NodeList = std.MultiArrayList(Node);
 
 pub const Childs = std.ArrayList(std.ArrayList(u32));
 
+pub const Filter = struct {
+    token_range: Data = .{},
+    // A 0 index indicates that the filter terminates.
+    next: FilterIndex = 0,
+
+    const FilterIndex = u32;
+};
+
+pub const FilterList = std.ArrayList(Filter);
+
 pub fn parseTreeFromToks(
     err_writer: Writer,
-    set: *parse.Set,
+    ctx: *parse.Context,
 ) !void {
-    try parseTreeFromToksRecurse(err_writer, set, 0, true);
+    try parseTreeFromToksRecurse(err_writer, ctx, 0, true);
 }
 
 pub fn parseTreeFromToksRecurse(
     err_writer: Writer,
-    set: *parse.Set,
+    ctx: *parse.Context,
     childs_i: u32,
     comptime in_root_node: bool,
 ) !void {
-    const allocator = set.allocator;
-    const it = &set.tok_it;
+    const allocator = ctx.allocator;
+    const it = &ctx.tok_it;
 
     var tok: ?token.Token = it.peek();
 
@@ -78,15 +88,15 @@ pub fn parseTreeFromToksRecurse(
                     if (tok != null and tok.?.kind != '}') {
                         try recurseInBody(
                             err_writer,
-                            set,
+                            ctx,
                             childs_i,
                             .node_decl_simple,
                             it.i - 2,
                         );
                     } else {
-                        try appendChild(set, childs_i);
+                        try appendChild(ctx, childs_i);
                         const node_name_i = it.i - 2;
-                        try set.nodes.append(allocator, .{
+                        try ctx.nodes.append(allocator, .{
                             .tag = .node_decl_simple,
                             .data = .{ .lhs = node_name_i, .rhs = 0 },
                         });
@@ -98,15 +108,15 @@ pub fn parseTreeFromToksRecurse(
                         '{' => return log.reportErr(
                             err_writer,
                             Err.UnexpectedCurlyLeft,
-                            set,
+                            ctx,
                             it.i,
                         ),
                         else => {},
                     };
 
                     const var_name_i = it.i - 3;
-                    try appendChild(set, childs_i);
-                    try set.nodes.append(allocator, .{
+                    try appendChild(ctx, childs_i);
+                    try ctx.nodes.append(allocator, .{
                         .tag = .var_decl_literal,
                         .data = .{ .lhs = var_name_i, .rhs = it.i - 1 },
                     });
@@ -114,31 +124,31 @@ pub fn parseTreeFromToksRecurse(
                 else => return log.reportErr(
                     err_writer,
                     token.Err.InvalidSyntax,
-                    set,
+                    ctx,
                     it.i,
                 ),
             };
         },
         '{' => {
-            return log.reportErr(err_writer, Err.NoNodeName, set, it.i);
+            return log.reportErr(err_writer, Err.NoNodeName, ctx, it.i);
         },
         '}' => {
             if (!in_root_node) return;
             return log.reportErr(
                 err_writer,
                 Err.UnmatchedCurlyRight,
-                set,
+                ctx,
                 it.i,
             );
         },
         @intFromEnum(token.Kind.@"for") => try parseKeyword(
             err_writer,
-            set,
+            ctx,
             childs_i,
             @enumFromInt(t.kind),
         ),
         @intFromEnum(token.Kind.eof) => if (!in_root_node) {
-            return log.reportErr(err_writer, Err.NoClosingCurly, set, it.i);
+            return log.reportErr(err_writer, Err.NoClosingCurly, ctx, it.i);
         },
         else => {},
     };
@@ -146,43 +156,43 @@ pub fn parseTreeFromToksRecurse(
 
 fn recurseInBody(
     err_writer: Writer,
-    set: *parse.Set,
+    ctx: *parse.Context,
     childs_i: u32,
     comptime tag: Node.Tag,
     lhs: u32,
 ) anyerror!void {
-    const allocator = set.allocator;
+    const allocator = ctx.allocator;
 
-    try appendChild(set, childs_i);
+    try appendChild(ctx, childs_i);
 
-    const recurse_childs_i: u32 = @intCast(set.childs.items.len);
+    const recurse_childs_i: u32 = @intCast(ctx.childs.items.len);
 
-    try set.nodes.append(allocator, .{
+    try ctx.nodes.append(allocator, .{
         .tag = tag,
         .data = .{ .lhs = lhs, .rhs = recurse_childs_i },
     });
 
-    try parseTreeFromToksRecurse(err_writer, set, recurse_childs_i, false);
+    try parseTreeFromToksRecurse(err_writer, ctx, recurse_childs_i, false);
 }
 
-fn appendChild(set: *parse.Set, childs_i: u32) !void {
-    if (childs_i == set.childs.items.len) try set.childs.append(
-        try std.ArrayList(u32).initCapacity(set.allocator, 1),
+fn appendChild(ctx: *parse.Context, childs_i: u32) !void {
+    if (childs_i == ctx.childs.items.len) try ctx.childs.append(
+        try std.ArrayList(u32).initCapacity(ctx.allocator, 1),
     );
 
-    var list = &set.childs.items[childs_i];
-    try list.append(@intCast(set.nodes.len));
+    var list = &ctx.childs.items[childs_i];
+    try list.append(@intCast(ctx.nodes.len));
 }
 
 fn parseKeyword(
     err_writer: Writer,
-    set: *parse.Set,
+    ctx: *parse.Context,
     childs_i: u32,
     keyword: token.Kind,
 ) anyerror!void {
-    const allocator = set.allocator;
+    const allocator = ctx.allocator;
     _ = allocator;
-    const it = &set.tok_it;
+    const it = &ctx.tok_it;
 
     var tok: ?token.Token = it.peek();
 
@@ -197,14 +207,14 @@ fn parseKeyword(
                     tok = it.inc();
                     if (tok != null and tok.?.kind != '}') try recurseInBody(
                         err_writer,
-                        set,
+                        ctx,
                         childs_i,
                         .for_expr,
                         lhs,
                     ) else return log.reportErr(
                         err_writer,
                         Err.EmptyBody,
-                        set,
+                        ctx,
                         it.i,
                     );
                 },
@@ -213,7 +223,7 @@ fn parseKeyword(
             else => return log.reportErr(
                 err_writer,
                 Err.NoIteratorLabel,
-                set,
+                ctx,
                 it.i,
             ),
         };
@@ -226,12 +236,12 @@ fn parseKeyword(
 
 fn parseFilter(
     err_writer: Writer,
-    set: *parse.Set,
+    ctx: *parse.Context,
     comptime stop_char: u8,
 ) !void {
-    const allocator = set.allocator;
+    const allocator = ctx.allocator;
     _ = allocator;
-    const it = &set.tok_it;
+    const it = &ctx.tok_it;
 
     const filter_i = it.i;
 
@@ -242,7 +252,7 @@ fn parseFilter(
         else => continue,
     };
 
-    return log.reportErr(err_writer, Err.NoFilterEnd, set, filter_i);
+    return log.reportErr(err_writer, Err.NoFilterEnd, ctx, filter_i);
 }
 
 pub const TokenIterator = struct {
@@ -277,11 +287,11 @@ fn writeIndent(writer: Writer, how_many_times: usize) !void {
 
 pub fn printDebugRecurse(
     writer: Writer,
-    set: *parse.Set,
+    ctx: *parse.Context,
     node_i: u32,
     indent_level: u32,
 ) !void {
-    const node = set.nodes.get(node_i);
+    const node = ctx.nodes.get(node_i);
 
     try writeIndent(writer, indent_level);
     try writer.print("{any} {any}\n", .{ node.tag, node.data });
@@ -294,35 +304,35 @@ pub fn printDebugRecurse(
         else => return,
     }
 
-    const childs = set.childs.items[node.data.rhs];
+    const childs = ctx.childs.items[node.data.rhs];
 
     for (childs.items) |i| {
-        try printDebugRecurse(writer, set, i, indent_level + 1);
+        try printDebugRecurse(writer, ctx, i, indent_level + 1);
     }
 }
 
-pub fn printDebug(writer: Writer, set: *parse.Set) !void {
+pub fn printDebug(writer: Writer, ctx: *parse.Context) !void {
     _ = try writer.write("NODES:\n");
     var node_i: usize = 0;
-    while (node_i < set.nodes.len) : (node_i += 1) {
-        try writer.print("{d}\t{any}\n", .{ node_i, set.nodes.get(node_i) });
+    while (node_i < ctx.nodes.len) : (node_i += 1) {
+        try writer.print("{d}\t{any}\n", .{ node_i, ctx.nodes.get(node_i) });
     }
 
     try writer.writeByte('\n');
 
     _ = try writer.write("CHILDS:\n");
     var child_i: usize = 0;
-    while (child_i < set.childs.items.len) : (child_i += 1) {
+    while (child_i < ctx.childs.items.len) : (child_i += 1) {
         try writer.print(
             "{d}\t{any}\n",
-            .{ child_i, set.childs.items[child_i].items },
+            .{ child_i, ctx.childs.items[child_i].items },
         );
     }
 
     try writer.writeByte('\n');
 
     _ = try writer.write("TREE:\n");
-    try printDebugRecurse(writer, set, 0, 0);
+    try printDebugRecurse(writer, ctx, 0, 0);
 }
 
 const AnsiClrState = enum {
@@ -333,22 +343,22 @@ const AnsiClrState = enum {
 pub fn printNicely(
     writer: Writer,
     comptime ansi_clr: AnsiClrState,
-    set: *parse.Set,
+    ctx: *parse.Context,
 ) !void {
-    try printNicelyRecurse(writer, ansi_clr, set, 0, 0, true);
+    try printNicelyRecurse(writer, ansi_clr, ctx, 0, 0, true);
 }
 
 pub fn printNicelyRecurse(
     writer: Writer,
     comptime ansi_clr: AnsiClrState,
-    set: *parse.Set,
+    ctx: *parse.Context,
     node_i: u32,
     indent_level: u32,
     comptime in_root_node: bool,
 ) !void {
     const clr = if (ansi_clr == .ansi_clr_enabled) true else false;
 
-    const node = set.nodes.get(node_i);
+    const node = ctx.nodes.get(node_i);
 
     try writeIndent(writer, indent_level);
 
@@ -358,18 +368,18 @@ pub fn printNicelyRecurse(
             _ = try writer.write("for ");
             if (clr) try ansi.reset(writer);
 
-            const iterator_name = set.toks.get(node.data.lhs).lexeme(set);
+            const iterator_name = ctx.toks.get(node.data.lhs).lexeme(ctx);
             try writer.print("{s}: ", .{iterator_name});
 
             if (clr) try ansi.set(writer, &.{ansi.fg_magenta});
             const selector_i = node.data.lhs + 2;
-            try printToOpenCurly(writer, set, selector_i);
+            try printToOpenCurly(writer, ctx, selector_i);
             if (clr) try ansi.reset(writer);
 
             _ = try writer.write(" {\n");
         },
         .node_decl_simple => {
-            const node_name = set.toks.get(node.data.lhs).lexeme(set);
+            const node_name = ctx.toks.get(node.data.lhs).lexeme(ctx);
 
             if (clr) try ansi.set(writer, &.{ansi.fmt_bold});
             try writer.print("{s}", .{node_name});
@@ -379,12 +389,12 @@ pub fn printNicelyRecurse(
         },
         .root_node => unreachable,
         .var_decl_literal => {
-            const var_name = set.toks.get(node.data.lhs).lexeme(set);
+            const var_name = ctx.toks.get(node.data.lhs).lexeme(ctx);
             try writer.print("{s} = ", .{var_name});
-            const literal = set.toks.get(node.data.rhs).lexeme(set);
+            const literal = ctx.toks.get(node.data.rhs).lexeme(ctx);
 
             const var_type: token.Kind =
-                @enumFromInt(set.toks.items(.kind)[node.data.rhs]);
+                @enumFromInt(ctx.toks.items(.kind)[node.data.rhs]);
             switch (var_type) {
                 .str => {
                     if (clr) try ansi.set(writer, &.{ansi.fg_cyan});
@@ -426,7 +436,7 @@ pub fn printNicelyRecurse(
         else => return,
     }
 
-    const childs = set.childs.items[node.data.rhs];
+    const childs = ctx.childs.items[node.data.rhs];
 
     const childs_indent_level =
         if (in_root_node) indent_level else indent_level + 1;
@@ -434,7 +444,7 @@ pub fn printNicelyRecurse(
     for (childs.items) |i| try printNicelyRecurse(
         writer,
         ansi_clr,
-        set,
+        ctx,
         i,
         childs_indent_level,
         false,
@@ -446,15 +456,15 @@ pub fn printNicelyRecurse(
     }
 }
 
-fn printToOpenCurly(writer: Writer, set: *parse.Set, _tok_i: u32) !void {
-    const buf_beg_i = set.toks.items(.beg_i)[_tok_i];
+fn printToOpenCurly(writer: Writer, ctx: *parse.Context, _tok_i: u32) !void {
+    const buf_beg_i = ctx.toks.items(.beg_i)[_tok_i];
 
     var tok_i = _tok_i;
-    while (set.toks.items(.kind)[tok_i] != '{') {
+    while (ctx.toks.items(.kind)[tok_i] != '{') {
         tok_i += 1;
     }
 
-    const buf_end_i = set.toks.items(.end_i)[tok_i - 1];
+    const buf_end_i = ctx.toks.items(.end_i)[tok_i - 1];
 
-    _ = try writer.write(set.buf[buf_beg_i..buf_end_i]);
+    _ = try writer.write(ctx.buf[buf_beg_i..buf_end_i]);
 }

@@ -48,14 +48,14 @@ pub const Token = struct {
 
     const Self = @This();
 
-    pub fn lexeme(self: *const Self, set: *parse.Set) []const u8 {
-        return set.buf[self.beg_i..self.end_i];
+    pub fn lexeme(self: *const Self, ctx: *parse.Context) []const u8 {
+        return ctx.buf[self.beg_i..self.end_i];
     }
 };
 
-pub fn parseToksFromBuf(err_writer: Writer, set: *parse.Set) !void {
-    const allocator = set.allocator;
-    const it = &set.buf_it;
+pub fn parseToksFromBuf(err_writer: Writer, ctx: *parse.Context) !void {
+    const allocator = ctx.allocator;
+    const it = &ctx.buf_it;
     var last_i = it.i;
 
     chars: while (it.nextCodepoint()) |c1| : (last_i = it.i) switch (c1) {
@@ -63,26 +63,26 @@ pub fn parseToksFromBuf(err_writer: Writer, set: *parse.Set) !void {
         '=' => {
             const next = it.nextCodepoint();
             if (next == null) break :chars;
-            if (next.? == '=') try set.toks.append(allocator, .{
+            if (next.? == '=') try ctx.toks.append(allocator, .{
                 .beg_i = @intCast(last_i),
                 .end_i = @intCast(it.i),
                 .kind = @intFromEnum(Kind.equals),
-            }) else try set.toks.append(allocator, .{
+            }) else try ctx.toks.append(allocator, .{
                 .beg_i = @intCast(last_i),
                 .end_i = @intCast(last_i + 1),
-                .kind = set.buf[last_i],
+                .kind = ctx.buf[last_i],
             });
         },
         '{', '}', '(', ')', ';', ':', '!', '>', '<', '@', '|' => {
-            try set.toks.append(allocator, .{
+            try ctx.toks.append(allocator, .{
                 .beg_i = @intCast(last_i),
                 .end_i = @intCast(it.i),
                 .kind = @intCast(c1),
             });
         },
         '/' => {
-            if (set.buf[it.i] != '/') {
-                try set.toks.append(allocator, .{
+            if (ctx.buf[it.i] != '/') {
+                try ctx.toks.append(allocator, .{
                     .beg_i = @intCast(last_i),
                     .end_i = @intCast(last_i + 1),
                     .kind = @intCast(c1),
@@ -90,8 +90,8 @@ pub fn parseToksFromBuf(err_writer: Writer, set: *parse.Set) !void {
                 return log.reportErr(
                     err_writer,
                     Err.InvalidSyntax,
-                    set,
-                    @intCast(set.toks.len - 1),
+                    ctx,
+                    @intCast(ctx.toks.len - 1),
                 );
             }
 
@@ -104,8 +104,8 @@ pub fn parseToksFromBuf(err_writer: Writer, set: *parse.Set) !void {
         '"' => {
             const beg_i = it.i + 1;
             while (it.nextCodepoint()) |c2| : (last_i = it.i) {
-                if (set.buf[it.i] == '\n') {
-                    try set.toks.append(allocator, .{
+                if (ctx.buf[it.i] == '\n') {
+                    try ctx.toks.append(allocator, .{
                         .beg_i = @intCast(last_i),
                         .end_i = @intCast(last_i + 1),
                         .kind = @intCast(c1),
@@ -113,18 +113,18 @@ pub fn parseToksFromBuf(err_writer: Writer, set: *parse.Set) !void {
                     return log.reportErr(
                         err_writer,
                         Err.NoClosingQuote,
-                        set,
-                        @intCast(set.toks.len - 1),
+                        ctx,
+                        @intCast(ctx.toks.len - 1),
                     );
                 }
 
-                if (set.buf[it.i] != '"' or c2 == '\\') continue;
+                if (ctx.buf[it.i] != '"' or c2 == '\\') continue;
                 last_i = it.i;
                 if (it.nextCodepoint() == null) break :chars;
                 break;
             }
 
-            try set.toks.append(allocator, .{
+            try ctx.toks.append(allocator, .{
                 .beg_i = @intCast(beg_i - 1),
                 .end_i = @intCast(last_i),
                 .kind = @intFromEnum(Kind.str),
@@ -132,7 +132,7 @@ pub fn parseToksFromBuf(err_writer: Writer, set: *parse.Set) !void {
         },
         else => {
             if (!parse.isValidSymbolChar(@intCast(c1))) {
-                try set.toks.append(allocator, .{
+                try ctx.toks.append(allocator, .{
                     .beg_i = @intCast(last_i),
                     .end_i = @intCast(last_i + 1),
                     .kind = @intCast(c1),
@@ -140,8 +140,8 @@ pub fn parseToksFromBuf(err_writer: Writer, set: *parse.Set) !void {
                 return log.reportErr(
                     err_writer,
                     Err.InvalidSyntax,
-                    set,
-                    @intCast(set.toks.len - 1),
+                    ctx,
+                    @intCast(ctx.toks.len - 1),
                 );
             }
 
@@ -157,13 +157,13 @@ pub fn parseToksFromBuf(err_writer: Writer, set: *parse.Set) !void {
                 }
             }
 
-            const keyword = parse.keyword(set.buf[beg_i..it.i]);
+            const keyword = parse.keyword(ctx.buf[beg_i..it.i]);
             this_kind = switch (keyword) {
                 .true, .false, .@"for" => keyword,
                 else => this_kind,
             };
 
-            try set.toks.append(allocator, .{
+            try ctx.toks.append(allocator, .{
                 .beg_i = beg_i,
                 .end_i = @intCast(it.i),
                 .kind = @intFromEnum(this_kind),
@@ -171,9 +171,9 @@ pub fn parseToksFromBuf(err_writer: Writer, set: *parse.Set) !void {
         },
     };
 
-    try set.toks.append(allocator, .{
-        .beg_i = if (it.i > 0) @intCast(set.buf.len - 1) else 0,
-        .end_i = if (it.i > 0) @intCast(set.buf.len - 1) else 0,
+    try ctx.toks.append(allocator, .{
+        .beg_i = if (it.i > 0) @intCast(ctx.buf.len - 1) else 0,
+        .end_i = if (it.i > 0) @intCast(ctx.buf.len - 1) else 0,
         .kind = @intFromEnum(Kind.eof),
     });
 }
