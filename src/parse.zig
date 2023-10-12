@@ -92,6 +92,12 @@ pub const Context = struct {
             },
         }
     }
+
+    pub inline fn lexeme(self: *const Self, tok_i: u32) []const u8 {
+        const beg = self.toks.items(.beg_i)[tok_i];
+        const end = self.toks.items(.end_i)[tok_i];
+        return self.buf[beg..end];
+    }
 };
 
 pub fn readFileAlloc(

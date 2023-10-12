@@ -315,12 +315,13 @@ pub fn printNicelyRecurse(
     try writeIndent(writer, indent_level);
 
     if (!in_root_node) switch (node.tag) {
+        .root_node => unreachable,
         .for_expr => {
             if (clr) try ansi.set(writer, &.{ansi.fg_red});
             _ = try writer.write("for ");
             if (clr) try ansi.reset(writer);
 
-            const iterator_name = ctx.toks.get(node.data.lhs).lexeme(ctx);
+            const iterator_name = ctx.lexeme(node.data.lhs);
             try writer.print("{s}: ", .{iterator_name});
 
             if (clr) try ansi.set(writer, &.{ansi.fg_magenta});
@@ -331,7 +332,7 @@ pub fn printNicelyRecurse(
             _ = try writer.write(" {\n");
         },
         .node_decl_simple => {
-            const node_name = ctx.toks.get(node.data.lhs).lexeme(ctx);
+            const node_name = ctx.lexeme(node.data.lhs);
 
             if (clr) try ansi.set(writer, &.{ansi.fmt_bold});
             try writer.print("{s}", .{node_name});
@@ -339,12 +340,11 @@ pub fn printNicelyRecurse(
 
             _ = try writer.write(" {\n");
         },
-        .root_node => unreachable,
         .var_decl_literal => {
-            const var_name = ctx.toks.get(node.data.lhs).lexeme(ctx);
+            const var_name = ctx.lexeme(node.data.lhs);
             try writer.print("{s} = ", .{var_name});
-            const literal = ctx.toks.get(node.data.rhs).lexeme(ctx);
 
+            const literal = ctx.lexeme(node.data.rhs);
             const var_type: token.Kind =
                 @enumFromInt(ctx.toks.items(.kind)[node.data.rhs]);
             switch (var_type) {

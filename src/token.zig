@@ -45,12 +45,6 @@ pub const Token = struct {
     kind: u8 = 0,
     beg_i: u32 = 0,
     end_i: u32 = 0,
-
-    const Self = @This();
-
-    pub fn lexeme(self: *const Self, ctx: *parse.Context) []const u8 {
-        return ctx.buf[self.beg_i..self.end_i];
-    }
 };
 
 fn toksAppendCharHere(ctx: *parse.Context, kind: u21) !void {
@@ -176,12 +170,12 @@ pub fn printToks(ctx: *parse.Context) !void {
         pos.computeCoords();
         if (tok.kind < 128) try writer.print(
             "{d}:{d}\t{d}\t{s}\t{c}\n",
-            .{ pos.row, pos.col, i, tok.lexeme(ctx), tok.kind },
+            .{ pos.row, pos.col, i, ctx.lexeme(@intCast(i)), tok.kind },
         ) else {
             const tok_kind: Kind = @enumFromInt(tok.kind);
             try writer.print(
                 "{d}:{d}\t{d}\t{s}\t{}\n",
-                .{ pos.row, pos.col, i, tok.lexeme(ctx), tok_kind },
+                .{ pos.row, pos.col, i, ctx.lexeme(@intCast(i)), tok_kind },
             );
         }
     }
