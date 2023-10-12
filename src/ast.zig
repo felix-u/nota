@@ -100,11 +100,9 @@ pub fn parseTreeFromToksRecurse(
                 '=' => {
                     while (tok) |t3| : (tok = it.inc()) switch (t3.kind) {
                         ';' => break,
-                        '{' => return log.reportErr(
-                            ctx,
-                            Err.UnexpectedCurlyLeft,
-                            it.i,
-                        ),
+                        '{' => {
+                            return log.err(ctx, Err.UnexpectedCurlyLeft, it.i);
+                        },
                         else => {},
                     };
 
@@ -116,22 +114,22 @@ pub fn parseTreeFromToksRecurse(
                     });
                 },
                 else => {
-                    return log.reportErr(ctx, token.Err.InvalidSyntax, it.i);
+                    return log.err(ctx, token.Err.InvalidSyntax, it.i);
                 },
             };
         },
         '{' => {
-            return log.reportErr(ctx, Err.NoNodeName, it.i);
+            return log.err(ctx, Err.NoNodeName, it.i);
         },
         '}' => {
             if (!in_root_node) return;
-            return log.reportErr(ctx, Err.UnmatchedCurlyRight, it.i);
+            return log.err(ctx, Err.UnmatchedCurlyRight, it.i);
         },
         @intFromEnum(token.Kind.@"for") => {
             try parseKeyword(ctx, childs_i, @enumFromInt(t.kind));
         },
         @intFromEnum(token.Kind.eof) => if (!in_root_node) {
-            return log.reportErr(ctx, Err.NoClosingCurly, it.i);
+            return log.err(ctx, Err.NoClosingCurly, it.i);
         },
         else => {},
     };
@@ -182,7 +180,7 @@ fn parseKeyword(
         const lhs = it.i;
         tok = it.inc();
         if (tok == null) return;
-        while (tok) |_| : (tok = it.inc()) switch (tok.?.kind) {
+        while (tok) |t1| : (tok = it.inc()) switch (t1.kind) {
             ':' => while (tok) |t2| : (tok = it.inc()) switch (t2.kind) {
                 '{' => {
                     tok = it.inc();
@@ -191,11 +189,11 @@ fn parseKeyword(
                         childs_i,
                         .for_expr,
                         lhs,
-                    ) else return log.reportErr(ctx, Err.EmptyBody, it.i);
+                    ) else return log.err(ctx, Err.EmptyBody, it.i);
                 },
                 else => continue,
             },
-            else => return log.reportErr(ctx, Err.NoIteratorLabel, it.i),
+            else => return log.err(ctx, Err.NoIteratorLabel, it.i),
         };
         return;
     }

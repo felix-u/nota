@@ -38,11 +38,7 @@ pub const filePos = struct {
     }
 };
 
-pub fn reportErr(
-    ctx: *parse.Context,
-    comptime err: anyerror,
-    tok_i: u32,
-) anyerror {
+pub fn err(ctx: *parse.Context, comptime e: anyerror, tok_i: u32) anyerror {
     var pos = filePos{ .ctx = ctx, .i = ctx.toks.items(.beg_i)[tok_i] };
     pos.computeCoords();
 
@@ -53,7 +49,7 @@ pub fn reportErr(
         .{ pos.ctx.filepath, pos.row, pos.col },
     );
 
-    switch (err) {
+    switch (e) {
         inline token.Err.InvalidSyntax => {
             _ = try writer.write("invalid syntax");
         },
@@ -95,5 +91,5 @@ pub fn reportErr(
     }
     _ = try writer.write("^\n");
 
-    return err;
+    return e;
 }

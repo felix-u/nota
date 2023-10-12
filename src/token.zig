@@ -87,7 +87,7 @@ pub fn parseToksFromBuf(ctx: *parse.Context) !void {
         '/' => {
             if (ctx.buf[it.i] != '/') {
                 try toksAppendCharHere(ctx, c1);
-                return log.reportErr(
+                return log.err(
                     ctx,
                     Err.InvalidSyntax,
                     @intCast(ctx.toks.len - 1),
@@ -105,7 +105,7 @@ pub fn parseToksFromBuf(ctx: *parse.Context) !void {
             while (it.nextCodepoint()) |c2| : (last_i = it.i) {
                 if (ctx.buf[it.i] == '\n') {
                     try toksAppendCharHere(ctx, c1);
-                    return log.reportErr(
+                    return log.err(
                         ctx,
                         Err.NoClosingQuote,
                         @intCast(ctx.toks.len - 1),
@@ -127,7 +127,7 @@ pub fn parseToksFromBuf(ctx: *parse.Context) !void {
         else => {
             if (!parse.isValidSymbolChar(@intCast(c1))) {
                 try toksAppendCharHere(ctx, c1);
-                return log.reportErr(
+                return log.err(
                     ctx,
                     Err.InvalidSyntax,
                     @intCast(ctx.toks.len - 1),
@@ -165,4 +165,24 @@ pub fn parseToksFromBuf(ctx: *parse.Context) !void {
         .end_i = if (it.i > 0) @intCast(ctx.buf.len - 1) else 0,
         .kind = @intFromEnum(Kind.eof),
     });
+}
+
+pub fn printToks(ctx: *parse.Context) !void {
+    const writer = ctx.writer;
+
+    for (0..ctx.toks.len) |i| {
+        const tok = ctx.toks.get(i);
+        var pos: log.filePos = .{ .ctx = ctx, .i = tok.beg_i };
+        pos.computeCoords();
+        if (tok.kind < 128) try writer.print(
+            "{d}:{d}\t{d}\t{s}\t{c}\n",
+            .{ pos.row, pos.col, i, tok.lexeme(ctx), tok.kind },
+        ) else {
+            const tok_kind: Kind = @enumFromInt(tok.kind);
+            try writer.print(
+                "{d}:{d}\t{d}\t{s}\t{}\n",
+                .{ pos.row, pos.col, i, tok.lexeme(ctx), tok_kind },
+            );
+        }
+    }
 }

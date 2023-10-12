@@ -28,8 +28,8 @@ pub const Context = struct {
     allocator: std.mem.Allocator,
     writer: std.fs.File.Writer,
     err_writer: std.fs.File.Writer,
-    filepath: []const u8,
-    buf: []const u8,
+    filepath: []const u8 = undefined,
+    buf: []const u8 = undefined,
     buf_it: std.unicode.Utf8Iterator = undefined,
     toks: std.MultiArrayList(token.Token) = undefined,
     tok_it: ast.TokenIterator = undefined,
@@ -50,9 +50,58 @@ pub const Context = struct {
         );
     }
 
-    pub fn initParse(self: *Self) !void {
-        try init(self);
+    pub fn initFromPath(self: *Self, path: []const u8) !void {
+        const filebuf = try readFileAlloc(self.allocator, path);
+
+        self.filepath = path;
+        self.buf = filebuf;
+
+        try self.init();
+    }
+
+    pub fn parse(self: *Self) !void {
         try token.parseToksFromBuf(self);
         try ast.parseTreeFromToks(self);
     }
+
+    pub fn parseAndPrint(
+        self: *Self,
+        comptime mode: enum(u8) { pretty, debug },
+        use_ansi_clr: bool,
+    ) !void {
+        const writer = self.writer;
+
+        switch (mode) {
+            inline .pretty => {
+                try token.parseToksFromBuf(self);
+                try ast.parseTreeFromToks(self);
+                if (use_ansi_clr) {
+                    try ast.printNicely(.ansi_clr_enabled, self);
+                } else try ast.printNicely(.ansi_clr_disabled, self);
+            },
+            inline .debug => {
+                _ = try writer.write("Begin tokenising... ");
+                try token.parseToksFromBuf(self);
+                _ = try writer.write("Done!\n");
+                try token.printToks(self);
+
+                _ = try writer.write("\nBegin AST parsing... ");
+                try ast.parseTreeFromToks(self);
+                _ = try writer.write("Done!\n");
+                try ast.printDebug(self);
+            },
+        }
+    }
 };
+
+pub fn readFileAlloc(
+    allocator: std.mem.Allocator,
+    filepath: []const u8,
+) ![]const u8 {
+    const cwd = std.fs.cwd();
+
+    const infile = try cwd.openFile(filepath, .{ .mode = .read_only });
+    defer infile.close();
+
+    return try infile.readToEndAlloc(allocator, std.math.maxInt(u32));
+}
