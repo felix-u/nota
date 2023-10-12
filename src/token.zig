@@ -53,7 +53,15 @@ pub const Token = struct {
     }
 };
 
-pub fn parseToksFromBuf(err_writer: Writer, ctx: *parse.Context) !void {
+fn toksAppendCharHere(ctx: *parse.Context, kind: u21) !void {
+    try ctx.toks.append(ctx.allocator, .{
+        .beg_i = @intCast(ctx.buf_it.i - 1),
+        .end_i = @intCast(ctx.buf_it.i),
+        .kind = @intCast(kind),
+    });
+}
+
+pub fn parseToksFromBuf(ctx: *parse.Context) !void {
     const allocator = ctx.allocator;
     const it = &ctx.buf_it;
     var last_i = it.i;
@@ -74,23 +82,14 @@ pub fn parseToksFromBuf(err_writer: Writer, ctx: *parse.Context) !void {
             });
         },
         '{', '}', '(', ')', ';', ':', '!', '>', '<', '@', '|' => {
-            try ctx.toks.append(allocator, .{
-                .beg_i = @intCast(last_i),
-                .end_i = @intCast(it.i),
-                .kind = @intCast(c1),
-            });
+            try toksAppendCharHere(ctx, c1);
         },
         '/' => {
             if (ctx.buf[it.i] != '/') {
-                try ctx.toks.append(allocator, .{
-                    .beg_i = @intCast(last_i),
-                    .end_i = @intCast(last_i + 1),
-                    .kind = @intCast(c1),
-                });
+                try toksAppendCharHere(ctx, c1);
                 return log.reportErr(
-                    err_writer,
-                    Err.InvalidSyntax,
                     ctx,
+                    Err.InvalidSyntax,
                     @intCast(ctx.toks.len - 1),
                 );
             }
@@ -105,15 +104,10 @@ pub fn parseToksFromBuf(err_writer: Writer, ctx: *parse.Context) !void {
             const beg_i = it.i + 1;
             while (it.nextCodepoint()) |c2| : (last_i = it.i) {
                 if (ctx.buf[it.i] == '\n') {
-                    try ctx.toks.append(allocator, .{
-                        .beg_i = @intCast(last_i),
-                        .end_i = @intCast(last_i + 1),
-                        .kind = @intCast(c1),
-                    });
+                    try toksAppendCharHere(ctx, c1);
                     return log.reportErr(
-                        err_writer,
-                        Err.NoClosingQuote,
                         ctx,
+                        Err.NoClosingQuote,
                         @intCast(ctx.toks.len - 1),
                     );
                 }
@@ -132,15 +126,10 @@ pub fn parseToksFromBuf(err_writer: Writer, ctx: *parse.Context) !void {
         },
         else => {
             if (!parse.isValidSymbolChar(@intCast(c1))) {
-                try ctx.toks.append(allocator, .{
-                    .beg_i = @intCast(last_i),
-                    .end_i = @intCast(last_i + 1),
-                    .kind = @intCast(c1),
-                });
+                try toksAppendCharHere(ctx, c1);
                 return log.reportErr(
-                    err_writer,
-                    Err.InvalidSyntax,
                     ctx,
+                    Err.InvalidSyntax,
                     @intCast(ctx.toks.len - 1),
                 );
             }

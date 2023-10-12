@@ -62,15 +62,11 @@ pub const Filter = struct {
 
 pub const FilterList = std.ArrayList(Filter);
 
-pub fn parseTreeFromToks(
-    err_writer: Writer,
-    ctx: *parse.Context,
-) !void {
-    try parseTreeFromToksRecurse(err_writer, ctx, 0, true);
+pub fn parseTreeFromToks(ctx: *parse.Context) !void {
+    try parseTreeFromToksRecurse(ctx, 0, true);
 }
 
 pub fn parseTreeFromToksRecurse(
-    err_writer: Writer,
     ctx: *parse.Context,
     childs_i: u32,
     comptime in_root_node: bool,
@@ -87,7 +83,6 @@ pub fn parseTreeFromToksRecurse(
                     tok = it.inc();
                     if (tok != null and tok.?.kind != '}') {
                         try recurseInBody(
-                            err_writer,
                             ctx,
                             childs_i,
                             .node_decl_simple,
@@ -106,9 +101,8 @@ pub fn parseTreeFromToksRecurse(
                     while (tok) |t3| : (tok = it.inc()) switch (t3.kind) {
                         ';' => break,
                         '{' => return log.reportErr(
-                            err_writer,
-                            Err.UnexpectedCurlyLeft,
                             ctx,
+                            Err.UnexpectedCurlyLeft,
                             it.i,
                         ),
                         else => {},
@@ -121,41 +115,29 @@ pub fn parseTreeFromToksRecurse(
                         .data = .{ .lhs = var_name_i, .rhs = it.i - 1 },
                     });
                 },
-                else => return log.reportErr(
-                    err_writer,
-                    token.Err.InvalidSyntax,
-                    ctx,
-                    it.i,
-                ),
+                else => {
+                    return log.reportErr(ctx, token.Err.InvalidSyntax, it.i);
+                },
             };
         },
         '{' => {
-            return log.reportErr(err_writer, Err.NoNodeName, ctx, it.i);
+            return log.reportErr(ctx, Err.NoNodeName, it.i);
         },
         '}' => {
             if (!in_root_node) return;
-            return log.reportErr(
-                err_writer,
-                Err.UnmatchedCurlyRight,
-                ctx,
-                it.i,
-            );
+            return log.reportErr(ctx, Err.UnmatchedCurlyRight, it.i);
         },
-        @intFromEnum(token.Kind.@"for") => try parseKeyword(
-            err_writer,
-            ctx,
-            childs_i,
-            @enumFromInt(t.kind),
-        ),
+        @intFromEnum(token.Kind.@"for") => {
+            try parseKeyword(ctx, childs_i, @enumFromInt(t.kind));
+        },
         @intFromEnum(token.Kind.eof) => if (!in_root_node) {
-            return log.reportErr(err_writer, Err.NoClosingCurly, ctx, it.i);
+            return log.reportErr(ctx, Err.NoClosingCurly, it.i);
         },
         else => {},
     };
 }
 
 fn recurseInBody(
-    err_writer: Writer,
     ctx: *parse.Context,
     childs_i: u32,
     comptime tag: Node.Tag,
@@ -172,7 +154,7 @@ fn recurseInBody(
         .data = .{ .lhs = lhs, .rhs = recurse_childs_i },
     });
 
-    try parseTreeFromToksRecurse(err_writer, ctx, recurse_childs_i, false);
+    try parseTreeFromToksRecurse(ctx, recurse_childs_i, false);
 }
 
 fn appendChild(ctx: *parse.Context, childs_i: u32) !void {
@@ -185,7 +167,6 @@ fn appendChild(ctx: *parse.Context, childs_i: u32) !void {
 }
 
 fn parseKeyword(
-    err_writer: Writer,
     ctx: *parse.Context,
     childs_i: u32,
     keyword: token.Kind,
@@ -206,26 +187,15 @@ fn parseKeyword(
                 '{' => {
                     tok = it.inc();
                     if (tok != null and tok.?.kind != '}') try recurseInBody(
-                        err_writer,
                         ctx,
                         childs_i,
                         .for_expr,
                         lhs,
-                    ) else return log.reportErr(
-                        err_writer,
-                        Err.EmptyBody,
-                        ctx,
-                        it.i,
-                    );
+                    ) else return log.reportErr(ctx, Err.EmptyBody, it.i);
                 },
                 else => continue,
             },
-            else => return log.reportErr(
-                err_writer,
-                Err.NoIteratorLabel,
-                ctx,
-                it.i,
-            ),
+            else => return log.reportErr(ctx, Err.NoIteratorLabel, it.i),
         };
         return;
     }
@@ -234,30 +204,14 @@ fn parseKeyword(
     @panic("UNIMPLEMENTED");
 }
 
-fn parseFilter(
-    err_writer: Writer,
-    ctx: *parse.Context,
-    comptime stop_char: u8,
-) !void {
-    const allocator = ctx.allocator;
-    _ = allocator;
-    const it = &ctx.tok_it;
-
-    const filter_i = it.i;
-
-    var tok: ?token.Token = it.peek();
-
-    while (tok) |_| : (tok = it.inc()) switch (tok.?.kind) {
-        stop_char => return,
-        else => continue,
-    };
-
-    return log.reportErr(err_writer, Err.NoFilterEnd, ctx, filter_i);
+fn parseFilter(ctx: *parse.Context) !void {
+    _ = ctx;
+    @panic("unimplemented");
 }
 
 pub const TokenIterator = struct {
-    toks: *std.MultiArrayList(token.Token),
-    i: u32,
+    toks: *std.MultiArrayList(token.Token) = undefined,
+    i: u32 = undefined,
 
     const Self = @This();
 
@@ -286,12 +240,12 @@ fn writeIndent(writer: Writer, how_many_times: usize) !void {
 }
 
 pub fn printDebugRecurse(
-    writer: Writer,
     ctx: *parse.Context,
     node_i: u32,
     indent_level: u32,
 ) !void {
     const node = ctx.nodes.get(node_i);
+    const writer = ctx.writer;
 
     try writeIndent(writer, indent_level);
     try writer.print("{any} {any}\n", .{ node.tag, node.data });
@@ -307,11 +261,13 @@ pub fn printDebugRecurse(
     const childs = ctx.childs.items[node.data.rhs];
 
     for (childs.items) |i| {
-        try printDebugRecurse(writer, ctx, i, indent_level + 1);
+        try printDebugRecurse(ctx, i, indent_level + 1);
     }
 }
 
-pub fn printDebug(writer: Writer, ctx: *parse.Context) !void {
+pub fn printDebug(ctx: *parse.Context) !void {
+    const writer = ctx.writer;
+
     _ = try writer.write("NODES:\n");
     var node_i: usize = 0;
     while (node_i < ctx.nodes.len) : (node_i += 1) {
@@ -332,7 +288,7 @@ pub fn printDebug(writer: Writer, ctx: *parse.Context) !void {
     try writer.writeByte('\n');
 
     _ = try writer.write("TREE:\n");
-    try printDebugRecurse(writer, ctx, 0, 0);
+    try printDebugRecurse(ctx, 0, 0);
 }
 
 const AnsiClrState = enum {
@@ -341,15 +297,13 @@ const AnsiClrState = enum {
 };
 
 pub fn printNicely(
-    writer: Writer,
     comptime ansi_clr: AnsiClrState,
     ctx: *parse.Context,
 ) !void {
-    try printNicelyRecurse(writer, ansi_clr, ctx, 0, 0, true);
+    try printNicelyRecurse(ansi_clr, ctx, 0, 0, true);
 }
 
 pub fn printNicelyRecurse(
-    writer: Writer,
     comptime ansi_clr: AnsiClrState,
     ctx: *parse.Context,
     node_i: u32,
@@ -357,7 +311,7 @@ pub fn printNicelyRecurse(
     comptime in_root_node: bool,
 ) !void {
     const clr = if (ansi_clr == .ansi_clr_enabled) true else false;
-
+    const writer = ctx.writer;
     const node = ctx.nodes.get(node_i);
 
     try writeIndent(writer, indent_level);
@@ -373,7 +327,7 @@ pub fn printNicelyRecurse(
 
             if (clr) try ansi.set(writer, &.{ansi.fg_magenta});
             const selector_i = node.data.lhs + 2;
-            try printToOpenCurly(writer, ctx, selector_i);
+            try printToOpenCurly(ctx, selector_i);
             if (clr) try ansi.reset(writer);
 
             _ = try writer.write(" {\n");
@@ -442,7 +396,6 @@ pub fn printNicelyRecurse(
         if (in_root_node) indent_level else indent_level + 1;
 
     for (childs.items) |i| try printNicelyRecurse(
-        writer,
         ansi_clr,
         ctx,
         i,
@@ -456,7 +409,7 @@ pub fn printNicelyRecurse(
     }
 }
 
-fn printToOpenCurly(writer: Writer, ctx: *parse.Context, _tok_i: u32) !void {
+fn printToOpenCurly(ctx: *parse.Context, _tok_i: u32) !void {
     const buf_beg_i = ctx.toks.items(.beg_i)[_tok_i];
 
     var tok_i = _tok_i;
@@ -466,5 +419,5 @@ fn printToOpenCurly(writer: Writer, ctx: *parse.Context, _tok_i: u32) !void {
 
     const buf_end_i = ctx.toks.items(.end_i)[tok_i - 1];
 
-    _ = try writer.write(ctx.buf[buf_beg_i..buf_end_i]);
+    _ = try ctx.writer.write(ctx.buf[buf_beg_i..buf_end_i]);
 }

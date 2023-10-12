@@ -26,40 +26,33 @@ pub fn isValidSymbolChar(c: u21) bool {
 
 pub const Context = struct {
     allocator: std.mem.Allocator,
+    writer: std.fs.File.Writer,
+    err_writer: std.fs.File.Writer,
     filepath: []const u8,
     buf: []const u8,
-    buf_it: std.unicode.Utf8Iterator,
-    toks: std.MultiArrayList(token.Token),
-    tok_it: ast.TokenIterator,
-    nodes: ast.NodeList,
-    childs: ast.Childs,
+    buf_it: std.unicode.Utf8Iterator = undefined,
+    toks: std.MultiArrayList(token.Token) = undefined,
+    tok_it: ast.TokenIterator = undefined,
+    nodes: ast.NodeList = undefined,
+    childs: ast.Childs = undefined,
 
     const Self = @This();
 
-    pub fn init(
-        allocator: std.mem.Allocator,
-        filepath: []const u8,
-        buf: []const u8,
-    ) !*Self {
-        const self = try allocator.create(Self);
+    pub fn init(self: *Self) !void {
+        self.buf_it = (try std.unicode.Utf8View.init(self.buf)).iterator();
+        self.tok_it = .{ .toks = &self.toks, .i = 0 };
+        self.childs = ast.Childs.init(self.allocator);
 
-        self.* = .{
-            .allocator = allocator,
-            .filepath = filepath,
-            .buf = buf,
-            .buf_it = (try std.unicode.Utf8View.init(buf)).iterator(),
-            .toks = .{},
-            .tok_it = .{ .toks = &self.toks, .i = 0 },
-            .nodes = .{},
-            .childs = ast.Childs.init(allocator),
-        };
-
-        try self.nodes.append(allocator, .{});
+        try self.nodes.append(self.allocator, .{});
 
         try self.childs.append(
             try std.ArrayList(u32).initCapacity(self.allocator, 1),
         );
+    }
 
-        return self;
+    pub fn initParse(self: *Self) !void {
+        try init(self);
+        try token.parseToksFromBuf(self);
+        try ast.parseTreeFromToks(self);
     }
 };

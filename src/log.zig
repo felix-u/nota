@@ -39,13 +39,14 @@ pub const filePos = struct {
 };
 
 pub fn reportErr(
-    writer: std.fs.File.Writer,
-    comptime err: anyerror,
     ctx: *parse.Context,
+    comptime err: anyerror,
     tok_i: u32,
 ) anyerror {
     var pos = filePos{ .ctx = ctx, .i = ctx.toks.items(.beg_i)[tok_i] };
     pos.computeCoords();
+
+    const writer = ctx.err_writer;
 
     try writer.print(
         "{s}:{d}:{d}: error: ",
