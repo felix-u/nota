@@ -65,6 +65,12 @@ pub fn err(ctx: *parse.Context, comptime e: anyerror, tok_i: u32) anyerror {
         inline ast.Err.NoClosingCurly => {
             _ = try writer.write("expected '}' to terminate node body");
         },
+        inline ast.Err.NoColon => {
+            _ = try writer.write("expected ':'");
+        },
+        inline ast.Err.NoCurlyLeft => {
+            _ = try writer.write("expected '{'");
+        },
         inline ast.Err.NoIteratorLabel => {
             _ = try writer.write("expected iterator label: 'for label: ...'");
         },

@@ -10,6 +10,8 @@ pub const Err = error{
     EmptyBody,
     FloatingSymbol,
     NoClosingCurly,
+    NoColon,
+    NoCurlyLeft,
     NoIteratorLabel,
     NoNodeName,
     UnexpectedCurlyLeft,
@@ -28,8 +30,8 @@ pub const Node = struct {
 
     const Tag = enum(u8) {
         // for symbol: lhs { ... }
-        // lhs is the index into filter_list of the filter.
-        // rhs is the index into childs_list of the for expression.
+        // lhs is the index into filters of the filter.
+        // rhs is the index into childs of the for expression.
         for_expr,
 
         // lhs { }
@@ -51,16 +53,6 @@ pub const Node = struct {
 pub const NodeList = std.MultiArrayList(Node);
 
 pub const Childs = std.ArrayList(std.ArrayList(u32));
-
-pub const Filter = struct {
-    token_range: Data = .{},
-    // A 0 index indicates that the filter terminates.
-    next: FilterIndex = 0,
-
-    const FilterIndex = u32;
-};
-
-pub const FilterList = std.ArrayList(Filter);
 
 pub fn parseTreeFromToks(ctx: *parse.Context) !void {
     try parseTreeFromToksRecurse(ctx, 0, true);
@@ -176,25 +168,29 @@ fn parseKeyword(
     var tok: ?token.Token = it.peek();
 
     if (keyword == .@"for") {
-        tok = it.inc();
-        const lhs = it.i;
-        tok = it.inc();
-        if (tok == null) return;
-        while (tok) |t1| : (tok = it.inc()) switch (t1.kind) {
-            ':' => while (tok) |t2| : (tok = it.inc()) switch (t2.kind) {
-                '{' => {
-                    tok = it.inc();
-                    if (tok != null and tok.?.kind != '}') try recurseInBody(
-                        ctx,
-                        childs_i,
-                        .for_expr,
-                        lhs,
-                    ) else return log.err(ctx, Err.EmptyBody, it.i);
-                },
-                else => continue,
-            },
-            else => return log.err(ctx, Err.NoIteratorLabel, it.i),
-        };
+        tok = it.inc() orelse return;
+        if (tok.?.kind != @intFromEnum(token.Kind.symbol)) {
+            return log.err(ctx, Err.NoIteratorLabel, it.i);
+        }
+
+        tok = it.inc() orelse return;
+        if (tok.?.kind != ':') {
+            return log.err(ctx, Err.NoColon, it.i);
+        }
+
+        tok = it.inc() orelse return;
+
+        const lhs: u32 = @intCast(ctx.filters.items.len);
+        try parseFilter(ctx);
+
+        tok = it.peek();
+        if (tok.?.kind != '{') return log.err(ctx, Err.NoCurlyLeft, it.i);
+
+        tok = it.inc() orelse return;
+        if (tok.?.kind == '}') return log.err(ctx, Err.EmptyBody, it.i);
+
+        try recurseInBody(ctx, childs_i, .for_expr, lhs);
+
         return;
     }
 
@@ -202,9 +198,25 @@ fn parseKeyword(
     @panic("UNIMPLEMENTED");
 }
 
+pub const Filter = struct {
+    token_range: Data = .{},
+    // A 0 index indicates that the filter terminates.
+    next: FilterIndex = 0,
+
+    const FilterIndex = u32;
+};
+
+pub const FilterList = std.ArrayList(Filter);
 fn parseFilter(ctx: *parse.Context) !void {
-    _ = ctx;
-    @panic("unimplemented");
+    const it = &ctx.tok_it;
+
+    var tok: ?token.Token = it.peek();
+
+    while (tok) |t1| : (tok = it.inc()) {
+        if (t1.kind != ')') continue;
+        tok = it.inc();
+        break;
+    }
 }
 
 pub const TokenIterator = struct {
