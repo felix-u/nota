@@ -1,11 +1,15 @@
 #include "base.h"
 
+#include "token.h"
+
 // #define ARGS_IMPLEMENTATION
 // #define ARGS_BINARY_NAME "nota"
 // #define ARGS_BINARY_VERSION "0.4-dev"
 // #include "args.h"
 
 int main(int argc, char **argv) {
+    (void)argc;
+
     int exitcode = 1;
 
     arena arena = { 0 };
@@ -27,12 +31,20 @@ int main(int argc, char **argv) {
     //     },
     // };
 
-    (void)argc;
     const str8 path = str8_from_cstr(argv[1]);
 
     str8 filebuf = file_read(&arena, path);
     if (!filebuf.ptr || !filebuf.len) {
         fprintf(stderr, "error: unable to open '%s'\n", path.ptr);
+        goto defer;
+    }
+
+    if (filebuf.len >= UINT32_MAX) {
+        const f64 max_mb = UINT32_MAX / 1024 / 1024;
+        fprintf(stderr, 
+            "error: file '%s' is %0.0lf megabytes or larger\n", 
+            path.ptr, max_mb
+        );
         goto defer;
     }
 
