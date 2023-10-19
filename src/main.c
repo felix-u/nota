@@ -1,7 +1,5 @@
 #include "base.h"
 
-#include "token.h"
-
 #define ARGS_IMPLEMENTATION
 #define ARGS_BINARY_NAME "nota"
 #define ARGS_BINARY_VERSION "0.4-dev"
@@ -11,9 +9,8 @@ int main(int argc, char **argv) {
     int exitcode = 1;
 
     arena arena = { 0 };
-    FILE *fp = NULL;
-    int filesize = 0;
-    u8 *filebuf = NULL;
+    arena_init(&arena);
+    if (!arena.mem) goto defer;
 
     args_Flag *flags[] = {
         &ARGS_HELP_FLAG,
@@ -22,7 +19,7 @@ int main(int argc, char **argv) {
 
     const usize flags_count = sizeof(flags) / sizeof(flags[0]);
     usize positional_num = 0;
-    const usize positional_cap = 256;
+    #define positional_cap 256
     char *positional_args[positional_cap];
     int args_return = args_proc((args_Proc_Args){
         argc, argv,
@@ -38,43 +35,20 @@ int main(int argc, char **argv) {
         goto defer;
     }
 
-    const char *path = positional_args[0];
+    const str8 path = str8_from_cstr(positional_args[0]);
 
-    if (!(fp = fopen(path, "r"))) {
-        fprintf(stderr, "error: failed to open '%s'\n", path);
-        goto defer;
-    } 
-    
-    fseek(fp, 0L, SEEK_END);
-    filesize = ftell(fp);
-    arena.cap = filesize + 1;
-
-    if (!arena_init(&arena) || 
-        !(filebuf = arena_alloc(&arena, filesize + 1))
-    ) {
-        fprintf(stderr, "error: memory allocation failure\n");
+    str8 filebuf = file_read(&arena, path);
+    if (!filebuf.ptr || !filebuf.len) {
+        fprintf(stderr, "error: unable to open '%s'\n", path.ptr);
         goto defer;
     }
 
-    fseek(fp, 0L, SEEK_SET);
-    filesize = fread(filebuf, sizeof(char), filesize, fp);
-
-    if (ferror(fp)) {
-        fprintf(stderr, "error: file error '%s'\n", path);
-        goto defer;
-    }
-
-    fclose(fp);
-    fp = NULL;
-
-    filebuf[filesize] = '\0';
-
-    printf("opened '%s':\n%s", path, filebuf);
+    printf("opened '%s' of length %zu:\n%s", 
+            path.ptr, filebuf.len, filebuf.ptr);
 
     exitcode = 0;
 
     defer:
-    if (fp) fclose(fp);
     arena_deinit(&arena);
     return exitcode;
 }

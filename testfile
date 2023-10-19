@@ -2,18 +2,14 @@ week {
     date = 2023_12_11Z;
     day { 
         name = "mon";
-        date = 2023_12_11Z;
         task {
-            date = 2023_12_11Z;
             desc = "do something";
             done = false;
         }
     }
     day { 
         name = "tue";
-        date = 2023_12_12Z;
         task {
-            date = 2023_12_12Z;
             desc = "do something else";
             done = true;
         }
@@ -21,10 +17,7 @@ week {
 }
 
 todo {
-    for task: all(task) {
-        test = "test";
+    for task: (@all | .@name == "task" | .done == false) {
+        task;
     }
-    // task: all(task) {
-    //     if task.date > #now and !task.done { task }
-    // }
 }

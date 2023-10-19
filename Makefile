@@ -7,7 +7,7 @@ obj = $(src:.c=.o)
 CFLAGS=-std=c99 \
 	-Wall -Wextra -pedantic -Werror -Wshadow \
 	-fno-strict-aliasing -Wstrict-overflow
-DEBUGFLAGS=-g3 -ggdb -fsanitize=address,undefined -fsanitize-trap
+DEBUGFLAGS=-g3 -ggdb -fsanitize=address,undefined
 RELEASEFLAGS=-O3 -s
 LIBS=-lm
 

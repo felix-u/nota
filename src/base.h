@@ -2,6 +2,7 @@
 #ifndef BASE_H
 #define BASE_H
 
+
 #include <stdbool.h>
 
 #include <stddef.h>
@@ -26,14 +27,22 @@ typedef i16 b16;
 typedef i32 b32;
 typedef i64 b64;
 
+
 typedef struct str8 {
-    u8 *str;
+    u8 *ptr;
     usize len;
 } str8;
 
-#define str8_lit(s) (str8){ .len = sizeof(s) - 1, .str = (u8 *)s }
+#define str8_lit(s) (str8){ .ptr = (u8 *)s, .len = sizeof(s) - 1 }
 
-#define str8_expand(s) (s).str, (s).len
+#define str8_expand(s) (s).ptr, (s).len
+
+str8 str8_from_cstr(const char *s) {
+    usize len = 0;
+    while (s[len] != '\0') len += 1;
+    return (str8){ .ptr = (u8 *)s, .len = len };
+}
+
 
 #include <stdlib.h>
 
@@ -69,5 +78,28 @@ void arena_deinit(arena *arena) {
     arena->offset = 0;
     arena->cap = 0;
 }
+
+
+#include <stdio.h>
+
+str8 file_read(arena *arena, str8 path) {
+    FILE *fp = NULL;
+    const str8 none = { 0 };
+    str8 buf = { 0 };
+
+    if (!(fp = fopen((char *)path.ptr, "r"))) return none;
+    
+    fseek(fp, 0L, SEEK_END);
+    usize filesize = ftell(fp);
+    if (!(buf.ptr = arena_alloc(arena, filesize))) return none;
+    fseek(fp, 0L, SEEK_SET);
+    buf.len = fread(buf.ptr, sizeof(u8), filesize, fp);
+
+    if (ferror(fp)) return none;
+    fclose(fp);
+
+    return buf;
+}
+
 
 #endif // BASE_H
