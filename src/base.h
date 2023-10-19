@@ -91,13 +91,21 @@ str8 file_read(arena *arena, str8 path) {
     
     fseek(fp, 0L, SEEK_END);
     usize filesize = ftell(fp);
-    if (!(buf.ptr = arena_alloc(arena, filesize))) return none;
+    if (!(buf.ptr = arena_alloc(arena, filesize + 1))) {
+        fclose(fp);
+        return none;
+    }
+
     fseek(fp, 0L, SEEK_SET);
     buf.len = fread(buf.ptr, sizeof(u8), filesize, fp);
+    buf.ptr[buf.len] = '\0';
 
-    if (ferror(fp)) return none;
+    if (ferror(fp)) {
+        fclose(fp);
+        return none;
+    }
+
     fclose(fp);
-
     return buf;
 }
 
