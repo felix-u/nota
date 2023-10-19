@@ -12,28 +12,20 @@ int main(int argc, char **argv) {
     arena_init(&arena);
     if (!arena.mem) goto defer;
 
-    // args_Flag *flags[] = {
-    //     &ARGS_HELP_FLAG,
-    //     &ARGS_VERSION_FLAG,
+    // Args_Flag flag_help = { .kind = ARGS_KIND_HELP };
+    // Args_Flag flag_version = { .kind = ARGS_KIND_VERSION };
+    // Args_Def args_def = {
+    //     .arg_list = arg_list_from(argc, argv),
+    //     .flags = (flag_slice)slice_lit({
+    //         &flag_help,
+    //         &flag_version,
+    //     }),
+    //     .info = {
+    //         .desc = str8_lit("parser for the nota langauge"),
+    //         .usage = str8_lit("<file> [options]"),
+    //         .version = str8_lit("0.4-dev"),
+    //     },
     // };
-
-    // const usize flags_count = sizeof(flags) / sizeof(flags[0]);
-    // usize positional_num = 0;
-    // #define positional_cap 256
-    // char *positional_args[positional_cap];
-    // int args_return = args_proc((args_Proc_Args){
-    //     argc, argv,
-    //     flags_count, flags,
-    //     &positional_num, positional_args,
-    //     .usage_description = "nota language parser",
-    //     .positional_expects = ARGS_EXPECTS_FILE,
-    //     .positional_type = ARGS_POSITIONAL_SINGLE,
-    //     positional_cap,
-    // });
-    // if (args_return != ARGS_RETURN_CONTINUE) {
-    //     exitcode = args_return;
-    //     goto defer;
-    // }
 
     (void)argc;
     const str8 path = str8_from_cstr(argv[1]);
