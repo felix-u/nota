@@ -2,11 +2,10 @@
 #ifndef BASE_H
 #define BASE_H
 
-
 #include <stdbool.h>
-
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 typedef   uint8_t    u8;
 typedef  uint16_t   u16;
@@ -27,7 +26,6 @@ typedef i16 b16;
 typedef i32 b32;
 typedef i64 b64;
 
-
 typedef struct str8 {
     u8 *ptr;
     usize len;
@@ -37,12 +35,8 @@ typedef struct str8 {
 
 #define str8_expand(s) (s).ptr, (s).len
 
-str8 str8_from_cstr(const char *s) {
-    usize len = 0;
-    while (s[len] != '\0') len += 1;
-    return (str8){ .ptr = (u8 *)s, .len = len };
-}
-
+str8 str8_from_cstr(const char *s);
+void str8_print(FILE *stream, const str8 str);
 
 #include <stdlib.h>
 
@@ -52,35 +46,27 @@ typedef struct arena {
     usize cap;
 } arena;
 
-bool arena_init(arena *arena) {
-    arena->offset = 0;
-    if (arena->cap == 0) arena->cap = 8 * 1024 * 1024; 
-    return (arena->mem = malloc(arena->cap));
+bool arena_init(arena *arena);
+void _arena_align(arena *arena, usize align);
+void *arena_alloc(arena *arena, usize size);
+void arena_deinit(arena *arena);
+
+str8 file_read(arena *arena, str8 path);
+
+#endif // BASE_H
+
+
+#ifdef BASE_IMPLEMENTATION
+
+str8 str8_from_cstr(const char *s) {
+    usize len = 0;
+    while (s[len] != '\0') len += 1;
+    return (str8){ .ptr = (u8 *)s, .len = len };
 }
 
-void _arena_align(arena *arena, usize align) {
-    usize modulo = arena->offset & (align - 1);
-    if (modulo != 0) arena->offset += align - modulo;
+void str8_print(FILE *stream, const str8 str) {
+    for (usize i = 0; i < str.len; i++) putc(str.ptr[i], stream);
 }
-
-#define ARENA_DEFAULT_ALIGNMENT (sizeof(void *))
-
-void *arena_alloc(arena *arena, usize size) {
-    _arena_align(arena, ARENA_DEFAULT_ALIGNMENT);
-    if (arena->offset >= arena->cap) return NULL;
-    void *ptr = (u8 *)arena->mem + arena->offset;
-    arena->offset += size;
-    return ptr;
-}
-
-void arena_deinit(arena *arena) {
-    free(arena->mem);
-    arena->offset = 0;
-    arena->cap = 0;
-}
-
-
-#include <stdio.h>
 
 str8 file_read(arena *arena, str8 path) {
     FILE *fp = NULL;
@@ -109,5 +95,31 @@ str8 file_read(arena *arena, str8 path) {
     return buf;
 }
 
+bool arena_init(arena *arena) {
+    arena->offset = 0;
+    if (arena->cap == 0) arena->cap = 8 * 1024 * 1024; 
+    return (arena->mem = malloc(arena->cap));
+}
 
-#endif // BASE_H
+void _arena_align(arena *arena, usize align) {
+    usize modulo = arena->offset & (align - 1);
+    if (modulo != 0) arena->offset += align - modulo;
+}
+
+#define ARENA_DEFAULT_ALIGNMENT (2 * sizeof(void *))
+
+void *arena_alloc(arena *arena, usize size) {
+    _arena_align(arena, ARENA_DEFAULT_ALIGNMENT);
+    if (arena->offset >= arena->cap) return NULL;
+    void *ptr = (u8 *)arena->mem + arena->offset;
+    arena->offset += size;
+    return ptr;
+}
+
+void arena_deinit(arena *arena) {
+    free(arena->mem);
+    arena->offset = 0;
+    arena->cap = 0;
+}
+
+#endif // BASE_IMPLEMENTATION

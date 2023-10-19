@@ -1,6 +1,13 @@
 #include "base.h"
 
-#include "token.h"
+#include "parse.h"
+
+#ifdef UNITY_BUILD
+    #include "base.c"
+    #include "parse.c"
+#endif
+
+#include <stdio.h>
 
 // #define ARGS_IMPLEMENTATION
 // #define ARGS_BINARY_NAME "nota"
@@ -48,8 +55,15 @@ int main(int argc, char **argv) {
         goto defer;
     }
 
-    printf("opened '%s' of length %zu:\n%s", 
-            path.ptr, filebuf.len, filebuf.ptr);
+    Parse_Context ctx = { 
+        .arena = &arena,
+        .path = path,
+        .buf = filebuf,
+    };
+    
+    if (!parse_tokens_from_buf(&ctx)) goto defer;
+
+    parse_print_tokens(&ctx);
 
     exitcode = 0;
 

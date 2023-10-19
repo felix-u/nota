@@ -9,7 +9,7 @@ CFLAGS=-std=c99 \
 	-fno-strict-aliasing -Wstrict-overflow
 DEBUGFLAGS=-g3 -ggdb -fsanitize=address,undefined
 RELEASEFLAGS=-O3 -s
-LIBS=-lm
+LIBS=
 
 CROSSCC=zig cc -DUNITY_BUILD
 
