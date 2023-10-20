@@ -83,11 +83,17 @@ pub fn err(ctx: *parse.Context, comptime e: anyerror, tok_i: u32) anyerror {
         inline ast.Err.NoNodeName => {
             _ = try writer.write("expected node name preceding '{'");
         },
+        inline ast.Err.UnexpectedBracketRight => {
+            _ = try writer.write("unexpected ')'");
+        },
         inline ast.Err.UnexpectedCurlyLeft => {
             _ = try writer.write("unexpected '{'");
         },
         inline ast.Err.UnexpectedKeyword => {
             _ = try writer.write("unexpected keyword");
+        },
+        inline ast.Err.UnexpectedPipe => {
+            _ = try writer.write("unexpected '|'");
         },
         inline ast.Err.UnmatchedCurlyRight => {
             _ = try writer.write("'}' is unmatched");

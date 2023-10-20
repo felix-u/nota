@@ -16,8 +16,10 @@ pub const Err = error{
     NoCurlyLeft,
     NoIteratorLabel,
     NoNodeName,
+    UnexpectedBracketRight,
     UnexpectedCurlyLeft,
     UnexpectedKeyword,
+    UnexpectedPipe,
     UnmatchedCurlyRight,
 };
 
@@ -161,9 +163,9 @@ fn recurseInBody(
 
 fn parseFilterGroup(ctx: *parse.Context) !void {
     const it = &ctx.tok_it;
-    var tok: ?token.Token = it.peek();
     const prev_childs_i = ctx.childs_i;
 
+    var tok: ?token.Token = it.peek();
     if (tok.?.kind != '(') return log.err(ctx, Err.NoBracketLeft, it.i);
 
     tok = it.inc() orelse return;
@@ -174,14 +176,35 @@ fn parseFilterGroup(ctx: *parse.Context) !void {
         .tag = .filter_group,
         .data = .{ .rhs = ctx.childs_i },
     });
-    try appendNextNodeToChilds(ctx);
 
-    while (tok) |t1| : (tok = it.inc()) {
-        if (t1.kind != ')') continue;
+    group: while (tok) |_| : (tok = it.inc()) {
+        const filter_component_beg_i = it.i;
+
+        if (tok.?.kind == ')') {
+            return log.err(ctx, Err.UnexpectedBracketRight, it.i);
+        }
+
         tok = it.inc() orelse return;
-        break;
+        std.debug.print("LOOK HERE {c}\n", .{tok.?.kind});
+        if (tok.?.kind == '|') return log.err(ctx, Err.UnexpectedPipe, it.i);
+
+        toks: while (tok) |t2| : (tok = it.inc()) switch (t2.kind) {
+            '|', ')' => break :toks,
+            '{' => return log.err(ctx, Err.UnexpectedCurlyLeft, it.i),
+            else => continue :toks,
+        };
+
+        try appendNextNodeToChilds(ctx);
+        try ctx.nodes.append(ctx.allocator, .{
+            .tag = .filter_component,
+            .data = .{ .lhs = filter_component_beg_i, .rhs = it.i },
+        });
+
+        if (tok.?.kind == ')') break :group;
+        if (tok.?.kind == '|') continue :group;
     }
 
+    tok = it.inc() orelse return;
     ctx.childs_i = prev_childs_i;
 }
 
@@ -207,9 +230,7 @@ fn parseKeyword(ctx: *parse.Context, keyword: token.Kind) anyerror!void {
         const lhs = it.i;
 
         tok = it.inc() orelse return;
-        if (tok.?.kind != ':') {
-            return log.err(ctx, Err.NoColon, it.i);
-        }
+        if (tok.?.kind != ':') return log.err(ctx, Err.NoColon, it.i);
 
         tok = it.inc() orelse return;
         try recurseInBody(ctx, .for_expr, lhs);
