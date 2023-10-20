@@ -17,7 +17,7 @@ week {
 }
 
 todo {
-    for task: (@all | .@name == "task" | .done == false) {
-        task;
+    for task_todo: (@all | .@name == "task" | .done == false) {
+        task = task_todo;
     }
 }

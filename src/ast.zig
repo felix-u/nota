@@ -29,9 +29,17 @@ pub const Node = struct {
     data: Data = .{},
 
     const Tag = enum(u8) {
-        // for symbol: lhs { ... }
-        // lhs is the index into filters of the filter.
-        // rhs is the index into childs of the for expression.
+        // ( ... | lhs .. rhs | ... )
+        filter_component,
+
+        // lhs is the index into childs_list of the filter.
+        // rhs unused.
+        filter_group,
+
+        // for lhs: rhs { rhs[1..]... }
+        // lhs is the named filter capture.
+        // rhs is the index into childs_list of the for expression. The first
+        // child is actually the filter.
         for_expr,
 
         // lhs { }
@@ -55,12 +63,11 @@ pub const NodeList = std.MultiArrayList(Node);
 pub const Childs = std.ArrayList(std.ArrayList(u32));
 
 pub fn parseTreeFromToks(ctx: *parse.Context) !void {
-    try parseTreeFromToksRecurse(ctx, 0, true);
+    try parseTreeFromToksRecurse(ctx, true);
 }
 
 pub fn parseTreeFromToksRecurse(
     ctx: *parse.Context,
-    childs_i: u32,
     comptime in_root_node: bool,
 ) !void {
     const allocator = ctx.allocator;
@@ -74,14 +81,9 @@ pub fn parseTreeFromToksRecurse(
                 '{' => {
                     tok = it.inc();
                     if (tok != null and tok.?.kind != '}') {
-                        try recurseInBody(
-                            ctx,
-                            childs_i,
-                            .node_decl_simple,
-                            it.i - 2,
-                        );
+                        try recurseInBody(ctx, .node_decl_simple, it.i - 2);
                     } else {
-                        try appendChild(ctx, childs_i);
+                        try appendNextNodeToChilds(ctx);
                         const node_name_i = it.i - 2;
                         try ctx.nodes.append(allocator, .{
                             .tag = .node_decl_simple,
@@ -99,7 +101,7 @@ pub fn parseTreeFromToksRecurse(
                     };
 
                     const var_name_i = it.i - 3;
-                    try appendChild(ctx, childs_i);
+                    try appendNextNodeToChilds(ctx);
                     try ctx.nodes.append(allocator, .{
                         .tag = .var_decl_literal,
                         .data = .{ .lhs = var_name_i, .rhs = it.i - 1 },
@@ -118,7 +120,7 @@ pub fn parseTreeFromToksRecurse(
             return log.err(ctx, Err.UnmatchedCurlyRight, it.i);
         },
         @intFromEnum(token.Kind.@"for") => {
-            try parseKeyword(ctx, childs_i, @enumFromInt(t.kind));
+            try parseKeyword(ctx, @enumFromInt(t.kind));
         },
         @intFromEnum(token.Kind.eof) => if (!in_root_node) {
             return log.err(ctx, Err.NoClosingCurly, it.i);
@@ -129,38 +131,36 @@ pub fn parseTreeFromToksRecurse(
 
 fn recurseInBody(
     ctx: *parse.Context,
-    childs_i: u32,
     comptime tag: Node.Tag,
     lhs: u32,
 ) anyerror!void {
     const allocator = ctx.allocator;
 
-    try appendChild(ctx, childs_i);
+    try appendNextNodeToChilds(ctx);
 
-    const recurse_childs_i: u32 = @intCast(ctx.childs.items.len);
+    const prev_childs_i = ctx.childs_i;
+    ctx.childs_i = @intCast(ctx.childs.items.len);
 
     try ctx.nodes.append(allocator, .{
         .tag = tag,
-        .data = .{ .lhs = lhs, .rhs = recurse_childs_i },
+        .data = .{ .lhs = lhs, .rhs = ctx.childs_i },
     });
 
-    try parseTreeFromToksRecurse(ctx, recurse_childs_i, false);
+    try parseTreeFromToksRecurse(ctx, false);
+
+    ctx.childs_i = prev_childs_i;
 }
 
-fn appendChild(ctx: *parse.Context, childs_i: u32) !void {
-    if (childs_i == ctx.childs.items.len) try ctx.childs.append(
+fn appendNextNodeToChilds(ctx: *parse.Context) !void {
+    if (ctx.childs_i == ctx.childs.items.len) try ctx.childs.append(
         try std.ArrayList(u32).initCapacity(ctx.allocator, 1),
     );
 
-    var list = &ctx.childs.items[childs_i];
+    var list = &ctx.childs.items[ctx.childs_i];
     try list.append(@intCast(ctx.nodes.len));
 }
 
-fn parseKeyword(
-    ctx: *parse.Context,
-    childs_i: u32,
-    keyword: token.Kind,
-) anyerror!void {
+fn parseKeyword(ctx: *parse.Context, keyword: token.Kind) anyerror!void {
     const allocator = ctx.allocator;
     _ = allocator;
     const it = &ctx.tok_it;
@@ -172,6 +172,7 @@ fn parseKeyword(
         if (tok.?.kind != @intFromEnum(token.Kind.symbol)) {
             return log.err(ctx, Err.NoIteratorLabel, it.i);
         }
+        const lhs = it.i;
 
         tok = it.inc() orelse return;
         if (tok.?.kind != ':') {
@@ -180,7 +181,6 @@ fn parseKeyword(
 
         tok = it.inc() orelse return;
 
-        const lhs: u32 = @intCast(ctx.filters.items.len);
         try parseFilter(ctx);
 
         tok = it.peek();
@@ -189,7 +189,7 @@ fn parseKeyword(
         tok = it.inc() orelse return;
         if (tok.?.kind == '}') return log.err(ctx, Err.EmptyBody, it.i);
 
-        try recurseInBody(ctx, childs_i, .for_expr, lhs);
+        try recurseInBody(ctx, .for_expr, lhs);
 
         return;
     }
@@ -198,15 +198,6 @@ fn parseKeyword(
     @panic("UNIMPLEMENTED");
 }
 
-pub const Filter = struct {
-    token_range: Data = .{},
-    // A 0 index indicates that the filter terminates.
-    next: FilterIndex = 0,
-
-    const FilterIndex = u32;
-};
-
-pub const FilterList = std.ArrayList(Filter);
 fn parseFilter(ctx: *parse.Context) !void {
     const it = &ctx.tok_it;
 
@@ -327,7 +318,7 @@ pub fn printNicelyRecurse(
     try writeIndent(writer, indent_level);
 
     if (!in_root_node) switch (node.tag) {
-        .root_node => unreachable,
+        .filter_component, .filter_group, .root_node => unreachable,
         .for_expr => {
             if (clr) try ansi.set(writer, &.{ansi.fg_red});
             _ = try writer.write("for ");

@@ -35,7 +35,7 @@ pub const Context = struct {
     tok_it: ast.TokenIterator = undefined,
     nodes: ast.NodeList = .{},
     childs: ast.Childs = undefined,
-    filters: ast.FilterList = undefined,
+    childs_i: u32 = 0,
 
     const Self = @This();
 
@@ -49,9 +49,6 @@ pub const Context = struct {
         try self.childs.append(
             try std.ArrayList(u32).initCapacity(self.allocator, 1),
         );
-
-        self.filters = ast.FilterList.init(self.allocator);
-        try self.filters.append(.{});
     }
 
     pub fn initFromPath(self: *Self, path: []const u8) !void {
