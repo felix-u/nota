@@ -8,7 +8,9 @@ const Writer = std.fs.File.Writer;
 
 pub const Err = error{
     EmptyBody,
+    EmptyFilter,
     FloatingSymbol,
+    NoBracketLeft,
     NoClosingCurly,
     NoColon,
     NoCurlyLeft,
@@ -32,8 +34,8 @@ pub const Node = struct {
         // ( ... | lhs .. rhs | ... )
         filter_component,
 
-        // lhs is the index into childs_list of the filter.
-        // rhs unused.
+        // lhs unused.
+        // rhs is the index into childs_list of the filter.
         filter_group,
 
         // for lhs: rhs { rhs[1..]... }
@@ -107,14 +109,10 @@ pub fn parseTreeFromToksRecurse(
                         .data = .{ .lhs = var_name_i, .rhs = it.i - 1 },
                     });
                 },
-                else => {
-                    return log.err(ctx, token.Err.InvalidSyntax, it.i);
-                },
+                else => return log.err(ctx, token.Err.InvalidSyntax, it.i),
             };
         },
-        '{' => {
-            return log.err(ctx, Err.NoNodeName, it.i);
-        },
+        '{' => return log.err(ctx, Err.NoNodeName, it.i),
         '}' => {
             if (!in_root_node) return;
             return log.err(ctx, Err.UnmatchedCurlyRight, it.i);
@@ -134,19 +132,55 @@ fn recurseInBody(
     comptime tag: Node.Tag,
     lhs: u32,
 ) anyerror!void {
+    const it = &ctx.tok_it;
     const allocator = ctx.allocator;
+    const prev_childs_i = ctx.childs_i;
 
     try appendNextNodeToChilds(ctx);
-
-    const prev_childs_i = ctx.childs_i;
     ctx.childs_i = @intCast(ctx.childs.items.len);
-
     try ctx.nodes.append(allocator, .{
         .tag = tag,
         .data = .{ .lhs = lhs, .rhs = ctx.childs_i },
     });
 
+    if (tag == .for_expr) {
+        try appendNextNodeToChilds(ctx);
+        try parseFilterGroup(ctx);
+
+        var tok: ?token.Token = it.peek();
+        if (tok.?.kind != '{') return log.err(ctx, Err.NoCurlyLeft, it.i);
+
+        tok = it.inc() orelse return;
+        if (tok.?.kind == '}') return log.err(ctx, Err.EmptyBody, it.i);
+    }
+
     try parseTreeFromToksRecurse(ctx, false);
+
+    ctx.childs_i = prev_childs_i;
+}
+
+fn parseFilterGroup(ctx: *parse.Context) !void {
+    const it = &ctx.tok_it;
+    var tok: ?token.Token = it.peek();
+    const prev_childs_i = ctx.childs_i;
+
+    if (tok.?.kind != '(') return log.err(ctx, Err.NoBracketLeft, it.i);
+
+    tok = it.inc() orelse return;
+    if (tok.?.kind == ')') return log.err(ctx, Err.EmptyFilter, it.i);
+
+    ctx.childs_i = @intCast(ctx.childs.items.len);
+    try ctx.nodes.append(ctx.allocator, .{
+        .tag = .filter_group,
+        .data = .{ .rhs = ctx.childs_i },
+    });
+    try appendNextNodeToChilds(ctx);
+
+    while (tok) |t1| : (tok = it.inc()) {
+        if (t1.kind != ')') continue;
+        tok = it.inc() orelse return;
+        break;
+    }
 
     ctx.childs_i = prev_childs_i;
 }
@@ -161,8 +195,6 @@ fn appendNextNodeToChilds(ctx: *parse.Context) !void {
 }
 
 fn parseKeyword(ctx: *parse.Context, keyword: token.Kind) anyerror!void {
-    const allocator = ctx.allocator;
-    _ = allocator;
     const it = &ctx.tok_it;
 
     var tok: ?token.Token = it.peek();
@@ -180,15 +212,6 @@ fn parseKeyword(ctx: *parse.Context, keyword: token.Kind) anyerror!void {
         }
 
         tok = it.inc() orelse return;
-
-        try parseFilter(ctx);
-
-        tok = it.peek();
-        if (tok.?.kind != '{') return log.err(ctx, Err.NoCurlyLeft, it.i);
-
-        tok = it.inc() orelse return;
-        if (tok.?.kind == '}') return log.err(ctx, Err.EmptyBody, it.i);
-
         try recurseInBody(ctx, .for_expr, lhs);
 
         return;
@@ -196,18 +219,6 @@ fn parseKeyword(ctx: *parse.Context, keyword: token.Kind) anyerror!void {
 
     std.debug.print("UNIMPLEMENTED: {any}\n", .{keyword});
     @panic("UNIMPLEMENTED");
-}
-
-fn parseFilter(ctx: *parse.Context) !void {
-    const it = &ctx.tok_it;
-
-    var tok: ?token.Token = it.peek();
-
-    while (tok) |t1| : (tok = it.inc()) {
-        if (t1.kind != ')') continue;
-        tok = it.inc();
-        break;
-    }
 }
 
 pub const TokenIterator = struct {
@@ -240,32 +251,6 @@ fn writeIndent(writer: Writer, how_many_times: usize) !void {
     for (how_many_times) |_| _ = try writer.write(" " ** 4);
 }
 
-pub fn printDebugRecurse(
-    ctx: *parse.Context,
-    node_i: u32,
-    indent_level: u32,
-) !void {
-    const node = ctx.nodes.get(node_i);
-    const writer = ctx.writer;
-
-    try writeIndent(writer, indent_level);
-    try writer.print("{any} {any}\n", .{ node.tag, node.data });
-
-    switch (node.tag) {
-        .root_node => {},
-        .node_decl_simple,
-        .for_expr,
-        => if (node.data.rhs == 0) return,
-        else => return,
-    }
-
-    const childs = ctx.childs.items[node.data.rhs];
-
-    for (childs.items) |i| {
-        try printDebugRecurse(ctx, i, indent_level + 1);
-    }
-}
-
 pub fn printDebug(ctx: *parse.Context) !void {
     const writer = ctx.writer;
 
@@ -290,6 +275,33 @@ pub fn printDebug(ctx: *parse.Context) !void {
 
     _ = try writer.write("TREE:\n");
     try printDebugRecurse(ctx, 0, 0);
+}
+
+pub fn printDebugRecurse(
+    ctx: *parse.Context,
+    node_i: u32,
+    indent_level: u32,
+) !void {
+    const node = ctx.nodes.get(node_i);
+    const writer = ctx.writer;
+
+    try writeIndent(writer, indent_level);
+    try writer.print("{any} {any}\n", .{ node.tag, node.data });
+
+    switch (node.tag) {
+        .root_node => {},
+        .node_decl_simple,
+        .for_expr,
+        .filter_group,
+        => if (node.data.rhs == 0) return,
+        else => return,
+    }
+
+    const childs = ctx.childs.items[node.data.rhs];
+
+    for (childs.items) |i| {
+        try printDebugRecurse(ctx, i, indent_level + 1);
+    }
 }
 
 const AnsiClrState = enum {
@@ -396,7 +408,10 @@ pub fn printNicelyRecurse(
     const childs_indent_level =
         if (in_root_node) indent_level else indent_level + 1;
 
-    for (childs.items) |i| try printNicelyRecurse(
+    var children_start_here: usize = 0;
+    if (node.tag == .for_expr) children_start_here = 1;
+
+    for (childs.items[children_start_here..]) |i| try printNicelyRecurse(
         ansi_clr,
         ctx,
         i,

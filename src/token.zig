@@ -164,6 +164,8 @@ pub fn parseToksFromBuf(ctx: *parse.Context) !void {
 pub fn printToks(ctx: *parse.Context) !void {
     const writer = ctx.writer;
 
+    _ = try writer.write("TOKENS:\n");
+
     for (0..ctx.toks.len) |i| {
         const tok = ctx.toks.get(i);
         var pos: log.filePos = .{ .ctx = ctx, .i = tok.beg_i };

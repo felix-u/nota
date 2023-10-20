@@ -59,8 +59,14 @@ pub fn err(ctx: *parse.Context, comptime e: anyerror, tok_i: u32) anyerror {
         inline ast.Err.EmptyBody => {
             _ = try writer.write("empty body invalid in this context");
         },
+        inline ast.Err.EmptyFilter => {
+            _ = try writer.write("filter cannot be empty");
+        },
         inline ast.Err.FloatingSymbol => {
             _ = try writer.write("expected '{' or '=' after symbol");
+        },
+        inline ast.Err.NoBracketLeft => {
+            _ = try writer.write("expected '('");
         },
         inline ast.Err.NoClosingCurly => {
             _ = try writer.write("expected '}' to terminate node body");
