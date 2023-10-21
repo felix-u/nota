@@ -75,7 +75,7 @@ pub fn parseToksFromBuf(ctx: *parse.Context) !void {
                 .kind = ctx.buf[last_i],
             });
         },
-        '{', '}', '(', ')', ';', ':', '!', '>', '<', '@', '|' => {
+        '{', '}', '(', ')', ';', ':', '!', '>', '<', '@', '|', '.' => {
             try toksAppendCharHere(ctx, c1);
         },
         '/' => {

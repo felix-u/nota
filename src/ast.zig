@@ -185,7 +185,6 @@ fn parseFilterGroup(ctx: *parse.Context) !void {
         }
 
         tok = it.inc() orelse return;
-        std.debug.print("LOOK HERE {c}\n", .{tok.?.kind});
         if (tok.?.kind == '|') return log.err(ctx, Err.UnexpectedPipe, it.i);
 
         toks: while (tok) |t2| : (tok = it.inc()) switch (t2.kind) {
@@ -311,24 +310,17 @@ pub fn printDebugRecurse(
 
     switch (node.tag) {
         .root_node => {},
-        .node_decl_simple,
-        .for_expr,
-        .filter_group,
-        => if (node.data.rhs == 0) return,
+        .node_decl_simple, .for_expr, .filter_group => {
+            if (node.data.rhs == 0) return;
+        },
         else => return,
     }
 
     const childs = ctx.childs.items[node.data.rhs];
-
-    for (childs.items) |i| {
-        try printDebugRecurse(ctx, i, indent_level + 1);
-    }
+    for (childs.items) |i| try printDebugRecurse(ctx, i, indent_level + 1);
 }
 
-const AnsiClrState = enum {
-    ansi_clr_disabled,
-    ansi_clr_enabled,
-};
+const AnsiClrState = enum { ansi_clr_disabled, ansi_clr_enabled };
 
 pub fn printNicely(
     comptime ansi_clr: AnsiClrState,
@@ -361,8 +353,11 @@ pub fn printNicelyRecurse(
             try writer.print("{s}: ", .{iterator_name});
 
             if (clr) try ansi.set(writer, &.{ansi.fg_magenta});
-            const selector_i = node.data.lhs + 2;
-            try printToOpenCurly(ctx, selector_i);
+            const childs = ctx.childs.items[node.data.rhs];
+            const filter_group_i = childs.items[0];
+            try printFilterGroup(ctx, filter_group_i);
+            // const selector_i = node.data.lhs + 2;
+            // try printToOpenCurly(ctx, selector_i);
             if (clr) try ansi.reset(writer);
 
             _ = try writer.write(" {\n");
@@ -418,13 +413,11 @@ pub fn printNicelyRecurse(
     var print_closing_curly = false;
     switch (node.tag) {
         .root_node => {},
-        .node_decl_simple,
-        .for_expr,
-        => print_closing_curly = true,
+        .node_decl_simple, .for_expr => {
+            print_closing_curly = true;
+        },
         else => return,
     }
-
-    const childs = ctx.childs.items[node.data.rhs];
 
     const childs_indent_level =
         if (in_root_node) indent_level else indent_level + 1;
@@ -432,6 +425,7 @@ pub fn printNicelyRecurse(
     var children_start_here: usize = 0;
     if (node.tag == .for_expr) children_start_here = 1;
 
+    const childs = ctx.childs.items[node.data.rhs];
     for (childs.items[children_start_here..]) |i| try printNicelyRecurse(
         ansi_clr,
         ctx,
@@ -444,6 +438,29 @@ pub fn printNicelyRecurse(
         try writeIndent(writer, indent_level);
         _ = try writer.write("}\n");
     }
+}
+
+fn printFilterGroup(ctx: *parse.Context, filter_group_i: u32) !void {
+    const writer = ctx.writer;
+    const filter_group = ctx.nodes.get(filter_group_i);
+    const filter_components = ctx.childs.items[filter_group.data.rhs];
+
+    _ = try writer.writeByte('(');
+
+    var component_i: u32 = 0;
+    while (component_i < filter_components.items.len) : (component_i += 1) {
+        if (component_i > 0) _ = try writer.writeByte('|');
+
+        const filter_component_i = filter_components.items[component_i];
+        const component_data = ctx.nodes.items(.data)[filter_component_i];
+
+        var tok_i: u32 = component_data.lhs;
+        while (tok_i < component_data.rhs) : (tok_i += 1) {
+            try writer.print(" {s} ", .{ctx.lexeme(tok_i)});
+        }
+    }
+
+    _ = try writer.writeByte(')');
 }
 
 fn printToOpenCurly(ctx: *parse.Context, _tok_i: u32) !void {
