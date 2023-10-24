@@ -9,13 +9,15 @@ const Writer = std.fs.File.Writer;
 pub const Err = error{
     EmptyBody,
     EmptyFilter,
-    FloatingSymbol,
+    EmptyInput,
+    FloatingIdent,
     NoBracketLeft,
     NoClosingCurly,
     NoColon,
     NoCurlyLeft,
     NoIteratorLabel,
     NoNodeName,
+    NoSquareLeft,
     UnexpectedBracketRight,
     UnexpectedCurlyLeft,
     UnexpectedKeyword,
@@ -45,6 +47,13 @@ pub const Node = struct {
         // rhs is the index into childs_list of the for expression. The first
         // child is actually the filter.
         for_expr,
+
+        // [lhs..rhs]
+        input,
+
+        // lhs -> rhs
+        // lhs is input node index and rhs the filter node index.
+        iterator,
 
         // lhs { }
         // rhs is the index into childs_list of the node, or 0 if there are no
@@ -80,39 +89,37 @@ pub fn parseTreeFromToksRecurse(
     var tok: ?token.Token = it.peek();
 
     while (tok) |t| : (tok = it.inc()) switch (t.kind) {
-        @intFromEnum(token.Kind.symbol) => {
-            if (it.inc()) |t2| switch (t2.kind) {
-                '{' => {
-                    tok = it.inc();
-                    if (tok != null and tok.?.kind != '}') {
-                        try recurseInBody(ctx, .node_decl_simple, it.i - 2);
-                    } else {
-                        try appendNextNodeToChilds(ctx);
-                        const node_name_i = it.i - 2;
-                        try ctx.nodes.append(allocator, .{
-                            .tag = .node_decl_simple,
-                            .data = .{ .lhs = node_name_i, .rhs = 0 },
-                        });
-                    }
-                },
-                '=' => {
-                    while (tok) |t3| : (tok = it.inc()) switch (t3.kind) {
-                        ';' => break,
-                        '{' => {
-                            return log.err(ctx, Err.UnexpectedCurlyLeft, it.i);
-                        },
-                        else => {},
-                    };
-
-                    const var_name_i = it.i - 3;
+        @intFromEnum(token.Kind.ident) => if (it.inc()) |t2| switch (t2.kind) {
+            '{' => {
+                tok = it.inc();
+                if (tok != null and tok.?.kind != '}') {
+                    try recurseInBody(ctx, .node_decl_simple, it.i - 2);
+                } else {
                     try appendNextNodeToChilds(ctx);
+                    const node_name_i = it.i - 2;
                     try ctx.nodes.append(allocator, .{
-                        .tag = .var_decl_literal,
-                        .data = .{ .lhs = var_name_i, .rhs = it.i - 1 },
+                        .tag = .node_decl_simple,
+                        .data = .{ .lhs = node_name_i, .rhs = 0 },
                     });
-                },
-                else => return log.err(ctx, token.Err.InvalidSyntax, it.i),
-            };
+                }
+            },
+            '=' => {
+                while (tok) |t3| : (tok = it.inc()) switch (t3.kind) {
+                    ';' => break,
+                    '{' => {
+                        return log.err(ctx, Err.UnexpectedCurlyLeft, it.i);
+                    },
+                    else => {},
+                };
+
+                const var_name_i = it.i - 3;
+                try appendNextNodeToChilds(ctx);
+                try ctx.nodes.append(allocator, .{
+                    .tag = .var_decl_literal,
+                    .data = .{ .lhs = var_name_i, .rhs = it.i - 1 },
+                });
+            },
+            else => return log.err(ctx, token.Err.InvalidSyntax, it.i),
         },
         '{' => return log.err(ctx, Err.NoNodeName, it.i),
         '}' => {
@@ -147,7 +154,7 @@ fn recurseInBody(
 
     if (tag == .for_expr) {
         try appendNextNodeToChilds(ctx);
-        try parseFilterGroup(ctx);
+        try parseIterator(ctx);
 
         var tok: ?token.Token = it.peek();
         if (tok.?.kind != '{') return log.err(ctx, Err.NoCurlyLeft, it.i);
@@ -159,6 +166,35 @@ fn recurseInBody(
     try parseTreeFromToksRecurse(ctx, false);
 
     ctx.childs_i = prev_childs_i;
+}
+
+fn parseIterator(ctx: *parse.Context) !void {
+    try parseInput(ctx);
+    try parseFilterGroup(ctx);
+}
+
+fn parseInput(ctx: *parse.Context) !void {
+    const it = &ctx.tok_it;
+
+    var tok: ?token.Token = it.peek();
+    if (tok.?.kind != '[') return log.err(ctx, Err.NoSquareLeft, it.i);
+
+    tok = it.inc() orelse return;
+    if (tok.?.kind == ']') return log.err(ctx, Err.EmptyInput, it.i);
+    tok = it.inc();
+
+    const tok_beg_i = it.i;
+    while (tok) |t| : (tok = it.inc()) {
+        if (t.kind == '{') return log.err(ctx, Err.UnexpectedCurlyLeft, it.i);
+        if (t.kind == ']') break;
+    }
+
+    try ctx.nodes.append(ctx.allocator, .{
+        .tag = .input,
+        .data = .{ .lhs = tok_beg_i, .rhs = it.i },
+    });
+
+    tok = it.inc() orelse return;
 }
 
 fn parseFilterGroup(ctx: *parse.Context) !void {
@@ -223,7 +259,7 @@ fn parseKeyword(ctx: *parse.Context, keyword: token.Kind) anyerror!void {
 
     if (keyword == .@"for") {
         tok = it.inc() orelse return;
-        if (tok.?.kind != @intFromEnum(token.Kind.symbol)) {
+        if (tok.?.kind != @intFromEnum(token.Kind.ident)) {
             return log.err(ctx, Err.NoIteratorLabel, it.i);
         }
         const lhs = it.i;
@@ -343,7 +379,12 @@ pub fn printNicelyRecurse(
     try writeIndent(writer, indent_level);
 
     if (!in_root_node) switch (node.tag) {
-        .filter_component, .filter_group, .root_node => unreachable,
+        .filter_component,
+        .filter_group,
+        .input,
+        .iterator,
+        .root_node,
+        => unreachable,
         .for_expr => {
             if (clr) try ansi.set(writer, &.{ansi.fg_red});
             _ = try writer.write("for ");
@@ -392,14 +433,11 @@ pub fn printNicelyRecurse(
                     try writer.print("{s}", .{literal});
                     if (clr) try ansi.reset(writer);
                 },
-                .symbol => {
-                    try writer.print("{s}", .{literal});
-                },
+                .ident => try writer.print("{s}", .{literal}),
                 else => unreachable,
             }
 
             _ = try writer.write(";\n");
-
             return;
         },
     };

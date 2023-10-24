@@ -20,9 +20,11 @@ pub const Kind = enum(u8) {
     str,
     num,
     date,
-    symbol,
+    ident,
     true,
     false,
+
+    arrow,
 
     eof,
 
@@ -75,8 +77,33 @@ pub fn parseToksFromBuf(ctx: *parse.Context) !void {
                 .kind = ctx.buf[last_i],
             });
         },
-        '{', '}', '(', ')', ';', ':', '!', '>', '<', '@', '|', '.' => {
-            try toksAppendCharHere(ctx, c1);
+        '{',
+        '}',
+        '(',
+        ')',
+        '[',
+        ']',
+        ';',
+        ':',
+        '!',
+        '>',
+        '<',
+        '@',
+        '|',
+        '.',
+        => try toksAppendCharHere(ctx, c1),
+        '-' => {
+            if (ctx.buf[it.i] != '>') {
+                try toksAppendCharHere(ctx, c1);
+                continue :chars;
+            }
+
+            if (it.nextCodepoint() == null) break :chars;
+            try ctx.toks.append(allocator, .{
+                .beg_i = @intCast(last_i),
+                .end_i = @intCast(it.i),
+                .kind = @intFromEnum(Kind.arrow),
+            });
         },
         '/' => {
             if (ctx.buf[it.i] != '/') {
@@ -130,7 +157,7 @@ pub fn parseToksFromBuf(ctx: *parse.Context) !void {
 
             const beg_i: u32 = @intCast(last_i);
 
-            var this_kind: Kind = .symbol;
+            var this_kind: Kind = .ident;
             if (c1 >= '0' and c1 <= '9') this_kind = .num;
 
             if (parse.isValidSymbolChar(it.peek(1)[0])) {
