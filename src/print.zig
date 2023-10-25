@@ -243,16 +243,3 @@ fn printFilterGroup(ctx: *parse.Context, filter_group_i: u32) !void {
 
     _ = try writer.writeByte(')');
 }
-
-fn printToOpenCurly(ctx: *parse.Context, _tok_i: u32) !void {
-    const buf_beg_i = ctx.toks.items(.beg_i)[_tok_i];
-
-    var tok_i = _tok_i;
-    while (ctx.toks.items(.kind)[tok_i] != '{') {
-        tok_i += 1;
-    }
-
-    const buf_end_i = ctx.toks.items(.end_i)[tok_i - 1];
-
-    _ = try ctx.writer.write(ctx.buf[buf_beg_i..buf_end_i]);
-}
