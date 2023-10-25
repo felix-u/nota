@@ -17,7 +17,7 @@ pub fn keyword(str: []const u8) token.Kind {
 
 pub fn isValidSymbolChar(c: u21) bool {
     return switch (c) {
-        '_', '.', '-' => true,
+        '_', '.', '#', '@' => true,
         else => !(c < '0' or
             (c > '9' and c < 'A') or
             (c > 'Z' and c < 'a') or

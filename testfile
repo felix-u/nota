@@ -1,5 +1,5 @@
 week {
-    date = 2023_12_11Z;
+    date = #2023_12_11;
     day { 
         name = "mon";
         task {

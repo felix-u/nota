@@ -21,6 +21,8 @@ pub const Kind = enum(u8) {
     num,
     date,
     ident,
+    builtin,
+
     true,
     false,
 
@@ -88,7 +90,6 @@ pub fn parseToksFromBuf(ctx: *parse.Context) !void {
         '!',
         '>',
         '<',
-        '@',
         '|',
         '.',
         => try toksAppendCharHere(ctx, c1),
@@ -157,21 +158,26 @@ pub fn parseToksFromBuf(ctx: *parse.Context) !void {
 
             const beg_i: u32 = @intCast(last_i);
 
-            var this_kind: Kind = .ident;
-            if (c1 >= '0' and c1 <= '9') this_kind = .num;
+            var this_kind: Kind = switch (c1) {
+                '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' => .num,
+                '@' => .builtin,
+                '#' => .date,
+                else => .ident,
+            };
 
             if (parse.isValidSymbolChar(it.peek(1)[0])) {
-                while (it.nextCodepoint()) |c2| : (last_i = it.i) {
-                    if (c2 == '-') this_kind = .date;
+                while (it.nextCodepoint()) |_| : (last_i = it.i) {
                     if (!parse.isValidSymbolChar(it.peek(1)[0])) break;
                 }
             }
 
-            const keyword = parse.keyword(ctx.buf[beg_i..it.i]);
-            this_kind = switch (keyword) {
-                .true, .false, .@"for" => keyword,
-                else => this_kind,
-            };
+            if (this_kind == .ident) {
+                const keyword = parse.keyword(ctx.buf[beg_i..it.i]);
+                this_kind = switch (keyword) {
+                    .true, .false, .@"for" => keyword,
+                    else => this_kind,
+                };
+            }
 
             try ctx.toks.append(allocator, .{
                 .beg_i = beg_i,
