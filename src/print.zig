@@ -81,10 +81,7 @@ pub fn debugAstRecurse(
 
 const AnsiClrState = enum { ansi_clr_disabled, ansi_clr_enabled };
 
-pub fn prettyAst(
-    comptime ansi_clr: AnsiClrState,
-    ctx: *parse.Context,
-) !void {
+pub fn prettyAst(comptime ansi_clr: AnsiClrState, ctx: *parse.Context) !void {
     try prettyAstRecurse(ansi_clr, ctx, 0, 0, true);
 }
 
@@ -215,10 +212,10 @@ fn printInput(ctx: *parse.Context, input_i: u32) !void {
 
     var tok_i = input.data.lhs;
     while (tok_i < input.data.rhs) : (tok_i += 1) {
-        try writer.print(" {s} ", .{ctx.lexeme(tok_i)});
+        try writer.print(" {s}", .{ctx.lexeme(tok_i)});
     }
 
-    _ = try writer.writeByte(']');
+    _ = try writer.write(" ]");
 }
 
 fn printFilterGroup(ctx: *parse.Context, filter_group_i: u32) !void {
@@ -230,16 +227,16 @@ fn printFilterGroup(ctx: *parse.Context, filter_group_i: u32) !void {
 
     var component_i: u32 = 0;
     while (component_i < filter_components.items.len) : (component_i += 1) {
-        if (component_i > 0) _ = try writer.writeByte('|');
+        if (component_i > 0) _ = try writer.write(" |");
 
         const filter_component_i = filter_components.items[component_i];
         const component_data = ctx.nodes.items(.data)[filter_component_i];
 
         var tok_i: u32 = component_data.lhs;
         while (tok_i < component_data.rhs) : (tok_i += 1) {
-            try writer.print(" {s} ", .{ctx.lexeme(tok_i)});
+            try writer.print(" {s}", .{ctx.lexeme(tok_i)});
         }
     }
 
-    _ = try writer.writeByte(')');
+    _ = try writer.write(" )");
 }
