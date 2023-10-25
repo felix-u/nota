@@ -187,25 +187,3 @@ pub fn parseToksFromBuf(ctx: *parse.Context) !void {
         .kind = @intFromEnum(Kind.eof),
     });
 }
-
-pub fn printToks(ctx: *parse.Context) !void {
-    const writer = ctx.writer;
-
-    _ = try writer.write("TOKENS:\n");
-
-    for (0..ctx.toks.len) |i| {
-        const tok = ctx.toks.get(i);
-        var pos: log.filePos = .{ .ctx = ctx, .i = tok.beg_i };
-        pos.computeCoords();
-        if (tok.kind < 128) try writer.print(
-            "{d}:{d}\t{d}\t{s}\t{c}\n",
-            .{ pos.row, pos.col, i, ctx.lexeme(@intCast(i)), tok.kind },
-        ) else {
-            const tok_kind: Kind = @enumFromInt(tok.kind);
-            try writer.print(
-                "{d}:{d}\t{d}\t{s}\t{}\n",
-                .{ pos.row, pos.col, i, ctx.lexeme(@intCast(i)), tok_kind },
-            );
-        }
-    }
-}

@@ -1,5 +1,6 @@
 const ast = @import("ast.zig");
 const log = @import("log.zig");
+const print = @import("print.zig");
 const std = @import("std");
 const token = @import("token.zig");
 
@@ -77,19 +78,19 @@ pub const Context = struct {
                 try token.parseToksFromBuf(self);
                 try ast.parseTreeFromToks(self);
                 if (use_ansi_clr) {
-                    try ast.printNicely(.ansi_clr_enabled, self);
-                } else try ast.printNicely(.ansi_clr_disabled, self);
+                    try print.prettyAst(.ansi_clr_enabled, self);
+                } else try print.prettyAst(.ansi_clr_disabled, self);
             },
             inline .debug => {
                 _ = try writer.write("Begin tokenising... ");
                 try token.parseToksFromBuf(self);
                 _ = try writer.write("Done!\n");
-                try token.printToks(self);
+                try print.toks(self);
 
                 _ = try writer.write("\nBegin AST parsing... ");
                 try ast.parseTreeFromToks(self);
                 _ = try writer.write("Done!\n");
-                try ast.printDebug(self);
+                try print.debugAst(self);
             },
         }
     }
