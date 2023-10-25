@@ -194,10 +194,10 @@ fn parseInput(ctx: *parse.Context) !void {
     if (tok.?.kind != '[') return log.err(ctx, Err.NoSquareLeft, it.i);
 
     tok = it.inc() orelse return;
+    const input_beg_i = it.i;
     if (tok.?.kind == ']') return log.err(ctx, Err.EmptyInput, it.i);
     tok = it.inc();
 
-    const tok_beg_i = it.i;
     while (tok) |t| : (tok = it.inc()) {
         if (t.kind == '{') return log.err(ctx, Err.UnexpectedCurlyLeft, it.i);
         if (t.kind == ']') break;
@@ -205,7 +205,7 @@ fn parseInput(ctx: *parse.Context) !void {
 
     try ctx.nodes.append(ctx.allocator, .{
         .tag = .input,
-        .data = .{ .lhs = tok_beg_i, .rhs = it.i },
+        .data = .{ .lhs = input_beg_i, .rhs = it.i },
     });
 
     tok = it.inc() orelse return;
