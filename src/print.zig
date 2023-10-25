@@ -143,7 +143,7 @@ pub fn prettyAstRecurse(
                     try writer.print("\"{s}\"", .{literal});
                     if (clr) try ansi.reset(writer);
                 },
-                .num, .true, .false => {
+                .num, .true, .false, .date => {
                     if (clr) try ansi.set(
                         writer,
                         &.{ ansi.fg_cyan, ansi.fmt_bold },
@@ -151,7 +151,7 @@ pub fn prettyAstRecurse(
                     try writer.print("{s}", .{literal});
                     if (clr) try ansi.reset(writer);
                 },
-                .ident => try writer.print("{s}", .{literal}),
+                .ident, .builtin => try writer.print("{s}", .{literal}),
                 else => unreachable,
             }
 
