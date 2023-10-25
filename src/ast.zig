@@ -10,6 +10,7 @@ pub const Err = error{
     EmptyBody,
     EmptyFilter,
     EmptyInput,
+    ExpectedArrow,
     FloatingIdent,
     NoBracketLeft,
     NoClosingCurly,
@@ -169,8 +170,23 @@ fn recurseInBody(
 }
 
 fn parseIterator(ctx: *parse.Context) !void {
+    const it = &ctx.tok_it;
+
+    const iterator_node_i = ctx.nodes.len;
+    try ctx.nodes.append(ctx.allocator, .{ .tag = .iterator });
+
+    const input_node_i: u32 = @intCast(ctx.nodes.len);
     try parseInput(ctx);
+    ctx.nodes.items(.data)[iterator_node_i].lhs = input_node_i;
+
+    if (it.peek().kind != @intFromEnum(token.Kind.arrow)) {
+        return log.err(ctx, Err.ExpectedArrow, it.i);
+    }
+
+    const filter_group_node_i: u32 = @intCast(ctx.nodes.len);
+    _ = it.inc();
     try parseFilterGroup(ctx);
+    ctx.nodes.items(.data)[iterator_node_i].rhs = filter_group_node_i;
 }
 
 fn parseInput(ctx: *parse.Context) !void {
@@ -395,10 +411,8 @@ pub fn printNicelyRecurse(
 
             if (clr) try ansi.set(writer, &.{ansi.fg_magenta});
             const childs = ctx.childs.items[node.data.rhs];
-            const filter_group_i = childs.items[0];
-            try printFilterGroup(ctx, filter_group_i);
-            // const selector_i = node.data.lhs + 2;
-            // try printToOpenCurly(ctx, selector_i);
+            const iterator_i = childs.items[0];
+            try printIterator(ctx, iterator_i);
             if (clr) try ansi.reset(writer);
 
             _ = try writer.write(" {\n");
@@ -476,6 +490,32 @@ pub fn printNicelyRecurse(
         try writeIndent(writer, indent_level);
         _ = try writer.write("}\n");
     }
+}
+
+fn printIterator(ctx: *parse.Context, iterator_i: u32) !void {
+    const iterator = ctx.nodes.get(iterator_i);
+
+    const input_i = iterator.data.lhs;
+    try printInput(ctx, input_i);
+
+    _ = try ctx.writer.write(" -> ");
+
+    const filter_group_i = iterator.data.rhs;
+    try printFilterGroup(ctx, filter_group_i);
+}
+
+fn printInput(ctx: *parse.Context, input_i: u32) !void {
+    const writer = ctx.writer;
+    const input = ctx.nodes.get(input_i);
+
+    _ = try writer.writeByte('[');
+
+    var tok_i = input.data.lhs;
+    while (tok_i < input.data.rhs) : (tok_i += 1) {
+        try writer.print(" {s} ", .{ctx.lexeme(tok_i)});
+    }
+
+    _ = try writer.writeByte(']');
 }
 
 fn printFilterGroup(ctx: *parse.Context, filter_group_i: u32) !void {

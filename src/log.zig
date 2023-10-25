@@ -65,6 +65,9 @@ pub fn err(ctx: *parse.Context, comptime e: anyerror, tok_i: u32) anyerror {
         inline ast.Err.EmptyInput => {
             _ = try writer.write("input to filter cannot be empty");
         },
+        inline ast.Err.ExpectedArrow => {
+            _ = try writer.write("expected '->' after filter input");
+        },
         inline ast.Err.FloatingIdent => {
             _ = try writer.write("expected '{' or '=' after identifier");
         },
