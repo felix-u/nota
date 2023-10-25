@@ -34,6 +34,12 @@ pub fn main() !void {
                         .desc = "Enable debugging-oriented formatting",
                     },
                     args.Flag{
+                        .short = 'n',
+                        .long = "node",
+                        .desc = "Evaluate and print specified node(s)",
+                        .kind = .multi_pos,
+                    },
+                    args.Flag{
                         .long = "noclr",
                         .desc = "Disable ANSI colour in output",
                     },

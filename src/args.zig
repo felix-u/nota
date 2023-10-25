@@ -369,13 +369,13 @@ pub const Flag = struct {
     usage: []const u8 = "",
 
     fn resultType(comptime self: *const @This()) type {
-        return switch (self.kind) {
-            inline .boolean => bool,
+        switch (self.kind) {
+            inline .boolean => return bool,
             inline .single_pos => {
-                if (self.required) []const u8 else ?[]const u8;
+                return if (self.required) []const u8 else ?[]const u8;
             },
-            inline .multi_pos => std.ArrayList([]const u8),
-        };
+            inline .multi_pos => return std.ArrayList([]const u8),
+        }
     }
 };
 
@@ -492,16 +492,16 @@ pub fn parseAlloc(
 
         if (cmd.kind == .multi_pos) {
             var array_list = std.ArrayList([]const u8).init(allocator);
-            const flag_list = @field(result, cmd.name).pos;
-            flag_list = array_list;
+            const flag_list = &@field(result, cmd.name).pos;
+            flag_list.* = array_list;
             try flag_list.ensureTotalCapacity(argv.len);
         }
 
         inline for (cmd.flags) |flag| {
             if (flag.kind != .multi_pos) continue;
             var array_list = std.ArrayList([]const u8).init(allocator);
-            const flag_list = @field(@field(result, cmd.name), flag.long);
-            flag_list = array_list;
+            const flag_list = &@field(@field(result, cmd.name), flag.long);
+            flag_list.* = array_list;
             try flag_list.ensureTotalCapacity(argv.len);
         }
     }
@@ -655,13 +655,13 @@ fn procCmd(
                                 p.err_msg,
                                 Err.MissingArg,
                                 err_writer,
-                                .{argv[i][short_i]},
+                                &.{argv[i][short_i]},
                             );
 
                             // Format: -fval
 
                             if (short_i < arg.len - 1) {
-                                flag_res = argv[i][short_i + 1 ..];
+                                flag_res.* = argv[i][short_i + 1 ..];
                                 i += 1;
                                 continue :cmd_arg;
                             }
@@ -669,7 +669,7 @@ fn procCmd(
                             // Format: -f val
 
                             i += 1;
-                            flag_res = argv[i];
+                            flag_res.* = argv[i];
                             i += 1;
                             continue :cmd_arg;
                         },
@@ -681,7 +681,7 @@ fn procCmd(
                                 p.err_msg,
                                 Err.MissingArg,
                                 err_writer,
-                                .{argv[i][short_i]},
+                                &.{argv[i][short_i]},
                             );
 
                             if (short_i < arg.len - 1) {
@@ -755,10 +755,10 @@ fn procCmd(
                             if (equals_syntax) {
                                 const start_offset =
                                     "--=".len + flag.long.len + "=".len;
-                                flag_res = argv[i][start_offset..];
+                                flag_res.* = argv[i][start_offset..];
                             } else {
                                 i += 1;
-                                flag_res = argv[i];
+                                flag_res.* = argv[i];
                             }
 
                             i += 1;
