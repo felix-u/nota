@@ -82,7 +82,6 @@ pub fn parseTreeFromToksRecurse(
     ctx: *parse.Context,
     comptime in_root_node: bool,
 ) !void {
-    const allocator = ctx.allocator;
     const it = &ctx.tok_it;
 
     var tok: ?token.Token = it.peek();
@@ -94,9 +93,8 @@ pub fn parseTreeFromToksRecurse(
                 if (tok != null and tok.?.kind != '}') {
                     try recurseInBody(ctx, .node_decl_simple, it.i - 2);
                 } else {
-                    try appendNextNodeToChilds(ctx);
                     const node_name_i = it.i - 2;
-                    try ctx.nodes.append(allocator, .{
+                    try appendNodeToChilds(ctx, .{
                         .tag = .node_decl_simple,
                         .data = .{ .lhs = node_name_i, .rhs = 0 },
                     });
@@ -112,8 +110,7 @@ pub fn parseTreeFromToksRecurse(
                 };
 
                 const var_name_i = it.i - 3;
-                try appendNextNodeToChilds(ctx);
-                try ctx.nodes.append(allocator, .{
+                try appendNodeToChilds(ctx, .{
                     .tag = .var_decl_literal,
                     .data = .{ .lhs = var_name_i, .rhs = it.i - 1 },
                 });
@@ -141,18 +138,16 @@ fn recurseInBody(
     lhs: u32,
 ) anyerror!void {
     const it = &ctx.tok_it;
-    const allocator = ctx.allocator;
     const prev_childs_i = ctx.childs_i;
 
     try appendNextNodeToChilds(ctx);
     ctx.childs_i = @intCast(ctx.childs.items.len);
-    try ctx.nodes.append(allocator, .{
+    try appendNode(ctx, .{
         .tag = tag,
         .data = .{ .lhs = lhs, .rhs = ctx.childs_i },
     });
 
     if (tag == .for_expr) {
-        try appendNextNodeToChilds(ctx);
         try parseIterator(ctx);
 
         var tok: ?token.Token = it.peek();
@@ -169,9 +164,9 @@ fn recurseInBody(
 
 fn parseIterator(ctx: *parse.Context) !void {
     const it = &ctx.tok_it;
-
     const iterator_node_i = ctx.nodes.len;
-    try ctx.nodes.append(ctx.allocator, .{ .tag = .iterator });
+
+    try appendNodeToChilds(ctx, .{ .tag = .iterator });
 
     const input_node_i: u32 = @intCast(ctx.nodes.len);
     try parseInput(ctx);
@@ -203,7 +198,7 @@ fn parseInput(ctx: *parse.Context) !void {
         if (t.kind == ']') break;
     }
 
-    try ctx.nodes.append(ctx.allocator, .{
+    try appendNode(ctx, .{
         .tag = .input,
         .data = .{ .lhs = input_beg_i, .rhs = it.i },
     });
@@ -222,7 +217,7 @@ fn parseFilterGroup(ctx: *parse.Context) !void {
     if (tok.?.kind == ')') return log.err(ctx, Err.EmptyFilter, it.i);
 
     ctx.childs_i = @intCast(ctx.childs.items.len);
-    try ctx.nodes.append(ctx.allocator, .{
+    try appendNode(ctx, .{
         .tag = .filter_group,
         .data = .{ .rhs = ctx.childs_i },
     });
@@ -243,8 +238,7 @@ fn parseFilterGroup(ctx: *parse.Context) !void {
             else => continue :toks,
         };
 
-        try appendNextNodeToChilds(ctx);
-        try ctx.nodes.append(ctx.allocator, .{
+        try appendNodeToChilds(ctx, .{
             .tag = .filter_component,
             .data = .{ .lhs = filter_component_beg_i, .rhs = it.i },
         });
@@ -257,13 +251,22 @@ fn parseFilterGroup(ctx: *parse.Context) !void {
     ctx.childs_i = prev_childs_i;
 }
 
+pub inline fn appendNode(ctx: *parse.Context, node: Node) !void {
+    try ctx.nodes.append(ctx.allocator, node);
+}
+
 fn appendNextNodeToChilds(ctx: *parse.Context) !void {
     if (ctx.childs_i == ctx.childs.items.len) try ctx.childs.append(
         try std.ArrayList(u32).initCapacity(ctx.allocator, 1),
     );
 
-    var list = &ctx.childs.items[ctx.childs_i];
+    const list = &ctx.childs.items[ctx.childs_i];
     try list.append(@intCast(ctx.nodes.len));
+}
+
+inline fn appendNodeToChilds(ctx: *parse.Context, node: Node) !void {
+    try appendNextNodeToChilds(ctx);
+    try appendNode(ctx, node);
 }
 
 fn parseKeyword(ctx: *parse.Context, keyword: token.Kind) anyerror!void {
