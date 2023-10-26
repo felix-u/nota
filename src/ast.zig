@@ -8,8 +8,8 @@ pub const Err = error{
     EmptyBody,
     EmptyFilter,
     EmptyInput,
-    ExpectedArrow,
     FloatingIdent,
+    NoArrow,
     NoBracketLeft,
     NoClosingCurly,
     NoColon,
@@ -173,7 +173,7 @@ fn parseIterator(ctx: *parse.Context) !void {
     ctx.nodes.items(.data)[iterator_node_i].lhs = input_node_i;
 
     if (it.peek().kind != @intFromEnum(token.Kind.arrow)) {
-        return log.err(ctx, Err.ExpectedArrow, it.i);
+        return log.err(ctx, Err.NoArrow, it.i);
     }
 
     const filter_group_node_i: u32 = @intCast(ctx.nodes.len);
