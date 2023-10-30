@@ -168,7 +168,7 @@ fn parseIterator(ctx: *parse.Context) !void {
     ctx.nodes.items(.data)[iterator_node_i].lhs = input_node_i;
 
     const filter_node_i: u32 = @intCast(ctx.nodes.len);
-    try parseFilterGroup(ctx);
+    try parseFilter(ctx);
     ctx.nodes.items(.data)[iterator_node_i].rhs = filter_node_i;
 }
 
@@ -203,7 +203,7 @@ fn parseInput(ctx: *parse.Context) !void {
     tok = it.inc() orelse return;
 }
 
-fn parseFilterGroup(ctx: *parse.Context) !void {
+fn parseFilter(ctx: *parse.Context) !void {
     const it = &ctx.tok_it;
     const prev_childs_i = ctx.childs_i;
 
