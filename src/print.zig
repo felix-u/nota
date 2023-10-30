@@ -69,7 +69,7 @@ pub fn debugAstRecurse(
 
     switch (node.tag) {
         .root_node => {},
-        .node_decl_simple, .for_expr, .filter_group => {
+        .node_decl_simple, .for_expr, .filter => {
             if (node.data.rhs == 0) return;
         },
         else => return,
@@ -99,8 +99,8 @@ pub fn prettyAstRecurse(
     try writeIndent(writer, indent_level);
 
     if (!in_root_node) switch (node.tag) {
-        .filter_component,
-        .filter_group,
+        .expr,
+        .filter,
         .input,
         .iterator,
         .root_node,
@@ -200,8 +200,8 @@ fn printIterator(ctx: *parse.Context, iterator_i: u32) !void {
 
     _ = try ctx.writer.writeByte(' ');
 
-    const filter_group_i = iterator.data.rhs;
-    try printFilterGroup(ctx, filter_group_i);
+    const filter_i = iterator.data.rhs;
+    try printFilter(ctx, filter_i);
 }
 
 fn printInput(ctx: *parse.Context, input_i: u32) !void {
@@ -218,19 +218,19 @@ fn printInput(ctx: *parse.Context, input_i: u32) !void {
     _ = try writer.write(" ]");
 }
 
-fn printFilterGroup(ctx: *parse.Context, filter_group_i: u32) !void {
+fn printFilter(ctx: *parse.Context, filter_i: u32) !void {
     const writer = ctx.writer;
-    const filter_group = ctx.nodes.get(filter_group_i);
-    const filter_components = ctx.childs.items[filter_group.data.rhs];
+    const filter = ctx.nodes.get(filter_i);
+    const exprs = ctx.childs.items[filter.data.rhs];
 
     _ = try writer.writeByte('(');
 
     var component_i: u32 = 0;
-    while (component_i < filter_components.items.len) : (component_i += 1) {
+    while (component_i < exprs.items.len) : (component_i += 1) {
         if (component_i > 0) _ = try writer.write(" |");
 
-        const filter_component_i = filter_components.items[component_i];
-        const component_data = ctx.nodes.items(.data)[filter_component_i];
+        const expr_i = exprs.items[component_i];
+        const component_data = ctx.nodes.items(.data)[expr_i];
 
         var tok_i: u32 = component_data.lhs;
         while (tok_i < component_data.rhs) : (tok_i += 1) {

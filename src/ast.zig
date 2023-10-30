@@ -26,11 +26,11 @@ pub const Node = struct {
 
     const Tag = enum(u8) {
         // ( ... | lhs .. rhs | ... )
-        filter_component,
+        expr,
 
         // lhs unused.
         // rhs is the index into childs_list of the filter.
-        filter_group,
+        filter,
 
         // for lhs: rhs { rhs[1..]... }
         // lhs is the named filter capture.
@@ -167,9 +167,9 @@ fn parseIterator(ctx: *parse.Context) !void {
     try parseInput(ctx);
     ctx.nodes.items(.data)[iterator_node_i].lhs = input_node_i;
 
-    const filter_group_node_i: u32 = @intCast(ctx.nodes.len);
+    const filter_node_i: u32 = @intCast(ctx.nodes.len);
     try parseFilterGroup(ctx);
-    ctx.nodes.items(.data)[iterator_node_i].rhs = filter_group_node_i;
+    ctx.nodes.items(.data)[iterator_node_i].rhs = filter_node_i;
 }
 
 fn parseInput(ctx: *parse.Context) !void {
@@ -218,12 +218,12 @@ fn parseFilterGroup(ctx: *parse.Context) !void {
 
     ctx.childs_i = @intCast(ctx.childs.items.len);
     try appendNode(ctx, .{
-        .tag = .filter_group,
+        .tag = .filter,
         .data = .{ .rhs = ctx.childs_i },
     });
 
     group: while (tok) |_| : (tok = it.inc()) {
-        const filter_component_beg_i = it.i;
+        const expr_beg_i = it.i;
 
         if (tok.?.kind == ')') {
             ctx.err_char = ')';
@@ -246,8 +246,8 @@ fn parseFilterGroup(ctx: *parse.Context) !void {
         };
 
         try appendNodeToChilds(ctx, .{
-            .tag = .filter_component,
-            .data = .{ .lhs = filter_component_beg_i, .rhs = it.i },
+            .tag = .expr,
+            .data = .{ .lhs = expr_beg_i, .rhs = it.i },
         });
 
         if (tok.?.kind == ')') break :group;
