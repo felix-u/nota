@@ -34,6 +34,7 @@ pub const Context = struct {
     buf_it: std.unicode.Utf8Iterator = undefined,
     toks: std.MultiArrayList(token.Token) = undefined,
     tok_it: ast.TokenIterator = undefined,
+    err_char: u8 = 0,
     nodes: ast.NodeList = .{},
     childs: ast.Childs = undefined,
     childs_i: u32 = 0,

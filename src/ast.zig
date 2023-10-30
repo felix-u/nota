@@ -9,18 +9,9 @@ pub const Err = error{
     EmptyFilter,
     EmptyInput,
     FloatingIdent,
-    NoArrow,
-    NoBracketLeft,
-    NoClosingCurly,
-    NoColon,
-    NoCurlyLeft,
     NoIteratorLabel,
     NoNodeName,
-    NoSquareLeft,
-    UnexpectedBracketRight,
-    UnexpectedCurlyLeft,
     UnexpectedKeyword,
-    UnexpectedPipe,
     UnmatchedCurlyRight,
 };
 
@@ -104,7 +95,8 @@ pub fn parseTreeFromToksRecurse(
                 while (tok) |t3| : (tok = it.inc()) switch (t3.kind) {
                     ';' => break,
                     '{' => {
-                        return log.err(ctx, Err.UnexpectedCurlyLeft, it.i);
+                        ctx.err_char = '{';
+                        return log.err(ctx, log.Err.UnexpectedChar, it.i);
                     },
                     else => {},
                 };
@@ -126,7 +118,8 @@ pub fn parseTreeFromToksRecurse(
             try parseKeyword(ctx, @enumFromInt(t.kind));
         },
         @intFromEnum(token.Kind.eof) => if (!in_root_node) {
-            return log.err(ctx, Err.NoClosingCurly, it.i);
+            ctx.err_char = '}';
+            return log.err(ctx, log.Err.ExpectedChar, it.i);
         },
         else => {},
     };
@@ -151,7 +144,10 @@ fn recurseInBody(
         try parseIterator(ctx);
 
         var tok: ?token.Token = it.peek();
-        if (tok.?.kind != '{') return log.err(ctx, Err.NoCurlyLeft, it.i);
+        if (tok.?.kind != '{') {
+            ctx.err_char = '{';
+            return log.err(ctx, log.Err.ExpectedChar, it.i);
+        }
 
         tok = it.inc() orelse return;
         if (tok.?.kind == '}') return log.err(ctx, Err.EmptyBody, it.i);
@@ -163,7 +159,6 @@ fn recurseInBody(
 }
 
 fn parseIterator(ctx: *parse.Context) !void {
-    const it = &ctx.tok_it;
     const iterator_node_i = ctx.nodes.len;
 
     try appendNodeToChilds(ctx, .{ .tag = .iterator });
@@ -172,12 +167,7 @@ fn parseIterator(ctx: *parse.Context) !void {
     try parseInput(ctx);
     ctx.nodes.items(.data)[iterator_node_i].lhs = input_node_i;
 
-    if (it.peek().kind != @intFromEnum(token.Kind.arrow)) {
-        return log.err(ctx, Err.NoArrow, it.i);
-    }
-
     const filter_group_node_i: u32 = @intCast(ctx.nodes.len);
-    _ = it.inc();
     try parseFilterGroup(ctx);
     ctx.nodes.items(.data)[iterator_node_i].rhs = filter_group_node_i;
 }
@@ -186,17 +176,24 @@ fn parseInput(ctx: *parse.Context) !void {
     const it = &ctx.tok_it;
 
     var tok: ?token.Token = it.peek();
-    if (tok.?.kind != '[') return log.err(ctx, Err.NoSquareLeft, it.i);
+    if (tok.?.kind != '[') {
+        ctx.err_char = '[';
+        return log.err(ctx, log.Err.ExpectedChar, it.i);
+    }
 
     tok = it.inc() orelse return;
     const input_beg_i = it.i;
     if (tok.?.kind == ']') return log.err(ctx, Err.EmptyInput, it.i);
     tok = it.inc();
 
-    while (tok) |t| : (tok = it.inc()) {
-        if (t.kind == '{') return log.err(ctx, Err.UnexpectedCurlyLeft, it.i);
-        if (t.kind == ']') break;
-    }
+    while (tok) |t| : (tok = it.inc()) switch (t.kind) {
+        '(', ')', '{' => {
+            ctx.err_char = t.kind;
+            return log.err(ctx, log.Err.UnexpectedChar, it.i);
+        },
+        ']' => break,
+        else => continue,
+    };
 
     try appendNode(ctx, .{
         .tag = .input,
@@ -211,7 +208,10 @@ fn parseFilterGroup(ctx: *parse.Context) !void {
     const prev_childs_i = ctx.childs_i;
 
     var tok: ?token.Token = it.peek();
-    if (tok.?.kind != '(') return log.err(ctx, Err.NoBracketLeft, it.i);
+    if (tok.?.kind != '(') {
+        ctx.err_char = '(';
+        return log.err(ctx, log.Err.ExpectedChar, it.i);
+    }
 
     tok = it.inc() orelse return;
     if (tok.?.kind == ')') return log.err(ctx, Err.EmptyFilter, it.i);
@@ -226,15 +226,22 @@ fn parseFilterGroup(ctx: *parse.Context) !void {
         const filter_component_beg_i = it.i;
 
         if (tok.?.kind == ')') {
-            return log.err(ctx, Err.UnexpectedBracketRight, it.i);
+            ctx.err_char = ')';
+            return log.err(ctx, log.Err.UnexpectedChar, it.i);
         }
 
         tok = it.inc() orelse return;
-        if (tok.?.kind == '|') return log.err(ctx, Err.UnexpectedPipe, it.i);
+        if (tok.?.kind == '|') {
+            ctx.err_char = '|';
+            return log.err(ctx, log.Err.UnexpectedChar, it.i);
+        }
 
         toks: while (tok) |t2| : (tok = it.inc()) switch (t2.kind) {
             '|', ')' => break :toks,
-            '{' => return log.err(ctx, Err.UnexpectedCurlyLeft, it.i),
+            '{' => {
+                ctx.err_char = '{';
+                return log.err(ctx, log.Err.UnexpectedChar, it.i);
+            },
             else => continue :toks,
         };
 
@@ -282,7 +289,10 @@ fn parseKeyword(ctx: *parse.Context, keyword: token.Kind) anyerror!void {
         const lhs = it.i;
 
         tok = it.inc() orelse return;
-        if (tok.?.kind != ':') return log.err(ctx, Err.NoColon, it.i);
+        if (tok.?.kind != ':') {
+            ctx.err_char = ':';
+            return log.err(ctx, log.Err.ExpectedChar, it.i);
+        }
 
         tok = it.inc() orelse return;
         try recurseInBody(ctx, .for_expr, lhs);

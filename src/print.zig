@@ -198,7 +198,7 @@ fn printIterator(ctx: *parse.Context, iterator_i: u32) !void {
     const input_i = iterator.data.lhs;
     try printInput(ctx, input_i);
 
-    _ = try ctx.writer.write(" -> ");
+    _ = try ctx.writer.writeByte(' ');
 
     const filter_group_i = iterator.data.rhs;
     try printFilterGroup(ctx, filter_group_i);

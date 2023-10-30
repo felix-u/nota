@@ -26,8 +26,6 @@ pub const Kind = enum(u8) {
     true,
     false,
 
-    arrow,
-
     eof,
 
     // Mostly used by AST later.
@@ -92,20 +90,8 @@ pub fn parseToksFromBuf(ctx: *parse.Context) !void {
         '<',
         '|',
         '.',
+        '-',
         => try toksAppendCharHere(ctx, c1),
-        '-' => {
-            if (ctx.buf[it.i] != '>') {
-                try toksAppendCharHere(ctx, c1);
-                continue :chars;
-            }
-
-            if (it.nextCodepoint() == null) break :chars;
-            try ctx.toks.append(allocator, .{
-                .beg_i = @intCast(last_i),
-                .end_i = @intCast(it.i),
-                .kind = @intFromEnum(Kind.arrow),
-            });
-        },
         '/' => {
             if (ctx.buf[it.i] != '/') {
                 try toksAppendCharHere(ctx, c1);

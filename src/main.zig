@@ -36,7 +36,7 @@ pub fn main() !void {
                     args.Flag{
                         .short = 'n',
                         .long = "node",
-                        .desc = "Evaluate and print specified node(s)",
+                        .desc = "Evaluate and print specified node",
                         .kind = .single_pos,
                     },
                     args.Flag{

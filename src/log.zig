@@ -3,6 +3,11 @@ const parse = @import("parse.zig");
 const std = @import("std");
 const token = @import("token.zig");
 
+pub const Err = error{
+    ExpectedChar,
+    UnexpectedChar,
+};
+
 pub const filePos = struct {
     ctx: *parse.Context,
     i: u32 = 0,
@@ -50,6 +55,12 @@ pub fn err(ctx: *parse.Context, comptime e: anyerror, tok_i: u32) anyerror {
     );
 
     switch (e) {
+        inline Err.ExpectedChar => {
+            try writer.print("expected '{c}'", .{ctx.err_char});
+        },
+        inline Err.UnexpectedChar => {
+            try writer.print("unexpected '{c}'", .{ctx.err_char});
+        },
         inline token.Err.InvalidSyntax => {
             _ = try writer.write("invalid syntax");
         },
@@ -68,41 +79,14 @@ pub fn err(ctx: *parse.Context, comptime e: anyerror, tok_i: u32) anyerror {
         inline ast.Err.FloatingIdent => {
             _ = try writer.write("expected '{' or '=' after identifier");
         },
-        inline ast.Err.NoArrow => {
-            _ = try writer.write("expected '->' after filter input");
-        },
-        inline ast.Err.NoBracketLeft => {
-            _ = try writer.write("expected '('");
-        },
-        inline ast.Err.NoClosingCurly => {
-            _ = try writer.write("expected '}' to terminate node body");
-        },
-        inline ast.Err.NoColon => {
-            _ = try writer.write("expected ':'");
-        },
-        inline ast.Err.NoCurlyLeft => {
-            _ = try writer.write("expected '{'");
-        },
-        inline ast.Err.NoSquareLeft => {
-            _ = try writer.write("expected '['");
-        },
         inline ast.Err.NoIteratorLabel => {
             _ = try writer.write("expected iterator label: 'for label: ...'");
         },
         inline ast.Err.NoNodeName => {
             _ = try writer.write("expected node name preceding '{'");
         },
-        inline ast.Err.UnexpectedBracketRight => {
-            _ = try writer.write("unexpected ')'");
-        },
-        inline ast.Err.UnexpectedCurlyLeft => {
-            _ = try writer.write("unexpected '{'");
-        },
         inline ast.Err.UnexpectedKeyword => {
             _ = try writer.write("unexpected keyword");
-        },
-        inline ast.Err.UnexpectedPipe => {
-            _ = try writer.write("unexpected '|'");
         },
         inline ast.Err.UnmatchedCurlyRight => {
             _ = try writer.write("'}' is unmatched");
