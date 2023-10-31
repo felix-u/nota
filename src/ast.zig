@@ -26,6 +26,9 @@ pub const Node = struct {
 
     const Tag = enum(u8) {
         // ( ... | lhs .. rhs | ... )
+        // // TODO: ^ ->
+        // // lhs is the Op.
+        // // rhs is the index into childs_list of the expr inputs.
         expr,
 
         // lhs unused.
