@@ -1,0 +1,10 @@
+bool success = true;
+ErrorCtx error = {};
+parsetok(TOK_FOR, &success);
+parsetok(TOK_OPEN_PAREN, &success);
+
+if (!parsetok(FOR)) reutrn;
+if (!parsetok(OPEN_PAREN) return;
+
+try parseTok(something)
+

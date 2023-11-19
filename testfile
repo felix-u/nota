@@ -1,13 +1,13 @@
 week {
     date = #2023_12_11;
-    day { 
+    day {
         name = "mon";
         task {
             desc = "do something";
             done = false;
         }
     }
-    day { 
+    day {
         name = "tue";
         task {
             desc = "do something else";
@@ -20,4 +20,7 @@ todo {
     for task_todo: [@all] (.@name == "task" | .done == false) {
         task = task_todo;
     }
+    // for task | !.done {
+    //     it;
+    // }
 }
