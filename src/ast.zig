@@ -36,7 +36,8 @@ pub const Node = struct {
         filter,
 
         // for lhs: rhs { rhs[1..]... }
-        // lhs is the named filter capture.
+        // lhs is 0 if implicit or UNIMPLEMENTED the index into the iterator
+        // label.
         // rhs is the index into childs_list of the for expression. The first
         // child is actually the filter.
         for_expr,
@@ -78,7 +79,7 @@ pub fn parseTreeFromToksRecurse(
 ) !void {
     const it = &ctx.tok_it;
 
-    var tok: ?token.Token = it.peek();
+    var tok: ?token.Token = try it.peek();
 
     while (tok) |t| : (tok = it.inc()) switch (t.kind) {
         @intFromEnum(token.Kind.ident) => if (it.inc()) |t2| switch (t2.kind) {
@@ -97,10 +98,7 @@ pub fn parseTreeFromToksRecurse(
             '=' => {
                 while (tok) |t3| : (tok = it.inc()) switch (t3.kind) {
                     ';' => break,
-                    '{' => {
-                        ctx.err_char = '{';
-                        return log.err(ctx, log.Err.UnexpectedChar, it.i);
-                    },
+                    '{' => return ctx.errChar(log.Err.UnexpectedChar, '{'),
                     else => {},
                 };
 
@@ -110,19 +108,18 @@ pub fn parseTreeFromToksRecurse(
                     .data = .{ .lhs = var_name_i, .rhs = it.i - 1 },
                 });
             },
-            else => return log.err(ctx, token.Err.InvalidSyntax, it.i),
+            else => return ctx.err(token.Err.InvalidSyntax),
         },
-        '{' => return log.err(ctx, Err.NoNodeName, it.i),
+        '{' => return ctx.err(Err.NoNodeName),
         '}' => {
             if (!in_root_node) return;
-            return log.err(ctx, Err.UnmatchedCurlyRight, it.i);
+            return ctx.err(Err.UnmatchedCurlyRight);
         },
         @intFromEnum(token.Kind.@"for") => {
             try parseKeyword(ctx, @enumFromInt(t.kind));
         },
         @intFromEnum(token.Kind.eof) => if (!in_root_node) {
-            ctx.err_char = '}';
-            return log.err(ctx, log.Err.ExpectedChar, it.i);
+            return ctx.errChar(log.Err.ExpectedChar, '}');
         },
         else => {},
     };
@@ -146,14 +143,10 @@ fn recurseInBody(
     if (tag == .for_expr) {
         try parseIterator(ctx);
 
-        var tok: ?token.Token = it.peek();
-        if (tok.?.kind != '{') {
-            ctx.err_char = '{';
-            return log.err(ctx, log.Err.ExpectedChar, it.i);
-        }
+        try ctx.expectChar('{');
 
-        tok = it.inc() orelse return;
-        if (tok.?.kind == '}') return log.err(ctx, Err.EmptyBody, it.i);
+        var tok: ?token.Token = it.inc();
+        if (tok.?.kind == '}') return ctx.err(Err.EmptyBody);
     }
 
     try parseTreeFromToksRecurse(ctx, false);
@@ -177,47 +170,27 @@ fn parseIterator(ctx: *parse.Context) !void {
 
 fn parseInput(ctx: *parse.Context) !void {
     const it = &ctx.tok_it;
-
-    var tok: ?token.Token = it.peek();
-    if (tok.?.kind != '[') {
-        ctx.err_char = '[';
-        return log.err(ctx, log.Err.ExpectedChar, it.i);
-    }
-
-    tok = it.inc() orelse return;
     const input_beg_i = it.i;
-    if (tok.?.kind == ']') return log.err(ctx, Err.EmptyInput, it.i);
-    tok = it.inc();
 
-    while (tok) |t| : (tok = it.inc()) switch (t.kind) {
-        '(', ')', '{' => {
-            ctx.err_char = t.kind;
-            return log.err(ctx, log.Err.UnexpectedChar, it.i);
-        },
-        ']' => break,
-        else => continue,
-    };
+    try ctx.expectCharNot('{');
+    try ctx.expectCharNot('|');
+
+    var tok: ?token.Token = it.inc() orelse return;
+
+    while (tok != null and tok.?.kind != '|') : (tok = it.inc()) {
+        try ctx.expectCharNot('{');
+        try ctx.expectCharNot('}');
+    }
 
     try appendNode(ctx, .{
         .tag = .input,
         .data = .{ .lhs = input_beg_i, .rhs = it.i },
     });
-
-    tok = it.inc() orelse return;
 }
 
 fn parseFilter(ctx: *parse.Context) !void {
     const it = &ctx.tok_it;
     const prev_childs_i = ctx.childs_i;
-
-    var tok: ?token.Token = it.peek();
-    if (tok.?.kind != '(') {
-        ctx.err_char = '(';
-        return log.err(ctx, log.Err.ExpectedChar, it.i);
-    }
-
-    tok = it.inc() orelse return;
-    if (tok.?.kind == ')') return log.err(ctx, Err.EmptyFilter, it.i);
 
     ctx.childs_i = @intCast(ctx.childs.items.len);
     try appendNode(ctx, .{
@@ -225,39 +198,29 @@ fn parseFilter(ctx: *parse.Context) !void {
         .data = .{ .rhs = ctx.childs_i },
     });
 
-    group: while (tok) |_| : (tok = it.inc()) {
-        const expr_beg_i = it.i;
+    try ctx.expectCharNot('{');
 
-        if (tok.?.kind == ')') {
-            ctx.err_char = ')';
-            return log.err(ctx, log.Err.UnexpectedChar, it.i);
-        }
-
+    var tok: ?token.Token = it.inc();
+    filter: while (tok) |_| : (tok = it.inc()) {
+        it.i -= 1;
+        try ctx.expectChar('|');
         tok = it.inc() orelse return;
-        if (tok.?.kind == '|') {
-            ctx.err_char = '|';
-            return log.err(ctx, log.Err.UnexpectedChar, it.i);
+        try ctx.expectCharNot('|');
+
+        const expr_beg_i = it.i;
+        expr: while (tok) |t| : (tok = it.inc()) {
+            if (t.kind != '|' and t.kind != '{') continue :expr;
+
+            try appendNodeToChilds(ctx, .{
+                .tag = .expr,
+                .data = .{ .lhs = expr_beg_i, .rhs = it.i },
+            });
+            break :expr;
         }
 
-        toks: while (tok) |t2| : (tok = it.inc()) switch (t2.kind) {
-            '|', ')' => break :toks,
-            '{' => {
-                ctx.err_char = '{';
-                return log.err(ctx, log.Err.UnexpectedChar, it.i);
-            },
-            else => continue :toks,
-        };
-
-        try appendNodeToChilds(ctx, .{
-            .tag = .expr,
-            .data = .{ .lhs = expr_beg_i, .rhs = it.i },
-        });
-
-        if (tok.?.kind == ')') break :group;
-        if (tok.?.kind == '|') continue :group;
+        if ((try it.peek()).kind == '{') break :filter;
     }
 
-    tok = it.inc() orelse return;
     ctx.childs_i = prev_childs_i;
 }
 
@@ -282,24 +245,12 @@ inline fn appendNodeToChilds(ctx: *parse.Context, node: Node) !void {
 fn parseKeyword(ctx: *parse.Context, keyword: token.Kind) anyerror!void {
     const it = &ctx.tok_it;
 
-    var tok: ?token.Token = it.peek();
+    var tok: ?token.Token = try it.peek();
 
     if (keyword == .@"for") {
         tok = it.inc() orelse return;
-        if (tok.?.kind != @intFromEnum(token.Kind.ident)) {
-            return log.err(ctx, Err.NoIteratorLabel, it.i);
-        }
-        const lhs = it.i;
-
-        tok = it.inc() orelse return;
-        if (tok.?.kind != ':') {
-            ctx.err_char = ':';
-            return log.err(ctx, log.Err.ExpectedChar, it.i);
-        }
-
-        tok = it.inc() orelse return;
+        const lhs = 0;
         try recurseInBody(ctx, .for_expr, lhs);
-
         return;
     }
 
@@ -308,27 +259,30 @@ fn parseKeyword(ctx: *parse.Context, keyword: token.Kind) anyerror!void {
 }
 
 pub const TokenIterator = struct {
-    toks: *std.MultiArrayList(token.Token) = undefined,
+    ctx: *parse.Context = undefined,
     i: u32 = undefined,
 
     const Self = @This();
 
     pub fn inc(self: *Self) ?token.Token {
         self.i += 1;
-        if (self.i >= self.toks.len) return null;
-        return self.toks.get(self.i);
+        if (self.i >= self.ctx.toks.len) return null;
+        return self.ctx.toks.get(self.i);
     }
 
-    pub fn peek(self: *Self) token.Token {
-        return self.toks.get(self.i);
+    pub fn peek(self: *Self) !token.Token {
+        if (self.i == self.ctx.toks.len) {
+            return log.err(self.ctx, log.Err.UnexpectedEOF, self.i - 1);
+        }
+        return self.ctx.toks.get(self.i);
     }
 
     pub fn peekLast(self: *Self) token.Token {
-        return if (self.i == 0) .{} else self.toks.get(self.i - 1);
+        return if (self.i == 0) .{} else self.ctx.toks.get(self.i - 1);
     }
 
     pub fn peekNext(self: *Self) token.Token {
-        if (self.i + 1 == self.toks.len) return .{};
-        return self.toks.get(self.i + 1);
+        if (self.i + 1 == self.ctx.toks.len) return .{};
+        return self.ctx.toks.get(self.i + 1);
     }
 };

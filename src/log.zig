@@ -6,6 +6,7 @@ const token = @import("token.zig");
 pub const Err = error{
     ExpectedChar,
     UnexpectedChar,
+    UnexpectedEOF,
 };
 
 pub const filePos = struct {
@@ -60,6 +61,9 @@ pub fn err(ctx: *parse.Context, comptime e: anyerror, tok_i: u32) anyerror {
         },
         inline Err.UnexpectedChar => {
             try writer.print("unexpected '{c}'", .{ctx.err_char});
+        },
+        inline Err.UnexpectedEOF => {
+            _ = try writer.write("unexpected end of file after token");
         },
         inline token.Err.InvalidSyntax => {
             _ = try writer.write("invalid syntax");

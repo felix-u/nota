@@ -43,7 +43,7 @@ pub const Context = struct {
 
     pub fn init(self: *Self) !void {
         self.buf_it = (try std.unicode.Utf8View.init(self.buf)).iterator();
-        self.tok_it = .{ .toks = &self.toks, .i = 0 };
+        self.tok_it = .{ .ctx = self, .i = 0 };
         self.childs = ast.Childs.init(self.allocator);
 
         try self.nodes.append(self.allocator, .{});
@@ -100,6 +100,29 @@ pub const Context = struct {
         const beg = self.toks.items(.beg_i)[tok_i];
         const end = self.toks.items(.end_i)[tok_i];
         return self.buf[beg..end];
+    }
+
+    pub fn err(self: *Self, comptime e: anyerror) anyerror {
+        return log.err(self, e, self.tok_it.i);
+    }
+
+    pub fn errChar(self: *Self, comptime e: log.Err, c: u8) anyerror {
+        self.err_char = c;
+        return log.err(self, e, self.tok_it.i);
+    }
+
+    pub fn expectChar(self: *Self, expected_char: u8) !void {
+        const current_char = (try self.tok_it.peek()).kind;
+        if (current_char != expected_char) {
+            return self.errChar(log.Err.ExpectedChar, expected_char);
+        }
+    }
+
+    pub fn expectCharNot(self: *Self, unexpected_char: u8) !void {
+        const current_char = (try self.tok_it.peek()).kind;
+        if (current_char == unexpected_char) {
+            return self.errChar(log.Err.UnexpectedChar, unexpected_char);
+        }
     }
 };
 

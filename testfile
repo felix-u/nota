@@ -17,10 +17,10 @@ week {
 }
 
 todo {
-    for task_todo: [@all] (.@name == "task" | .done == false) {
-        task = task_todo;
-    }
-    // for task | !.done {
-    //     it;
+    // for task_todo: [@all] (.@name == "task" | .done == false) {
+    //     task = task_todo;
     // }
+    for task | !.done {
+        it = it;
+    }
 }

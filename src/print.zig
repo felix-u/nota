@@ -110,8 +110,7 @@ pub fn prettyAstRecurse(
             _ = try writer.write("for ");
             if (clr) try ansi.reset(writer);
 
-            const iterator_name = ctx.lexeme(node.data.lhs);
-            try writer.print("{s}: ", .{iterator_name});
+            // TODO: support explicit iterator label
 
             if (clr) try ansi.set(writer, &.{ansi.fg_magenta});
             const childs = ctx.childs.items[node.data.rhs];
@@ -198,8 +197,6 @@ fn printIterator(ctx: *parse.Context, iterator_i: u32) !void {
     const input_i = iterator.data.lhs;
     try printInput(ctx, input_i);
 
-    _ = try ctx.writer.writeByte(' ');
-
     const filter_i = iterator.data.rhs;
     try printFilter(ctx, filter_i);
 }
@@ -208,14 +205,10 @@ fn printInput(ctx: *parse.Context, input_i: u32) !void {
     const writer = ctx.writer;
     const input = ctx.nodes.get(input_i);
 
-    _ = try writer.writeByte('[');
-
     var tok_i = input.data.lhs;
     while (tok_i < input.data.rhs) : (tok_i += 1) {
-        try writer.print(" {s}", .{ctx.lexeme(tok_i)});
+        try writer.print("{s}", .{ctx.lexeme(tok_i)});
     }
-
-    _ = try writer.write(" ]");
 }
 
 fn printFilter(ctx: *parse.Context, filter_i: u32) !void {
@@ -223,11 +216,9 @@ fn printFilter(ctx: *parse.Context, filter_i: u32) !void {
     const filter = ctx.nodes.get(filter_i);
     const exprs = ctx.childs.items[filter.data.rhs];
 
-    _ = try writer.writeByte('(');
-
     var component_i: u32 = 0;
     while (component_i < exprs.items.len) : (component_i += 1) {
-        if (component_i > 0) _ = try writer.write(" |");
+        _ = try writer.write(" |");
 
         const expr_i = exprs.items[component_i];
         const component_data = ctx.nodes.items(.data)[expr_i];
@@ -237,6 +228,4 @@ fn printFilter(ctx: *parse.Context, filter_i: u32) !void {
             try writer.print(" {s}", .{ctx.lexeme(tok_i)});
         }
     }
-
-    _ = try writer.write(" )");
 }
