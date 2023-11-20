@@ -129,6 +129,9 @@ pub fn prettyAstRecurse(
 
             _ = try writer.write(" {\n");
         },
+        .reference => {
+            try writer.print("{s};\n", .{ctx.lexeme(node.data.lhs)});
+        },
         .var_decl_literal => {
             const var_name = ctx.lexeme(node.data.lhs);
             try writer.print("{s} = ", .{var_name});
@@ -159,7 +162,7 @@ pub fn prettyAstRecurse(
         },
     };
 
-    if (node.tag != .root_node and node.data.rhs == 0) {
+    if (node.tag == .node_decl_simple and node.data.rhs == 0) {
         try writeIndent(writer, indent_level);
         _ = try writer.write("}\n");
         return;

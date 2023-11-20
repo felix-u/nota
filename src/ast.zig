@@ -54,6 +54,10 @@ pub const Node = struct {
         // children.
         node_decl_simple,
 
+        // lhs;
+        // rhs unused.
+        reference,
+
         // lhs unused.
         // rhs is the index into childs_list of the node, or 0 if there are no
         // children.
@@ -106,6 +110,13 @@ pub fn parseTreeFromToksRecurse(
                 try appendNodeToChilds(ctx, .{
                     .tag = .var_decl_literal,
                     .data = .{ .lhs = var_name_i, .rhs = it.i - 1 },
+                });
+            },
+            ';' => {
+                const ref_i = it.i - 1;
+                try appendNodeToChilds(ctx, .{
+                    .tag = .reference,
+                    .data = .{ .lhs = ref_i },
                 });
             },
             else => return ctx.err(token.Err.InvalidSyntax),
