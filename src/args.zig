@@ -491,7 +491,7 @@ pub fn parseAlloc(
         const cmd = p.cmds[i];
 
         if (cmd.kind == .multi_pos) {
-            var array_list = std.ArrayList([]const u8).init(allocator);
+            const array_list = std.ArrayList([]const u8).init(allocator);
             const flag_list = &@field(result, cmd.name).pos;
             flag_list.* = array_list;
             try flag_list.ensureTotalCapacity(argv.len);
@@ -499,7 +499,7 @@ pub fn parseAlloc(
 
         inline for (cmd.flags) |flag| {
             if (flag.kind != .multi_pos) continue;
-            var array_list = std.ArrayList([]const u8).init(allocator);
+            const array_list = std.ArrayList([]const u8).init(allocator);
             const flag_list = &@field(@field(result, cmd.name), flag.long);
             flag_list.* = array_list;
             try flag_list.ensureTotalCapacity(argv.len);
@@ -532,7 +532,7 @@ pub fn parseAlloc(
         }
     }
 
-    var kinds = try allocator.alloc(ArgKind, argv.len - 1);
+    const kinds = try allocator.alloc(ArgKind, argv.len - 1);
     defer allocator.free(kinds);
     procArgKindList(p, kinds, argv[1..]);
 
@@ -815,7 +815,7 @@ fn procCmd(
     }
 
     inline for (cmd.flags) |flag| {
-        var flag_res = &@field(cmd_res, flag.long);
+        const flag_res = &@field(cmd_res, flag.long);
 
         if (flag.required) switch (flag.kind) {
             inline .boolean => if (flag_res == false) {

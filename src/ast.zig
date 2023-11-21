@@ -156,7 +156,7 @@ fn recurseInBody(
 
         try ctx.expectChar('{');
 
-        var tok: ?token.Token = it.inc();
+        const tok: ?token.Token = it.inc();
         if (tok.?.kind == '}') return ctx.err(Err.EmptyBody);
     }
 
