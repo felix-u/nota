@@ -1,5 +1,4 @@
 const ast = @import("ast.zig");
-const log = @import("log.zig");
 const print = @import("print.zig");
 const std = @import("std");
 const token = @import("token.zig");
@@ -90,13 +89,73 @@ pub const Context = struct {
         return self.buf[beg..end];
     }
 
+    pub const FilePos = struct {
+        row: u32,
+        row_beg_i: u32,
+        row_end_i: u32,
+        col: u32,
+    };
+
+    pub fn filePosFromIndex(self: @This(), index: u32) FilePos {
+        var pos = FilePos{
+            .row = 1,
+            .row_beg_i = 0,
+            .row_end_i = 0,
+            .col = 0,
+        };
+
+        var i: u32 = 0;
+        while (i < index) : (i += 1) {
+            if (self.buf[i] == '\n') {
+                pos.row += 1;
+                pos.row_beg_i = i + 1;
+                pos.col = 0;
+                continue;
+            }
+            pos.col += 1;
+        }
+
+        pos.row_end_i = i;
+        while (pos.row_end_i < self.buf.len and
+            self.buf[pos.row_end_i] != '\n')
+        {
+            pos.row_end_i += 1;
+        }
+
+        return pos;
+    }
+
     pub fn err(
         self: *@This(),
+        comptime mode: enum { char, token },
         comptime fmt: []const u8,
         args: anytype,
-    ) anyerror {
-        try self.err_writer.print("error: " ++ fmt ++ "\n", args);
-        return log.err(self, log.Err.None, self.tok_it.i);
+    ) !noreturn {
+        const writer = self.err_writer;
+
+        const beg_i = switch (mode) {
+            inline .char => self.buf_it.i,
+            inline .token => self.toks.items(.beg_i)[self.tok_it.i],
+        };
+
+        const pos = self.filePosFromIndex(@intCast(beg_i));
+
+        try writer.print("{s}:{d}:{d}: ", .{ self.filepath, pos.row, pos.col });
+        try writer.print("error: " ++ fmt ++ "\n", args);
+
+        try writer.print("{s}\n", .{self.buf[pos.row_beg_i..pos.row_end_i]});
+        for (pos.row_beg_i + 1..beg_i) |_| try writer.writeByte(' ');
+        try writer.writeByte('^');
+
+        switch (mode) {
+            inline .char => {},
+            inline .token => {
+                const end_i = self.toks.items(.end_i)[self.tok_it.i];
+                for (beg_i..end_i) |_| try writer.writeByte('~');
+            },
+        }
+
+        std.process.exit(1);
     }
 };
 

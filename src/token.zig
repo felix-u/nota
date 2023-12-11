@@ -1,4 +1,3 @@
-const log = @import("log.zig");
 const parse = @import("parse.zig");
 const std = @import("std");
 
@@ -100,7 +99,8 @@ pub fn parseToksFromBuf(ctx: *parse.Context) !void {
         '/' => {
             if (ctx.buf[it.i] != '/') {
                 try toksAppendCharHere(ctx, c1);
-                return ctx.err(
+                try ctx.err(
+                    .char,
                     "invalid '/'; did you mean '//' to start a comment?",
                     .{},
                 );
@@ -117,7 +117,8 @@ pub fn parseToksFromBuf(ctx: *parse.Context) !void {
             while (it.nextCodepoint()) |c2| : (last_i = it.i) {
                 if (ctx.buf[it.i] == '\n') {
                     try toksAppendCharHere(ctx, c1);
-                    return ctx.err(
+                    try ctx.err(
+                        .char,
                         "expected '\"' to end string before newline " ++
                             "(multiline strings not yet implemented)",
                         .{},
@@ -139,7 +140,8 @@ pub fn parseToksFromBuf(ctx: *parse.Context) !void {
         else => {
             if (!isValidSymbolChar(@intCast(c1))) {
                 try toksAppendCharHere(ctx, c1);
-                return ctx.err(
+                try ctx.err(
+                    .char,
                     "'{c}' is invalid syntax",
                     .{std.math.lossyCast(u8, c1)},
                 );

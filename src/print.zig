@@ -4,15 +4,13 @@ const std = @import("std");
 const token = @import("token.zig");
 
 pub fn toks(ctx: *parse.Context) !void {
-    const log = @import("log.zig");
     const writer = ctx.writer;
 
     _ = try writer.write("TOKENS:\n");
 
     for (0..ctx.toks.len) |i| {
         const tok = ctx.toks.get(i);
-        var pos: log.filePos = .{ .ctx = ctx, .i = tok.beg_i };
-        pos.computeCoords();
+        const pos = ctx.filePosFromIndex(tok.beg_i);
         if (tok.kind < 128) try writer.print(
             "{d}:{d}\t{d}\t{s}\t{c}\n",
             .{ pos.row, pos.col, i, ctx.lexeme(@intCast(i)), tok.kind },

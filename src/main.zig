@@ -1,7 +1,6 @@
 const ansi = @import("ansi.zig");
 const args = @import("args.zig");
 const ast = @import("ast.zig");
-const log = @import("log.zig");
 const parse = @import("parse.zig");
 const std = @import("std");
 const token = @import("token.zig");

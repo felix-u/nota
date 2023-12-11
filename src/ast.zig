@@ -1,5 +1,4 @@
 const ansi = @import("ansi.zig");
-const log = @import("log.zig");
 const parse = @import("parse.zig");
 const std = @import("std");
 const token = @import("token.zig");
@@ -91,7 +90,8 @@ pub fn parseTreeFromToksRecurse(
             '=' => {
                 while (tok) |t3| : (tok = it.inc()) switch (t3.kind) {
                     ';' => break,
-                    '{' => return ctx.err(
+                    '{' => try ctx.err(
+                        .token,
                         "unexpected '{{' in variable declaration",
                         .{},
                     ),
@@ -111,17 +111,18 @@ pub fn parseTreeFromToksRecurse(
                     .data = .{ .lhs = ref_i },
                 });
             },
-            else => return ctx.err("expected expression", .{}),
+            else => try ctx.err(.token, "expected expression", .{}),
         },
-        '{' => return ctx.err("expected node name before body", .{}),
+        '{' => try ctx.err(.token, "expected node name before body", .{}),
         '}' => {
             if (!in_root_node) return;
-            return ctx.err("'}}' here does not match any '{{'", .{});
+            try ctx.err(.token, "'}}' here does not match any '{{'", .{});
         },
         @intFromEnum(token.Kind.@"for") => {
             try parseKeyword(ctx, @enumFromInt(t.kind));
         },
-        @intFromEnum(token.Kind.eof) => if (!in_root_node) return ctx.err(
+        @intFromEnum(token.Kind.eof) => if (!in_root_node) try ctx.err(
+            .token,
             "unexpected end of file; '}}' required to end node",
             .{},
         ),
@@ -148,10 +149,10 @@ fn recurseInBody(
         try parseIterator(ctx);
 
         if (it.peek().kind != '{')
-            return ctx.err("expected '{{' to begin body", .{});
+            try ctx.err(.token, "expected '{{' to begin body", .{});
 
         const tok: ?token.Token = it.inc();
-        if (tok.?.kind == '}') return ctx.err("unexpected '{{'; " ++
+        if (tok.?.kind == '}') try ctx.err(.token, "unexpected '{{'; " ++
             "body of for expression cannot be empty", .{});
     }
 
@@ -179,16 +180,17 @@ fn parseInput(ctx: *parse.Context) !void {
     const input_beg_i = it.i;
 
     if (it.peek().kind == '{')
-        return ctx.err("filter required before start of body", .{});
+        try ctx.err(.token, "filter required before start of body", .{});
     if (it.peek().kind == '|')
-        return ctx.err("input required before filter", .{});
+        try ctx.err(.token, "input required before filter", .{});
 
     var tok: ?token.Token = it.inc() orelse return;
 
     while (tok != null and tok.?.kind != '|') : (tok = it.inc()) {
         if (it.peek().kind == '{')
-            return ctx.err("input must be filtered at least once", .{});
-        if (it.peek().kind == '}') return ctx.err("'}}' invalid here", .{});
+            try ctx.err(.token, "input must be filtered at least once", .{});
+        if (it.peek().kind == '}')
+            try ctx.err(.token, "'}}' invalid here", .{});
     }
 
     try appendNode(ctx, .{
@@ -208,15 +210,16 @@ fn parseFilter(ctx: *parse.Context) !void {
     });
 
     if (it.peek().kind == '{')
-        return ctx.err("empty filter; '{{' invalid here", .{});
+        try ctx.err(.token, "empty filter; '{{' invalid here", .{});
 
     var tok: ?token.Token = it.inc();
     filter: while (tok) |_| : (tok = it.inc()) {
         it.i -= 1;
         if (it.peek().kind != '|')
-            return ctx.err("expected '|' to begin filter", .{});
+            try ctx.err(.token, "expected '|' to begin filter", .{});
         tok = it.inc() orelse return;
-        if (it.peek().kind == '|') return ctx.err(
+        if (it.peek().kind == '|') try ctx.err(
+            .token,
             "empty filter; did you forget to add it between '|' and '|'?",
             .{},
         );
