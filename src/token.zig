@@ -4,11 +4,6 @@ const std = @import("std");
 
 const Writer = std.fs.File.Writer;
 
-pub const Err = error{
-    InvalidSyntax,
-    NoClosingQuote,
-};
-
 pub const Kind = enum(u8) {
     none = 0,
     chars = 128,
@@ -57,6 +52,16 @@ fn toksAppendCharHere(ctx: *parse.Context, kind: u21) !void {
     });
 }
 
+fn isValidSymbolChar(c: u21) bool {
+    return switch (c) {
+        '_', '.', '#', '@' => true,
+        else => !(c < '0' or
+            (c > '9' and c < 'A') or
+            (c > 'Z' and c < 'a') or
+            (c > 'z' and c < 128)),
+    };
+}
+
 pub fn parseToksFromBuf(ctx: *parse.Context) !void {
     const allocator = ctx.allocator;
     const it = &ctx.buf_it;
@@ -95,10 +100,9 @@ pub fn parseToksFromBuf(ctx: *parse.Context) !void {
         '/' => {
             if (ctx.buf[it.i] != '/') {
                 try toksAppendCharHere(ctx, c1);
-                return log.err(
-                    ctx,
-                    Err.InvalidSyntax,
-                    @intCast(ctx.toks.len - 1),
+                return ctx.err(
+                    "invalid '/'; did you mean '//' to start a comment?",
+                    .{},
                 );
             }
 
@@ -113,10 +117,10 @@ pub fn parseToksFromBuf(ctx: *parse.Context) !void {
             while (it.nextCodepoint()) |c2| : (last_i = it.i) {
                 if (ctx.buf[it.i] == '\n') {
                     try toksAppendCharHere(ctx, c1);
-                    return log.err(
-                        ctx,
-                        Err.NoClosingQuote,
-                        @intCast(ctx.toks.len - 1),
+                    return ctx.err(
+                        "expected '\"' to end string before newline " ++
+                            "(multiline strings not yet implemented)",
+                        .{},
                     );
                 }
 
@@ -133,12 +137,11 @@ pub fn parseToksFromBuf(ctx: *parse.Context) !void {
             });
         },
         else => {
-            if (!parse.isValidSymbolChar(@intCast(c1))) {
+            if (!isValidSymbolChar(@intCast(c1))) {
                 try toksAppendCharHere(ctx, c1);
-                return log.err(
-                    ctx,
-                    Err.InvalidSyntax,
-                    @intCast(ctx.toks.len - 1),
+                return ctx.err(
+                    "'{c}' is invalid syntax",
+                    .{std.math.lossyCast(u8, c1)},
                 );
             }
 
@@ -151,9 +154,9 @@ pub fn parseToksFromBuf(ctx: *parse.Context) !void {
                 else => .ident,
             };
 
-            if (parse.isValidSymbolChar(it.peek(1)[0])) {
+            if (isValidSymbolChar(it.peek(1)[0])) {
                 while (it.nextCodepoint()) |_| : (last_i = it.i) {
-                    if (!parse.isValidSymbolChar(it.peek(1)[0])) break;
+                    if (!isValidSymbolChar(it.peek(1)[0])) break;
                 }
             }
 

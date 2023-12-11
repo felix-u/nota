@@ -3,11 +3,7 @@ const parse = @import("parse.zig");
 const std = @import("std");
 const token = @import("token.zig");
 
-pub const Err = error{
-    ExpectedChar,
-    UnexpectedChar,
-    UnexpectedEOF,
-};
+pub const Err = error{None};
 
 pub const filePos = struct {
     ctx: *parse.Context,
@@ -36,7 +32,7 @@ pub const filePos = struct {
         }
 
         var beg_i = if (self.i == 0) 0 else self.i - 1;
-        while (self.ctx.buf[beg_i] != '\n' and beg_i - 1 > 0) {
+        while (self.ctx.buf[beg_i] != '\n' and beg_i > 1) {
             beg_i -= 1;
         }
 
@@ -50,55 +46,11 @@ pub fn err(ctx: *parse.Context, comptime e: anyerror, tok_i: u32) anyerror {
 
     const writer = ctx.err_writer;
 
+    try writer.print("{s}\nnota:FIXME\n", .{pos.getLine()});
     try writer.print(
-        "{s}:{d}:{d}: error: ",
+        "{s}:{d}:{d}: ",
         .{ pos.ctx.filepath, pos.row, pos.col },
     );
-
-    switch (e) {
-        inline Err.ExpectedChar => {
-            try writer.print("expected '{c}'", .{ctx.err_char});
-        },
-        inline Err.UnexpectedChar => {
-            try writer.print("unexpected '{c}'", .{ctx.err_char});
-        },
-        inline Err.UnexpectedEOF => {
-            _ = try writer.write("unexpected end of file after token");
-        },
-        inline token.Err.InvalidSyntax => {
-            _ = try writer.write("invalid syntax");
-        },
-        inline token.Err.NoClosingQuote => {
-            _ = try writer.write("expected quote to close string");
-        },
-        inline ast.Err.EmptyBody => {
-            _ = try writer.write("empty body invalid in this context");
-        },
-        inline ast.Err.EmptyFilter => {
-            _ = try writer.write("filter cannot be empty");
-        },
-        inline ast.Err.EmptyInput => {
-            _ = try writer.write("input to filter cannot be empty");
-        },
-        inline ast.Err.FloatingIdent => {
-            _ = try writer.write("expected '{' or '=' after identifier");
-        },
-        inline ast.Err.NoIteratorLabel => {
-            _ = try writer.write("expected iterator label: 'for label: ...'");
-        },
-        inline ast.Err.NoNodeName => {
-            _ = try writer.write("expected node name preceding '{'");
-        },
-        inline ast.Err.UnexpectedKeyword => {
-            _ = try writer.write("unexpected keyword");
-        },
-        inline ast.Err.UnmatchedCurlyRight => {
-            _ = try writer.write("'}' is unmatched");
-        },
-        inline else => unreachable,
-    }
-
-    try writer.print("{s}\n", .{pos.getLine()});
 
     var space_i: u32 = 1;
     while (space_i < pos.col) : (space_i += 1) {

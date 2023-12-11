@@ -15,16 +15,6 @@ pub fn keyword(str: []const u8) token.Kind {
     return kind.?;
 }
 
-pub fn isValidSymbolChar(c: u21) bool {
-    return switch (c) {
-        '_', '.', '#', '@' => true,
-        else => !(c < '0' or
-            (c > '9' and c < 'A') or
-            (c > 'Z' and c < 'a') or
-            (c > 'z' and c < 128)),
-    };
-}
-
 pub const Context = struct {
     allocator: std.mem.Allocator,
     writer: std.fs.File.Writer,
@@ -39,9 +29,7 @@ pub const Context = struct {
     childs: ast.Childs = undefined,
     childs_i: u32 = 0,
 
-    const Self = @This();
-
-    pub fn init(self: *Self) !void {
+    pub fn init(self: *@This()) !void {
         self.buf_it = (try std.unicode.Utf8View.init(self.buf)).iterator();
         self.tok_it = .{ .ctx = self, .i = 0 };
         self.childs = ast.Childs.init(self.allocator);
@@ -53,7 +41,7 @@ pub const Context = struct {
         );
     }
 
-    pub fn initFromPath(self: *Self, path: []const u8) !void {
+    pub fn initFromPath(self: *@This(), path: []const u8) !void {
         const filebuf = try readFileAlloc(self.allocator, path);
 
         self.filepath = path;
@@ -62,13 +50,13 @@ pub const Context = struct {
         try self.init();
     }
 
-    pub fn parse(self: *Self) !void {
+    pub fn parse(self: *@This()) !void {
         try token.parseToksFromBuf(self);
         try ast.parseTreeFromToks(self);
     }
 
     pub fn parseAndPrint(
-        self: *Self,
+        self: *@This(),
         comptime mode: enum(u8) { pretty, debug },
         use_ansi_clr: bool,
     ) !void {
@@ -96,33 +84,19 @@ pub const Context = struct {
         }
     }
 
-    pub inline fn lexeme(self: *const Self, tok_i: u32) []const u8 {
+    pub inline fn lexeme(self: *const @This(), tok_i: u32) []const u8 {
         const beg = self.toks.items(.beg_i)[tok_i];
         const end = self.toks.items(.end_i)[tok_i];
         return self.buf[beg..end];
     }
 
-    pub fn err(self: *Self, comptime e: anyerror) anyerror {
-        return log.err(self, e, self.tok_it.i);
-    }
-
-    pub fn errChar(self: *Self, comptime e: log.Err, c: u8) anyerror {
-        self.err_char = c;
-        return log.err(self, e, self.tok_it.i);
-    }
-
-    pub fn expectChar(self: *Self, expected_char: u8) !void {
-        const current_char = (try self.tok_it.peek()).kind;
-        if (current_char != expected_char) {
-            return self.errChar(log.Err.ExpectedChar, expected_char);
-        }
-    }
-
-    pub fn expectCharNot(self: *Self, unexpected_char: u8) !void {
-        const current_char = (try self.tok_it.peek()).kind;
-        if (current_char == unexpected_char) {
-            return self.errChar(log.Err.UnexpectedChar, unexpected_char);
-        }
+    pub fn err(
+        self: *@This(),
+        comptime fmt: []const u8,
+        args: anytype,
+    ) anyerror {
+        try self.err_writer.print("error: " ++ fmt ++ "\n", args);
+        return log.err(self, log.Err.None, self.tok_it.i);
     }
 };
 

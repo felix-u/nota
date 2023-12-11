@@ -4,17 +4,6 @@ const parse = @import("parse.zig");
 const std = @import("std");
 const token = @import("token.zig");
 
-pub const Err = error{
-    EmptyBody,
-    EmptyFilter,
-    EmptyInput,
-    FloatingIdent,
-    NoIteratorLabel,
-    NoNodeName,
-    UnexpectedKeyword,
-    UnmatchedCurlyRight,
-};
-
 const Data = struct {
     lhs: u32 = 0,
     rhs: u32 = 0,
@@ -83,7 +72,7 @@ pub fn parseTreeFromToksRecurse(
 ) !void {
     const it = &ctx.tok_it;
 
-    var tok: ?token.Token = try it.peek();
+    var tok: ?token.Token = it.peek();
 
     while (tok) |t| : (tok = it.inc()) switch (t.kind) {
         @intFromEnum(token.Kind.ident) => if (it.inc()) |t2| switch (t2.kind) {
@@ -102,7 +91,10 @@ pub fn parseTreeFromToksRecurse(
             '=' => {
                 while (tok) |t3| : (tok = it.inc()) switch (t3.kind) {
                     ';' => break,
-                    '{' => return ctx.errChar(log.Err.UnexpectedChar, '{'),
+                    '{' => return ctx.err(
+                        "unexpected '{{' in variable declaration",
+                        .{},
+                    ),
                     else => {},
                 };
 
@@ -119,19 +111,20 @@ pub fn parseTreeFromToksRecurse(
                     .data = .{ .lhs = ref_i },
                 });
             },
-            else => return ctx.err(token.Err.InvalidSyntax),
+            else => return ctx.err("expected expression", .{}),
         },
-        '{' => return ctx.err(Err.NoNodeName),
+        '{' => return ctx.err("expected node name before body", .{}),
         '}' => {
             if (!in_root_node) return;
-            return ctx.err(Err.UnmatchedCurlyRight);
+            return ctx.err("'}}' here does not match any '{{'", .{});
         },
         @intFromEnum(token.Kind.@"for") => {
             try parseKeyword(ctx, @enumFromInt(t.kind));
         },
-        @intFromEnum(token.Kind.eof) => if (!in_root_node) {
-            return ctx.errChar(log.Err.ExpectedChar, '}');
-        },
+        @intFromEnum(token.Kind.eof) => if (!in_root_node) return ctx.err(
+            "unexpected end of file; '}}' required to end node",
+            .{},
+        ),
         else => {},
     };
 }
@@ -154,10 +147,12 @@ fn recurseInBody(
     if (tag == .for_expr) {
         try parseIterator(ctx);
 
-        try ctx.expectChar('{');
+        if (it.peek().kind != '{')
+            return ctx.err("expected '{{' to begin body", .{});
 
         const tok: ?token.Token = it.inc();
-        if (tok.?.kind == '}') return ctx.err(Err.EmptyBody);
+        if (tok.?.kind == '}') return ctx.err("unexpected '{{'; " ++
+            "body of for expression cannot be empty", .{});
     }
 
     try parseTreeFromToksRecurse(ctx, false);
@@ -183,14 +178,17 @@ fn parseInput(ctx: *parse.Context) !void {
     const it = &ctx.tok_it;
     const input_beg_i = it.i;
 
-    try ctx.expectCharNot('{');
-    try ctx.expectCharNot('|');
+    if (it.peek().kind == '{')
+        return ctx.err("filter required before start of body", .{});
+    if (it.peek().kind == '|')
+        return ctx.err("input required before filter", .{});
 
     var tok: ?token.Token = it.inc() orelse return;
 
     while (tok != null and tok.?.kind != '|') : (tok = it.inc()) {
-        try ctx.expectCharNot('{');
-        try ctx.expectCharNot('}');
+        if (it.peek().kind == '{')
+            return ctx.err("input must be filtered at least once", .{});
+        if (it.peek().kind == '}') return ctx.err("'}}' invalid here", .{});
     }
 
     try appendNode(ctx, .{
@@ -209,14 +207,19 @@ fn parseFilter(ctx: *parse.Context) !void {
         .data = .{ .rhs = ctx.childs_i },
     });
 
-    try ctx.expectCharNot('{');
+    if (it.peek().kind == '{')
+        return ctx.err("empty filter; '{{' invalid here", .{});
 
     var tok: ?token.Token = it.inc();
     filter: while (tok) |_| : (tok = it.inc()) {
         it.i -= 1;
-        try ctx.expectChar('|');
+        if (it.peek().kind != '|')
+            return ctx.err("expected '|' to begin filter", .{});
         tok = it.inc() orelse return;
-        try ctx.expectCharNot('|');
+        if (it.peek().kind == '|') return ctx.err(
+            "empty filter; did you forget to add it between '|' and '|'?",
+            .{},
+        );
 
         const expr_beg_i = it.i;
         expr: while (tok) |t| : (tok = it.inc()) {
@@ -229,7 +232,7 @@ fn parseFilter(ctx: *parse.Context) !void {
             break :expr;
         }
 
-        if ((try it.peek()).kind == '{') break :filter;
+        if (it.peek().kind == '{') break :filter;
     }
 
     ctx.childs_i = prev_childs_i;
@@ -256,7 +259,7 @@ inline fn appendNodeToChilds(ctx: *parse.Context, node: Node) !void {
 fn parseKeyword(ctx: *parse.Context, keyword: token.Kind) anyerror!void {
     const it = &ctx.tok_it;
 
-    var tok: ?token.Token = try it.peek();
+    var tok: ?token.Token = it.peek();
 
     if (keyword == .@"for") {
         tok = it.inc() orelse return;
@@ -281,10 +284,7 @@ pub const TokenIterator = struct {
         return self.ctx.toks.get(self.i);
     }
 
-    pub fn peek(self: *Self) !token.Token {
-        if (self.i == self.ctx.toks.len) {
-            return log.err(self.ctx, log.Err.UnexpectedEOF, self.i - 1);
-        }
+    pub fn peek(self: *Self) token.Token {
         return self.ctx.toks.get(self.i);
     }
 
