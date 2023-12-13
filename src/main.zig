@@ -10,13 +10,16 @@ pub fn main() !void {
     defer arena.deinit();
     const allocator = arena.allocator();
 
-    const stdout = std.io.getStdOut().writer();
-    const stderr = std.io.getStdErr().writer();
+    const stdout = std.io.getStdOut();
+    const stdout_writer = stdout.writer();
+    const stderr = std.io.getStdErr();
+    const stderr_writer = stderr.writer();
 
     const argv = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, argv);
 
-    const args_parsed = args.parseAlloc(allocator, stdout, stderr, argv, .{
+    const args_parsed =
+        args.parseAlloc(allocator, stdout_writer, stderr_writer, argv, .{
         .desc = "general-purpose declarative notation language",
         .ver = "0.4-dev",
         .usage = "<command> <file> [options]",
@@ -62,8 +65,8 @@ pub fn main() !void {
 
     var ctx = parse.Context{
         .allocator = allocator,
-        .writer = stdout,
-        .err_writer = stderr,
+        .writer = stdout_writer,
+        .err_writer = stderr_writer,
     };
 
     if (args_parsed.check.invoked) {
@@ -79,8 +82,10 @@ pub fn main() !void {
         if (debug_view) {
             try ctx.parseAndPrint(.debug, false);
         } else {
+            const colour_supported =
+                std.io.tty.detectConfig(stdout) != .no_color;
             const ansi_clr_mode = args_parsed.print.clr or
-                (ansi.shouldUse() and !args_parsed.print.noclr);
+                (colour_supported and !args_parsed.print.noclr);
             try ctx.parseAndPrint(.pretty, ansi_clr_mode);
         }
 

@@ -55,20 +55,3 @@ pub fn set(writer: Writer, comptime fmts: []const []const u8) !void {
 pub inline fn reset(writer: std.fs.File.Writer) !void {
     try set(writer, &.{fmt_reset});
 }
-
-pub fn shouldUse() bool {
-    // Since std.os.STDOUT_FILENO and std.os.getenv() are not available on
-    // windows, assume ANSI colour codes are supported. This is likely not a
-    // good approach.
-    if (builtin.os.tag == .windows) return true;
-
-    var should_use = std.os.isatty(std.os.STDOUT_FILENO) and
-        std.os.getenv("NO_COLOR") == null and
-        std.os.getenv("NO_COLOUR") == null;
-
-    if (std.os.getenv("TERM")) |TERMENV| {
-        if (std.mem.eql(u8, TERMENV, "dumb")) should_use = false;
-    }
-
-    return should_use;
-}
