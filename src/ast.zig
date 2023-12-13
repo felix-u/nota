@@ -111,7 +111,12 @@ pub fn parseTreeFromToksRecurse(
                     .data = .{ .lhs = ref_i },
                 });
             },
-            else => try ctx.err(.token, "expected expression", .{}),
+            else => try ctx.err(
+                .token,
+                "expected '{{', '=', or ';' following identifier '{s}', " ++
+                    "but found '{s}'",
+                .{ ctx.lexeme(it.i - 1), ctx.lexeme(it.i) },
+            ),
         },
         '{' => try ctx.err(.token, "expected node name before body", .{}),
         '}' => {
@@ -152,7 +157,7 @@ fn recurseInBody(
             try ctx.err(.token, "expected '{{' to begin body", .{});
 
         const tok: ?token.Token = it.inc();
-        if (tok.?.kind == '}') try ctx.err(.token, "unexpected '{{'; " ++
+        if (tok.?.kind == '}') try ctx.err(.token, "unexpected '}}'; " ++
             "body of for expression cannot be empty", .{});
     }
 
@@ -209,10 +214,11 @@ fn parseFilter(ctx: *parse.Context) !void {
         .data = .{ .rhs = ctx.childs_i },
     });
 
+    var tok: ?token.Token = it.inc();
+
     if (it.peek().kind == '{')
         try ctx.err(.token, "empty filter; '{{' invalid here", .{});
 
-    var tok: ?token.Token = it.inc();
     filter: while (tok) |_| : (tok = it.inc()) {
         it.i -= 1;
         if (it.peek().kind != '|')
@@ -226,6 +232,12 @@ fn parseFilter(ctx: *parse.Context) !void {
 
         const expr_beg_i = it.i;
         expr: while (tok) |t| : (tok = it.inc()) {
+            if (t.kind == '}') try ctx.err(
+                .token,
+                "'}}' invalid in filter (are you missing an opening '{{'?)",
+                .{},
+            );
+
             if (t.kind != '|' and t.kind != '{') continue :expr;
 
             try appendNodeToChilds(ctx, .{
@@ -271,7 +283,7 @@ fn parseKeyword(ctx: *parse.Context, keyword: token.Kind) anyerror!void {
         return;
     }
 
-    std.debug.print("UNIMPLEMENTED: {any}\n", .{keyword});
+    try ctx.err_writer.print("UNIMPLEMENTED: {any}\n", .{keyword});
     @panic("UNIMPLEMENTED");
 }
 

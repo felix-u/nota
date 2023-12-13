@@ -135,7 +135,11 @@ pub const Context = struct {
 
         const beg_i = switch (mode) {
             inline .char => self.buf_it.i,
-            inline .token => self.toks.items(.beg_i)[self.tok_it.i],
+            inline .token => if (self.toks.items(.kind)[self.tok_it.i] ==
+                @intFromEnum(token.Kind.eof))
+                self.toks.items(.beg_i)[self.tok_it.i]
+            else
+                self.toks.items(.beg_i)[self.tok_it.i] + 1,
         };
 
         const pos = self.filePosFromIndex(@intCast(beg_i));
