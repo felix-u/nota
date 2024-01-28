@@ -1,4 +1,4 @@
-// Last tested with zig 0.12.0-dev.1270+6c9d34bce on 2023-10-25T21:01:26Z
+// Last tested with zig 0.12.0-dev.2139+e025ad7b4 on 2024-01-11
 //
 // args.zig - public domain command-line argument parser - felix-u
 //
@@ -413,7 +413,7 @@ pub const Cmd = struct {
 
         inline for (fields[2..], self.flags) |*field, flag| {
             field.* = .{
-                .name = flag.long,
+                .name = @ptrCast(flag.long),
                 .type = flag.resultType(),
                 .default_value = null,
                 .is_comptime = false,
@@ -435,7 +435,7 @@ pub const Cmd = struct {
         comptime var fields: [cmds.len]StructField = undefined;
         inline for (&fields, cmds) |*field, cmd| {
             field.* = .{
-                .name = cmd.name,
+                .name = @ptrCast(cmd.name),
                 .type = cmd.resultType(),
                 .default_value = null,
                 .is_comptime = false,
