@@ -23,17 +23,10 @@ pub const Kind = enum(u8) {
     eof,
 
     // Mostly used by AST later.
-
-    op_beg,
     equals,
-    op_end,
 
     keyword_beg,
-
-    control,
     @"for",
-    control_end,
-
     keyword_end,
 };
 
@@ -41,6 +34,10 @@ pub const Token = struct {
     kind: u8 = 0,
     beg_i: u32 = 0,
     end_i: u32 = 0,
+
+    pub inline fn isEof(self: @This()) bool {
+        return self.kind == @intFromEnum(Kind.eof);
+    }
 };
 
 fn toksAppendCharHere(ctx: *parse.Context, kind: u21) !void {
@@ -51,13 +48,17 @@ fn toksAppendCharHere(ctx: *parse.Context, kind: u21) !void {
     });
 }
 
-fn isValidSymbolChar(c: u21) bool {
+inline fn isValidSymbolChar(c: u21) bool {
     return switch (c) {
-        '_', '.', '#', '@' => true,
-        else => !(c < '0' or
-            (c > '9' and c < 'A') or
-            (c > 'Z' and c < 'a') or
-            (c > 'z' and c < 128)),
+        '_',
+        '.',
+        '#',
+        '@',
+        '0'...'9',
+        'A'...'Z',
+        'a'...'z',
+        => true,
+        else => false,
     };
 }
 
@@ -99,7 +100,7 @@ pub fn parseToksFromBuf(ctx: *parse.Context) !void {
         '/' => {
             if (ctx.buf[it.i] != '/') {
                 try toksAppendCharHere(ctx, c1);
-                try ctx.err(
+                return ctx.err(
                     .char,
                     "invalid '/'; did you mean '//' to start a comment?",
                     .{},
@@ -117,7 +118,7 @@ pub fn parseToksFromBuf(ctx: *parse.Context) !void {
             while (it.nextCodepoint()) |c2| : (last_i = it.i) {
                 if (ctx.buf[it.i] == '\n') {
                     try toksAppendCharHere(ctx, c1);
-                    try ctx.err(
+                    return ctx.err(
                         .char,
                         "expected '\"' to end string before newline " ++
                             "(multiline strings not yet implemented)",
@@ -140,7 +141,7 @@ pub fn parseToksFromBuf(ctx: *parse.Context) !void {
         else => {
             if (!isValidSymbolChar(@intCast(c1))) {
                 try toksAppendCharHere(ctx, c1);
-                try ctx.err(
+                return ctx.err(
                     .char,
                     "'{c}' is invalid syntax",
                     .{std.math.lossyCast(u8, c1)},

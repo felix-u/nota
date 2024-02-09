@@ -18,6 +18,7 @@ pub const Context = struct {
     allocator: std.mem.Allocator,
     writer: std.fs.File.Writer,
     err_writer: std.fs.File.Writer,
+
     filepath: []const u8 = undefined,
     buf: []const u8 = undefined,
     buf_it: std.unicode.Utf8Iterator = undefined,
@@ -56,30 +57,18 @@ pub const Context = struct {
 
     pub fn parseAndPrint(
         self: *@This(),
-        comptime mode: enum(u8) { pretty, debug },
+        is_debug: bool,
         use_ansi_clr: bool,
     ) !void {
-        const writer = self.writer;
-
-        switch (mode) {
-            inline .pretty => {
-                try token.parseToksFromBuf(self);
-                try ast.parseTreeFromToks(self);
-                if (use_ansi_clr) {
-                    try print.prettyAst(.ansi_clr_enabled, self);
-                } else try print.prettyAst(.ansi_clr_disabled, self);
-            },
-            inline .debug => {
-                _ = try writer.write("Begin tokenising... ");
-                try token.parseToksFromBuf(self);
-                _ = try writer.write("Done!\n");
-                try print.toks(self);
-
-                _ = try writer.write("\nBegin AST parsing... ");
-                try ast.parseTreeFromToks(self);
-                _ = try writer.write("Done!\n");
-                try print.debugAst(self);
-            },
+        if (is_debug) {
+            try token.parseToksFromBuf(self);
+            try print.toks(self);
+            try ast.parseTreeFromToks(self);
+            try print.debugAst(self);
+        } else {
+            try token.parseToksFromBuf(self);
+            try ast.parseTreeFromToks(self);
+            try print.prettyAst(use_ansi_clr, self);
         }
     }
 
@@ -130,7 +119,7 @@ pub const Context = struct {
         comptime mode: enum { char, token },
         comptime fmt: []const u8,
         args: anytype,
-    ) !noreturn {
+    ) anyerror {
         const writer = self.err_writer;
 
         const beg_i = switch (mode) {
@@ -159,7 +148,8 @@ pub const Context = struct {
             },
         }
 
-        std.process.exit(1);
+        try writer.writeByte('\n');
+        return error{ParseError}.ParseError;
     }
 };
 

@@ -77,20 +77,21 @@ pub fn debugAstRecurse(
     for (childs.items) |i| try debugAstRecurse(ctx, i, indent_level + 1);
 }
 
-const AnsiClrState = enum { ansi_clr_disabled, ansi_clr_enabled };
-
-pub fn prettyAst(comptime ansi_clr: AnsiClrState, ctx: *parse.Context) !void {
-    try prettyAstRecurse(ansi_clr, ctx, 0, 0, true);
+pub fn prettyAst(is_colour_on: bool, ctx: *parse.Context) !void {
+    switch (is_colour_on) {
+        inline else => |inlined_is_colour_on| {
+            try prettyAstRecurse(inlined_is_colour_on, ctx, 0, 0, true);
+        },
+    }
 }
 
 pub fn prettyAstRecurse(
-    comptime ansi_clr: AnsiClrState,
+    comptime is_colour_on: bool,
     ctx: *parse.Context,
     node_i: u32,
     indent_level: u32,
     comptime in_root_node: bool,
 ) !void {
-    const clr = if (ansi_clr == .ansi_clr_enabled) true else false;
     const writer = ctx.writer;
     const node = ctx.nodes.get(node_i);
 
@@ -104,26 +105,26 @@ pub fn prettyAstRecurse(
         .root_node,
         => unreachable,
         .for_expr => {
-            if (clr) try ansi.set(writer, &.{ansi.fg_red});
+            if (is_colour_on) try ansi.set(writer, &.{ansi.fg_red});
             _ = try writer.write("for ");
-            if (clr) try ansi.reset(writer);
+            if (is_colour_on) try ansi.reset(writer);
 
             // TODO: support explicit iterator label
 
-            if (clr) try ansi.set(writer, &.{ansi.fg_magenta});
+            if (is_colour_on) try ansi.set(writer, &.{ansi.fg_magenta});
             const childs = ctx.childs.items[node.data.rhs];
             const iterator_i = childs.items[0];
             try printIterator(ctx, iterator_i);
-            if (clr) try ansi.reset(writer);
+            if (is_colour_on) try ansi.reset(writer);
 
             _ = try writer.write(" {\n");
         },
         .node_decl_simple => {
             const node_name = ctx.lexeme(node.data.lhs);
 
-            if (clr) try ansi.set(writer, &.{ansi.fmt_bold});
+            if (is_colour_on) try ansi.set(writer, &.{ansi.fmt_bold});
             try writer.print("{s}", .{node_name});
-            if (clr) try ansi.reset(writer);
+            if (is_colour_on) try ansi.reset(writer);
 
             _ = try writer.write(" {\n");
         },
@@ -139,17 +140,17 @@ pub fn prettyAstRecurse(
                 @enumFromInt(ctx.toks.items(.kind)[node.data.rhs]);
             switch (var_type) {
                 .str => {
-                    if (clr) try ansi.set(writer, &.{ansi.fg_cyan});
+                    if (is_colour_on) try ansi.set(writer, &.{ansi.fg_cyan});
                     try writer.print("\"{s}\"", .{literal});
-                    if (clr) try ansi.reset(writer);
+                    if (is_colour_on) try ansi.reset(writer);
                 },
                 .num, .true, .false, .date => {
-                    if (clr) try ansi.set(
+                    if (is_colour_on) try ansi.set(
                         writer,
                         &.{ ansi.fg_cyan, ansi.fmt_bold },
                     );
                     try writer.print("{s}", .{literal});
-                    if (clr) try ansi.reset(writer);
+                    if (is_colour_on) try ansi.reset(writer);
                 },
                 .ident, .builtin => try writer.print("{s}", .{literal}),
                 else => unreachable,
@@ -183,7 +184,7 @@ pub fn prettyAstRecurse(
 
     const childs = ctx.childs.items[node.data.rhs];
     for (childs.items[children_start_here..]) |i| {
-        try prettyAstRecurse(ansi_clr, ctx, i, childs_indent_level, false);
+        try prettyAstRecurse(is_colour_on, ctx, i, childs_indent_level, false);
     }
 
     if (print_closing_curly) {

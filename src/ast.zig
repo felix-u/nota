@@ -71,62 +71,64 @@ pub fn parseTreeFromToksRecurse(
 ) !void {
     const it = &ctx.tok_it;
 
-    var tok: ?token.Token = it.peek();
+    var tok = it.peek();
+    while (!tok.isEof()) : (tok = it.inc()) switch (tok.kind) {
+        @intFromEnum(token.Kind.ident) => {
+            tok = it.inc();
+            switch (tok.kind) {
+                '{' => {
+                    tok = it.inc();
+                    if (tok.kind != '}') {
+                        try recurseInBody(ctx, .node_decl_simple, it.i - 2);
+                    } else {
+                        const node_name_i = it.i - 2;
+                        try appendNodeToChilds(ctx, .{
+                            .tag = .node_decl_simple,
+                            .data = .{ .lhs = node_name_i, .rhs = 0 },
+                        });
+                    }
+                },
+                '=' => {
+                    while (!tok.isEof()) : (tok = it.inc()) switch (tok.kind) {
+                        ';' => break,
+                        '{' => return ctx.err(
+                            .token,
+                            "unexpected '{{' in variable declaration",
+                            .{},
+                        ),
+                        else => {},
+                    };
 
-    while (tok) |t| : (tok = it.inc()) switch (t.kind) {
-        @intFromEnum(token.Kind.ident) => if (it.inc()) |t2| switch (t2.kind) {
-            '{' => {
-                tok = it.inc();
-                if (tok != null and tok.?.kind != '}') {
-                    try recurseInBody(ctx, .node_decl_simple, it.i - 2);
-                } else {
-                    const node_name_i = it.i - 2;
+                    const var_name_i = it.i - 3;
                     try appendNodeToChilds(ctx, .{
-                        .tag = .node_decl_simple,
-                        .data = .{ .lhs = node_name_i, .rhs = 0 },
+                        .tag = .var_decl_literal,
+                        .data = .{ .lhs = var_name_i, .rhs = it.i - 1 },
                     });
-                }
-            },
-            '=' => {
-                while (tok) |t3| : (tok = it.inc()) switch (t3.kind) {
-                    ';' => break,
-                    '{' => try ctx.err(
-                        .token,
-                        "unexpected '{{' in variable declaration",
-                        .{},
-                    ),
-                    else => {},
-                };
-
-                const var_name_i = it.i - 3;
-                try appendNodeToChilds(ctx, .{
-                    .tag = .var_decl_literal,
-                    .data = .{ .lhs = var_name_i, .rhs = it.i - 1 },
-                });
-            },
-            ';' => {
-                const ref_i = it.i - 1;
-                try appendNodeToChilds(ctx, .{
-                    .tag = .reference,
-                    .data = .{ .lhs = ref_i },
-                });
-            },
-            else => try ctx.err(
-                .token,
-                "expected '{{', '=', or ';' following identifier '{s}', " ++
-                    "but found '{s}'",
-                .{ ctx.lexeme(it.i - 1), ctx.lexeme(it.i) },
-            ),
+                },
+                ';' => {
+                    const ref_i = it.i - 1;
+                    try appendNodeToChilds(ctx, .{
+                        .tag = .reference,
+                        .data = .{ .lhs = ref_i },
+                    });
+                },
+                else => return ctx.err(
+                    .token,
+                    "expected '{{', '=', or ';' following identifier '{s}'," ++
+                        " but found '{s}'",
+                    .{ ctx.lexeme(it.i - 1), ctx.lexeme(it.i) },
+                ),
+            }
         },
-        '{' => try ctx.err(.token, "expected node name before body", .{}),
+        '{' => return ctx.err(.token, "expected node name before body", .{}),
         '}' => {
             if (!in_root_node) return;
-            try ctx.err(.token, "'}}' here does not match any '{{'", .{});
+            return ctx.err(.token, "'}}' here does not match any '{{'", .{});
         },
         @intFromEnum(token.Kind.@"for") => {
-            try parseKeyword(ctx, @enumFromInt(t.kind));
+            try parseKeyword(ctx, @enumFromInt(tok.kind));
         },
-        @intFromEnum(token.Kind.eof) => if (!in_root_node) try ctx.err(
+        @intFromEnum(token.Kind.eof) => if (!in_root_node) return ctx.err(
             .token,
             "unexpected end of file; '}}' required to end node",
             .{},
@@ -154,10 +156,10 @@ fn recurseInBody(
         try parseIterator(ctx);
 
         if (it.peek().kind != '{')
-            try ctx.err(.token, "expected '{{' to begin body", .{});
+            return ctx.err(.token, "expected '{{' to begin body", .{});
 
-        const tok: ?token.Token = it.inc();
-        if (tok.?.kind == '}') try ctx.err(.token, "unexpected '}}'; " ++
+        const tok = it.inc();
+        if (tok.kind == '}') return ctx.err(.token, "unexpected '}}'; " ++
             "body of for expression cannot be empty", .{});
     }
 
@@ -184,18 +186,22 @@ fn parseInput(ctx: *parse.Context) !void {
     const it = &ctx.tok_it;
     const input_beg_i = it.i;
 
-    if (it.peek().kind == '{')
-        try ctx.err(.token, "filter required before start of body", .{});
-    if (it.peek().kind == '|')
-        try ctx.err(.token, "input required before filter", .{});
+    var tok = it.peek();
 
-    var tok: ?token.Token = it.inc() orelse return;
+    if (tok.kind == '{')
+        return ctx.err(.token, "filter required before start of body", .{});
+    if (tok.kind == '|')
+        return ctx.err(.token, "input required before filter", .{});
 
-    while (tok != null and tok.?.kind != '|') : (tok = it.inc()) {
-        if (it.peek().kind == '{')
-            try ctx.err(.token, "input must be filtered at least once", .{});
-        if (it.peek().kind == '}')
-            try ctx.err(.token, "'}}' invalid here", .{});
+    tok = it.inc();
+    while (!tok.isEof() and tok.kind != '|') : (tok = it.inc()) {
+        if (tok.kind == '{') return ctx.err(
+            .token,
+            "input must be filtered at least once",
+            .{},
+        );
+        if (tok.kind == '}')
+            return ctx.err(.token, "'}}' invalid here", .{});
     }
 
     try appendNode(ctx, .{
@@ -214,31 +220,30 @@ fn parseFilter(ctx: *parse.Context) !void {
         .data = .{ .rhs = ctx.childs_i },
     });
 
-    var tok: ?token.Token = it.inc();
+    var tok = it.inc();
+    if (tok.kind == '{')
+        return ctx.err(.token, "empty filter; '{{' invalid here", .{});
 
-    if (it.peek().kind == '{')
-        try ctx.err(.token, "empty filter; '{{' invalid here", .{});
-
-    filter: while (tok) |_| : (tok = it.inc()) {
+    filter: while (!tok.isEof()) : (tok = it.inc()) {
         it.i -= 1;
         if (it.peek().kind != '|')
-            try ctx.err(.token, "expected '|' to begin filter", .{});
-        tok = it.inc() orelse return;
-        if (it.peek().kind == '|') try ctx.err(
+            return ctx.err(.token, "expected '|' to begin filter", .{});
+        tok = it.inc();
+        if (tok.kind == '|') return ctx.err(
             .token,
             "empty filter; did you forget to add it between '|' and '|'?",
             .{},
         );
 
         const expr_beg_i = it.i;
-        expr: while (tok) |t| : (tok = it.inc()) {
-            if (t.kind == '}') try ctx.err(
+        expr: while (!tok.isEof()) : (tok = it.inc()) {
+            if (tok.kind == '}') return ctx.err(
                 .token,
                 "'}}' invalid in filter (are you missing an opening '{{'?)",
                 .{},
             );
 
-            if (t.kind != '|' and t.kind != '{') continue :expr;
+            if (tok.kind != '|' and tok.kind != '{') continue :expr;
 
             try appendNodeToChilds(ctx, .{
                 .tag = .expr,
@@ -247,7 +252,7 @@ fn parseFilter(ctx: *parse.Context) !void {
             break :expr;
         }
 
-        if (it.peek().kind == '{') break :filter;
+        if (tok.kind == '{') break :filter;
     }
 
     ctx.childs_i = prev_childs_i;
@@ -273,18 +278,19 @@ inline fn appendNodeToChilds(ctx: *parse.Context, node: Node) !void {
 
 fn parseKeyword(ctx: *parse.Context, keyword: token.Kind) anyerror!void {
     const it = &ctx.tok_it;
-
-    var tok: ?token.Token = it.peek();
-
-    if (keyword == .@"for") {
-        tok = it.inc() orelse return;
-        const lhs = 0;
-        try recurseInBody(ctx, .for_expr, lhs);
-        return;
+    var tok = it.peek();
+    switch (keyword) {
+        .@"for" => {
+            tok = it.inc();
+            const lhs = 0;
+            try recurseInBody(ctx, .for_expr, lhs);
+            return;
+        },
+        else => {
+            try ctx.err_writer.print("UNIMPLEMENTED: {any}\n", .{keyword});
+            @panic("UNIMPLEMENTED");
+        },
     }
-
-    try ctx.err_writer.print("UNIMPLEMENTED: {any}\n", .{keyword});
-    @panic("UNIMPLEMENTED");
 }
 
 pub const TokenIterator = struct {
@@ -293,9 +299,10 @@ pub const TokenIterator = struct {
 
     const Self = @This();
 
-    pub fn inc(self: *Self) ?token.Token {
+    pub fn inc(self: *Self) token.Token {
         self.i += 1;
-        if (self.i >= self.ctx.toks.len) return null;
+        if (self.i >= self.ctx.toks.len)
+            return .{ .kind = @intFromEnum(token.Kind.eof) };
         return self.ctx.toks.get(self.i);
     }
 
