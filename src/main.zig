@@ -1,7 +1,7 @@
 const ansi = @import("ansi.zig");
 const args = @import("args.zig");
 const ast = @import("ast.zig");
-const parse = @import("parse.zig");
+const Context = @import("Context.zig");
 const std = @import("std");
 const token = @import("token.zig");
 
@@ -45,7 +45,7 @@ pub fn main() !void {
     defer allocator.destroy(args_parsed);
     const arg = args_parsed.nota;
 
-    var ctx = parse.Context{
+    var ctx = Context{
         .allocator = allocator,
         .writer = stdout_writer,
         .err_writer = stderr_writer,

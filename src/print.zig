@@ -1,9 +1,9 @@
 const ansi = @import("ansi.zig");
-const parse = @import("parse.zig");
+const Context = @import("Context.zig");
 const std = @import("std");
 const token = @import("token.zig");
 
-pub fn toks(ctx: *parse.Context) !void {
+pub fn toks(ctx: *Context) !void {
     const writer = ctx.writer;
 
     _ = try writer.write("TOKENS:\n");
@@ -28,7 +28,7 @@ fn writeIndent(writer: std.fs.File.Writer, how_many_times: usize) !void {
     for (how_many_times) |_| _ = try writer.write(" " ** 4);
 }
 
-pub fn debugAst(ctx: *parse.Context) !void {
+pub fn debugAst(ctx: *Context) !void {
     const writer = ctx.writer;
 
     _ = try writer.write("NODES:\n");
@@ -55,7 +55,7 @@ pub fn debugAst(ctx: *parse.Context) !void {
 }
 
 pub fn debugAstRecurse(
-    ctx: *parse.Context,
+    ctx: *Context,
     node_i: u32,
     indent_level: u32,
 ) !void {
@@ -77,7 +77,7 @@ pub fn debugAstRecurse(
     for (childs.items) |i| try debugAstRecurse(ctx, i, indent_level + 1);
 }
 
-pub fn prettyAst(is_colour_on: bool, ctx: *parse.Context) !void {
+pub fn prettyAst(is_colour_on: bool, ctx: *Context) !void {
     switch (is_colour_on) {
         inline else => |inlined_is_colour_on| {
             try prettyAstRecurse(inlined_is_colour_on, ctx, 0, 0, true);
@@ -87,7 +87,7 @@ pub fn prettyAst(is_colour_on: bool, ctx: *parse.Context) !void {
 
 pub fn prettyAstRecurse(
     comptime is_colour_on: bool,
-    ctx: *parse.Context,
+    ctx: *Context,
     node_i: u32,
     indent_level: u32,
     comptime in_root_node: bool,
@@ -193,7 +193,7 @@ pub fn prettyAstRecurse(
     }
 }
 
-fn printIterator(ctx: *parse.Context, iterator_i: u32) !void {
+fn printIterator(ctx: *Context, iterator_i: u32) !void {
     const iterator = ctx.nodes.get(iterator_i);
 
     const input_i = iterator.data.lhs;
@@ -203,7 +203,7 @@ fn printIterator(ctx: *parse.Context, iterator_i: u32) !void {
     try printFilter(ctx, filter_i);
 }
 
-fn printInput(ctx: *parse.Context, input_i: u32) !void {
+fn printInput(ctx: *Context, input_i: u32) !void {
     const writer = ctx.writer;
     const input = ctx.nodes.get(input_i);
 
@@ -213,7 +213,7 @@ fn printInput(ctx: *parse.Context, input_i: u32) !void {
     }
 }
 
-fn printFilter(ctx: *parse.Context, filter_i: u32) !void {
+fn printFilter(ctx: *Context, filter_i: u32) !void {
     const writer = ctx.writer;
     const filter = ctx.nodes.get(filter_i);
     const exprs = ctx.childs.items[filter.data.rhs];

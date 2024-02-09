@@ -1,4 +1,4 @@
-const parse = @import("parse.zig");
+const Context = @import("Context.zig");
 const std = @import("std");
 
 const Writer = std.fs.File.Writer;
@@ -40,7 +40,7 @@ pub const Token = struct {
     }
 };
 
-fn toksAppendCharHere(ctx: *parse.Context, kind: u21) !void {
+fn toksAppendCharHere(ctx: *Context, kind: u21) !void {
     try ctx.toks.append(ctx.allocator, .{
         .beg_i = @intCast(ctx.buf_it.i - 1),
         .end_i = @intCast(ctx.buf_it.i),
@@ -62,7 +62,7 @@ inline fn isValidSymbolChar(c: u21) bool {
     };
 }
 
-pub fn parseToksFromBuf(ctx: *parse.Context) !void {
+pub fn parseToksFromBuf(ctx: *Context) !void {
     const allocator = ctx.allocator;
     const it = &ctx.buf_it;
     var last_i = it.i;
@@ -164,7 +164,7 @@ pub fn parseToksFromBuf(ctx: *parse.Context) !void {
             }
 
             if (this_kind == .ident) {
-                const keyword = parse.keyword(ctx.buf[beg_i..it.i]);
+                const keyword = Context.keyword(ctx.buf[beg_i..it.i]);
                 this_kind = switch (keyword) {
                     .true, .false, .@"for" => keyword,
                     else => this_kind,

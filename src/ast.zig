@@ -1,5 +1,5 @@
 const ansi = @import("ansi.zig");
-const parse = @import("parse.zig");
+const Context = @import("Context.zig");
 const std = @import("std");
 const token = @import("token.zig");
 
@@ -61,14 +61,14 @@ pub const NodeList = std.MultiArrayList(Node);
 
 pub const Childs = std.ArrayList(std.ArrayList(u32));
 
-pub fn parseTreeFromToks(ctx: *parse.Context) !void {
+pub fn parseTreeFromToks(ctx: *Context) !void {
     try parseTreeFromToksRecurse(ctx, true);
 }
 
 pub fn parseTreeFromToksRecurse(
-    ctx: *parse.Context,
+    ctx: *Context,
     comptime in_root_node: bool,
-) !void {
+) anyerror!void {
     const it = &ctx.tok_it;
 
     var tok = it.peek();
@@ -137,11 +137,7 @@ pub fn parseTreeFromToksRecurse(
     };
 }
 
-fn recurseInBody(
-    ctx: *parse.Context,
-    comptime tag: Node.Tag,
-    lhs: u32,
-) anyerror!void {
+fn recurseInBody(ctx: *Context, comptime tag: Node.Tag, lhs: u32) !void {
     const it = &ctx.tok_it;
     const prev_childs_i = ctx.childs_i;
 
@@ -168,7 +164,7 @@ fn recurseInBody(
     ctx.childs_i = prev_childs_i;
 }
 
-fn parseIterator(ctx: *parse.Context) !void {
+fn parseIterator(ctx: *Context) !void {
     const iterator_node_i = ctx.nodes.len;
 
     try appendNodeToChilds(ctx, .{ .tag = .iterator });
@@ -182,7 +178,7 @@ fn parseIterator(ctx: *parse.Context) !void {
     ctx.nodes.items(.data)[iterator_node_i].rhs = filter_node_i;
 }
 
-fn parseInput(ctx: *parse.Context) !void {
+fn parseInput(ctx: *Context) !void {
     const it = &ctx.tok_it;
     const input_beg_i = it.i;
 
@@ -210,7 +206,7 @@ fn parseInput(ctx: *parse.Context) !void {
     });
 }
 
-fn parseFilter(ctx: *parse.Context) !void {
+fn parseFilter(ctx: *Context) !void {
     const it = &ctx.tok_it;
     const prev_childs_i = ctx.childs_i;
 
@@ -258,11 +254,11 @@ fn parseFilter(ctx: *parse.Context) !void {
     ctx.childs_i = prev_childs_i;
 }
 
-pub inline fn appendNode(ctx: *parse.Context, node: Node) !void {
+pub inline fn appendNode(ctx: *Context, node: Node) !void {
     try ctx.nodes.append(ctx.allocator, node);
 }
 
-fn appendNextNodeToChilds(ctx: *parse.Context) !void {
+fn appendNextNodeToChilds(ctx: *Context) !void {
     if (ctx.childs_i == ctx.childs.items.len) try ctx.childs.append(
         try std.ArrayList(u32).initCapacity(ctx.allocator, 1),
     );
@@ -271,12 +267,12 @@ fn appendNextNodeToChilds(ctx: *parse.Context) !void {
     try list.append(@intCast(ctx.nodes.len));
 }
 
-inline fn appendNodeToChilds(ctx: *parse.Context, node: Node) !void {
+inline fn appendNodeToChilds(ctx: *Context, node: Node) !void {
     try appendNextNodeToChilds(ctx);
     try appendNode(ctx, node);
 }
 
-fn parseKeyword(ctx: *parse.Context, keyword: token.Kind) anyerror!void {
+fn parseKeyword(ctx: *Context, keyword: token.Kind) anyerror!void {
     const it = &ctx.tok_it;
     var tok = it.peek();
     switch (keyword) {
@@ -294,7 +290,7 @@ fn parseKeyword(ctx: *parse.Context, keyword: token.Kind) anyerror!void {
 }
 
 pub const TokenIterator = struct {
-    ctx: *parse.Context = undefined,
+    ctx: *Context = undefined,
     i: u32 = undefined,
 
     const Self = @This();
