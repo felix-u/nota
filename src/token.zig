@@ -164,9 +164,9 @@ pub fn parseToksFromBuf(ctx: *Context) !void {
             }
 
             if (this_kind == .ident) {
-                const keyword = Context.keyword(ctx.buf[beg_i..it.i]);
-                this_kind = switch (keyword) {
-                    .true, .false, .@"for" => keyword,
+                const keyword_kind = kindFromKeyword(ctx.buf[beg_i..it.i]);
+                this_kind = switch (keyword_kind) {
+                    .true, .false, .@"for" => keyword_kind,
                     else => this_kind,
                 };
             }
@@ -184,4 +184,15 @@ pub fn parseToksFromBuf(ctx: *Context) !void {
         .end_i = if (it.i > 0) @intCast(ctx.buf.len - 1) else 0,
         .kind = @intFromEnum(Kind.eof),
     });
+}
+
+fn kindFromKeyword(str: []const u8) Kind {
+    const kind = std.meta.stringToEnum(Kind, str);
+    if (kind != .true and kind != .false and
+        (kind == null or
+        @intFromEnum(kind.?) <= @intFromEnum(Kind.keyword_beg)))
+    {
+        return .none;
+    }
+    return kind.?;
 }

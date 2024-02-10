@@ -3,17 +3,6 @@ const print = @import("print.zig");
 const std = @import("std");
 const token = @import("token.zig");
 
-pub fn keyword(str: []const u8) token.Kind {
-    const kind = std.meta.stringToEnum(token.Kind, str);
-    if (kind != .true and kind != .false and
-        (kind == null or
-        @intFromEnum(kind.?) <= @intFromEnum(token.Kind.keyword_beg)))
-    {
-        return .none;
-    }
-    return kind.?;
-}
-
 allocator: std.mem.Allocator,
 writer: std.fs.File.Writer,
 err_writer: std.fs.File.Writer,

@@ -70,7 +70,6 @@ pub fn parseTreeFromToksRecurse(
     comptime in_root_node: bool,
 ) anyerror!void {
     const it = &ctx.tok_it;
-
     var tok = it.peek();
     while (!tok.isEof()) : (tok = it.inc()) switch (tok.kind) {
         @intFromEnum(token.Kind.ident) => {
@@ -128,11 +127,13 @@ pub fn parseTreeFromToksRecurse(
         @intFromEnum(token.Kind.@"for") => {
             try parseKeyword(ctx, @enumFromInt(tok.kind));
         },
-        @intFromEnum(token.Kind.eof) => if (!in_root_node) return ctx.err(
-            .token,
-            "unexpected end of file; '}}' required to end node",
-            .{},
-        ),
+        @intFromEnum(token.Kind.eof) => {
+            if (!in_root_node) return ctx.err(
+                .token,
+                "unexpected end of file; '}}' required to end node",
+                .{},
+            );
+        },
         else => {},
     };
 }
