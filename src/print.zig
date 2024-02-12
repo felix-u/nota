@@ -12,8 +12,8 @@ pub fn toks(ctx: *Context) !void {
         const tok = ctx.toks.get(i);
         const pos = ctx.filePosFromIndex(tok.beg_i);
         if (tok.kind < 128) try writer.print(
-            "{d}:{d}\t{d}\t{s}\t{c}\n",
-            .{ pos.row, pos.col, i, ctx.lexeme(@intCast(i)), tok.kind },
+            "{d}:{d}\t{d}\t{s}\n",
+            .{ pos.row, pos.col, i, ctx.lexeme(@intCast(i)) },
         ) else {
             const tok_kind: token.Kind = @enumFromInt(tok.kind);
             try writer.print(
@@ -125,7 +125,7 @@ pub fn prettyAstRecurse(
                 .ident, .builtin => try writer.print("{s}", .{literal}),
             }
 
-            _ = try writer.write(";\n");
+            _ = try writer.write("\n");
             return;
         },
     };

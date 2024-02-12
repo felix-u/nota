@@ -1,16 +1,14 @@
 week {
     day {
-        name = "mon";
-        task {
-            desc = "do something";
-            done = false;
+        name = "mon"
+        task { 
+            desc = "do something" 
         }
     }
     day {
-        name = "tue";
-        task {
-            desc = "do something else";
-            done = true;
+        name = "tue"
+        task { 
+            desc = "do something else" 
         }
     }
 }

@@ -53,19 +53,11 @@ pub fn parseTreeFromToksRecurse(
             switch (tok.kind) {
                 '{' => {
                     tok = it.inc();
-                    if (tok.kind != '}') {
-                        try recurseInBody(ctx, .node_decl_simple, it.i - 2);
-                    } else {
-                        const node_name_i = it.i - 2;
-                        try appendNodeToChilds(ctx, .{
-                            .tag = .node_decl_simple,
-                            .data = .{ .lhs = node_name_i, .rhs = 0 },
-                        });
-                    }
+                    try recurseInBody(ctx, .node_decl_simple, it.i - 2);
                 },
                 '=' => {
                     while (!tok.isEof()) : (tok = it.inc()) switch (tok.kind) {
-                        ';' => break,
+                        '\n' => break,
                         '{' => return ctx.err(
                             .token,
                             "unexpected '{{' in variable declaration",
@@ -80,7 +72,7 @@ pub fn parseTreeFromToksRecurse(
                         .data = .{ .lhs = var_name_i, .rhs = it.i - 1 },
                     });
                 },
-                ';' => {
+                '\n' => {
                     const ref_i = it.i - 1;
                     try appendNodeToChilds(ctx, .{
                         .tag = .reference,
@@ -89,8 +81,8 @@ pub fn parseTreeFromToksRecurse(
                 },
                 else => return ctx.err(
                     .token,
-                    "expected '{{', '=', or ';' following identifier '{s}'," ++
-                        " but found '{s}'",
+                    "expected '{{', '=', or newline following identifier " ++
+                        "'{s}', but found '{s}'",
                     .{ ctx.lexeme(it.i - 1), ctx.lexeme(it.i) },
                 ),
             }

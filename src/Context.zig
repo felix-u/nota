@@ -58,10 +58,16 @@ pub fn parseAndPrint(
     }
 }
 
-pub inline fn lexeme(self: *const @This(), tok_i: u32) []const u8 {
-    const beg = self.toks.items(.beg_i)[tok_i];
-    const end = self.toks.items(.end_i)[tok_i];
-    return self.buf[beg..end];
+pub fn lexeme(self: *const @This(), tok_i: u32) []const u8 {
+    const kind = self.toks.items(.kind)[tok_i];
+    switch (kind) {
+        '\n' => return "\\n",
+        else => {
+            const beg = self.toks.items(.beg_i)[tok_i];
+            const end = self.toks.items(.end_i)[tok_i];
+            return self.buf[beg..end];
+        },
+    }
 }
 
 pub const FilePos = struct {
