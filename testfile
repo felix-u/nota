@@ -1,5 +1,4 @@
 week {
-    date = #2023_12_11;
     day {
         name = "mon";
         task {
@@ -13,11 +12,5 @@ week {
             desc = "do something else";
             done = true;
         }
-    }
-}
-
-todo {
-    for task | !.done {
-        it;
     }
 }

@@ -12,22 +12,10 @@ pub const Kind = enum(u8) {
     // or an enum value below this comment.
 
     str,
-    num,
-    date,
     ident,
     builtin,
 
-    true,
-    false,
-
     eof,
-
-    // Mostly used by AST later.
-    equals,
-
-    keyword_beg,
-    @"for",
-    keyword_end,
 };
 
 pub const Token = struct {
@@ -51,9 +39,6 @@ fn toksAppendCharHere(ctx: *Context, kind: u21) !void {
 inline fn isValidSymbolChar(c: u21) bool {
     return switch (c) {
         '_',
-        '.',
-        '#',
-        '@',
         '0'...'9',
         'A'...'Z',
         'a'...'z',
@@ -68,35 +53,8 @@ pub fn parseToksFromBuf(ctx: *Context) !void {
     var last_i = it.i;
 
     chars: while (it.nextCodepoint()) |c1| : (last_i = it.i) switch (c1) {
-        '\r', '\n', '\t', ' ' => {},
-        '=' => {
-            const next = it.nextCodepoint();
-            if (next == null) break :chars;
-            if (next.? == '=') try ctx.toks.append(allocator, .{
-                .beg_i = @intCast(last_i),
-                .end_i = @intCast(it.i),
-                .kind = @intFromEnum(Kind.equals),
-            }) else try ctx.toks.append(allocator, .{
-                .beg_i = @intCast(last_i),
-                .end_i = @intCast(last_i + 1),
-                .kind = ctx.buf[last_i],
-            });
-        },
-        '{',
-        '}',
-        '(',
-        ')',
-        '[',
-        ']',
-        ';',
-        ':',
-        '!',
-        '>',
-        '<',
-        '|',
-        '.',
-        '-',
-        => try toksAppendCharHere(ctx, c1),
+        '\r', '\n', '\t', ' ' => continue,
+        '{', '}', ';', '=' => try toksAppendCharHere(ctx, c1),
         '/' => {
             if (ctx.buf[it.i] != '/') {
                 try toksAppendCharHere(ctx, c1);
@@ -139,7 +97,7 @@ pub fn parseToksFromBuf(ctx: *Context) !void {
             });
         },
         else => {
-            if (!isValidSymbolChar(@intCast(c1))) {
+            if (c1 != '@' and !isValidSymbolChar(@intCast(c1))) {
                 try toksAppendCharHere(ctx, c1);
                 return ctx.err(
                     .char,
@@ -150,10 +108,8 @@ pub fn parseToksFromBuf(ctx: *Context) !void {
 
             const beg_i: u32 = @intCast(last_i);
 
-            var this_kind: Kind = switch (c1) {
-                '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' => .num,
+            const this_kind: Kind = switch (c1) {
                 '@' => .builtin,
-                '#' => .date,
                 else => .ident,
             };
 
@@ -161,14 +117,6 @@ pub fn parseToksFromBuf(ctx: *Context) !void {
                 while (it.nextCodepoint()) |_| : (last_i = it.i) {
                     if (!isValidSymbolChar(it.peek(1)[0])) break;
                 }
-            }
-
-            if (this_kind == .ident) {
-                const keyword_kind = kindFromKeyword(ctx.buf[beg_i..it.i]);
-                this_kind = switch (keyword_kind) {
-                    .true, .false, .@"for" => keyword_kind,
-                    else => this_kind,
-                };
             }
 
             try ctx.toks.append(allocator, .{
@@ -184,15 +132,4 @@ pub fn parseToksFromBuf(ctx: *Context) !void {
         .end_i = if (it.i > 0) @intCast(ctx.buf.len - 1) else 0,
         .kind = @intFromEnum(Kind.eof),
     });
-}
-
-fn kindFromKeyword(str: []const u8) Kind {
-    const kind = std.meta.stringToEnum(Kind, str);
-    if (kind != .true and kind != .false and
-        (kind == null or
-        @intFromEnum(kind.?) <= @intFromEnum(Kind.keyword_beg)))
-    {
-        return .none;
-    }
-    return kind.?;
 }
