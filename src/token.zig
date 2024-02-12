@@ -54,7 +54,13 @@ pub fn parseToksFromBuf(ctx: *Context) !void {
 
     chars: while (it.nextCodepoint()) |c1| : (last_i = it.i) switch (c1) {
         '\r', '\t', ' ' => continue,
-        '{', '}', '\n', '=' => try toksAppendCharHere(ctx, c1),
+        '{',
+        '}',
+        '\n',
+        '=',
+        '(',
+        ')',
+        => try toksAppendCharHere(ctx, c1),
         '/' => {
             if (ctx.buf[it.i] != '/') {
                 try toksAppendCharHere(ctx, c1);

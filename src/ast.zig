@@ -13,22 +13,29 @@ pub const Node = struct {
     data: Data = .{},
 
     const Tag = enum(u8) {
-        // lhs { }
-        // rhs is the index into childs_list of the node, or 0 if there are no
-        // children.
+        // `lhs { }`
+        // lhs is the token index of the node name.
+        // rhs is the node index into childs_list of the node, or 0 if there
+        // are no children.
         node_decl_simple,
 
-        // lhs points to identifier name
+        // lhs is the token index of the identifier name.
         // rhs unused.
         reference,
 
         // lhs unused.
-        // rhs is the index into childs_list of the node, or 0 if there are no
-        // children.
+        // rhs is the node index into childs_list of the node, or 0 if there
+        // are no children.
         root_node,
 
-        // rhs is the index of a string, date, or number.
-        // lhs = rhs
+        // // `lhs = rhs`
+        // // lhs is the token index of the variable name.
+        // // rhs is the node index of the assignment's rhs.
+        // var_decl,
+
+        // `lhs = rhs`
+        // lhs is the token index of the variable name.
+        // rhs is the token index of a string, date, or number.
         var_decl_literal,
     };
 };
