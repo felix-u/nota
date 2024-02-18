@@ -39,6 +39,40 @@ pub const NodeList = std.MultiArrayList(Node);
 
 pub const Childs = std.ArrayList(std.ArrayList(u32));
 
+fn idxOfParseExpr(ctx: *Context) !u32 {
+    const it = &ctx.tok_it;
+    var tok = it.peek();
+    switch (tok.kind) {
+        @intFromEnum(token.Kind.ident),
+        @intFromEnum(token.Kind.str),
+        => return it.i,
+        '(' => {
+            tok = it.inc();
+            const lexeme = ctx.lexeme(it.i);
+            switch (tok.kind) {
+                else => return ctx.err(
+                    "expected expression start, but found '{s}'",
+                    .{lexeme},
+                ),
+                @intFromEnum(token.Kind.ident) => {
+                    if (token.Kind.isBuiltin(lexeme)) |builtin| {
+                        switch (builtin) {
+                            .builtin_run => {
+                                return ctx.err("unimplemented builtin run", .{});
+                            },
+                            else => unreachable,
+                        }
+                    } else return ctx.err("unimplemented ident function", .{});
+                },
+            }
+        },
+        else => return ctx.err(
+            "invalid expression start '{s}'",
+            .{ctx.lexeme(it.i)},
+        ),
+    }
+}
+
 pub fn parseTreeFromToks(
     ctx: *Context,
     comptime meta: struct { in_root_node: bool = true },
@@ -59,9 +93,10 @@ pub fn parseTreeFromToks(
                     tok = it.inc();
                     const const_name_i = it.i;
                     tok = it.inc();
+                    const value_i = try idxOfParseExpr(ctx);
                     try appendNodeToChilds(ctx, .{
                         .tag = .const_decl,
-                        .data = .{ .lhs = const_name_i, .rhs = it.i },
+                        .data = .{ .lhs = const_name_i, .rhs = value_i },
                     });
                     tok = it.inc();
                     continue :outer;

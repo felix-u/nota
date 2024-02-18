@@ -1,6 +1,6 @@
 (node week
     (node day
-        (const name "mon")
+        (const name 123)
         (node task
             (const desc "do something")
         ))
@@ -9,4 +9,4 @@
         (node task
             (const desc "do something else")
         )))
-// (const files (@run "ls"))
+(const files (@run "ls"))

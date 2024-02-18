@@ -129,7 +129,9 @@ pub fn prettyAstRecurse(
                     try writer.print("\"{s}\"", .{literal});
                     if (is_colour_on) try ansi.reset(writer);
                 },
-                .ident, .builtin => try writer.print("{s}", .{literal}),
+                .ident,
+                .builtin_run,
+                => try writer.print("{s}", .{literal}),
             }
 
             _ = try writer.write("\n");

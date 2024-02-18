@@ -18,15 +18,24 @@ pub const Kind = enum(u8) {
 
     str,
     ident,
-    builtin,
 
     eof,
+
+    // Resolved only during AST construction
+    builtin_run,
 
     pub fn isKeyword(literal: []const u8) ?@This() {
         if (std.mem.eql(u8, literal, "const")) {
             return .keyword_const;
         } else if (std.mem.eql(u8, literal, "node")) {
             return .keyword_node;
+        } else return null;
+    }
+
+    pub fn isBuiltin(literal: []const u8) ?@This() {
+        const pre = "@";
+        if (std.mem.eql(u8, literal, pre ++ "run")) {
+            return .builtin_run;
         } else return null;
     }
 };
@@ -116,11 +125,6 @@ pub fn parseToksFromBuf(ctx: *Context) !void {
                 );
             }
 
-            const this_kind: Kind = switch (c1) {
-                '@' => .builtin,
-                else => .ident,
-            };
-
             const beg_i: u32 = @intCast(last_i);
 
             if (isValidSymbolChar(it.peek(1)[0])) {
@@ -129,14 +133,15 @@ pub fn parseToksFromBuf(ctx: *Context) !void {
                 }
             }
             const end_i = it.i;
+            const lexeme = ctx.buf[beg_i..end_i];
 
             const new_tok = Token{
                 .beg_i = beg_i,
                 .end_i = @intCast(end_i),
-                .kind = if (Kind.isKeyword(ctx.buf[beg_i..end_i])) |keyword|
+                .kind = if (Kind.isKeyword(lexeme)) |keyword|
                     @intFromEnum(keyword)
                 else
-                    @intFromEnum(this_kind),
+                    @intFromEnum(Kind.ident),
             };
 
             try ctx.toks.append(allocator, new_tok);
