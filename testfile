@@ -1,29 +1,12 @@
-week {
-    day {
-        name = "mon"
-        task { 
-            desc = "do something" 
-        }
-    }
-    day {
-        name = "tue"
-        task { 
-            desc = "do something else" 
-        }
-    }
-}
-
-files = @run("ls")
-
-// (node week
-//     (node day
-//         (const name "mon")
-//         (node task
-//             (const desc "do something")
-//         ))
-//     (node day
-//         (const name "tue")
-//         (node task
-//             (const desc "do something else")
-//         )))
+(node week
+    (node day
+        (const name "mon")
+        (node task
+            (const desc "do something")
+        ))
+    (node day
+        (const name "tue")
+        (node task
+            (const desc "do something else")
+        )))
 // (const files (@run "ls"))

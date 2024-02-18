@@ -108,7 +108,7 @@ pub fn prettyAstRecurse(
         .reference => {
             try writer.print("{s};\n", .{ctx.lexeme(node.data.lhs)});
         },
-        .var_decl_literal => {
+        .const_decl => {
             const var_name = ctx.lexeme(node.data.lhs);
             try writer.print("{s} = ", .{var_name});
 
@@ -116,7 +116,14 @@ pub fn prettyAstRecurse(
             const var_type: token.Kind =
                 @enumFromInt(ctx.toks.items(.kind)[node.data.rhs]);
             switch (var_type) {
-                .none, .chars, .eof => unreachable,
+                .none,
+                .chars,
+                .eof,
+                .keyword_beg,
+                .keyword_const,
+                .keyword_node,
+                .keyword_end,
+                => unreachable,
                 .str => {
                     if (is_colour_on) try ansi.set(writer, &.{ansi.fg_cyan});
                     try writer.print("\"{s}\"", .{literal});

@@ -13,7 +13,7 @@ pub const Node = struct {
     data: Data = .{},
 
     const Tag = enum(u8) {
-        // `lhs { }`
+        // `(node lhs rhs...)`
         // lhs is the token index of the node name.
         // rhs is the node index into childs_list of the node, or 0 if there
         // are no children.
@@ -28,15 +28,10 @@ pub const Node = struct {
         // are no children.
         root_node,
 
-        // // `lhs = rhs`
-        // // lhs is the token index of the variable name.
-        // // rhs is the node index of the assignment's rhs.
-        // var_decl,
-
-        // `lhs = rhs`
+        // `(const lhs rhs)`
         // lhs is the token index of the variable name.
         // rhs is the token index of a string, date, or number.
-        var_decl_literal,
+        const_decl,
     };
 };
 
@@ -44,70 +39,47 @@ pub const NodeList = std.MultiArrayList(Node);
 
 pub const Childs = std.ArrayList(std.ArrayList(u32));
 
-pub inline fn parseTreeFromToks(ctx: *Context) !void {
-    try parseTreeFromToksRecurse(ctx, true);
-}
-
-pub fn parseTreeFromToksRecurse(
+pub fn parseTreeFromToks(
     ctx: *Context,
-    comptime in_root_node: bool,
+    comptime meta: struct { in_root_node: bool = true },
 ) anyerror!void {
     const it = &ctx.tok_it;
     var tok = it.peek();
-    while (!tok.isEof()) : (tok = it.inc()) switch (tok.kind) {
-        @intFromEnum(token.Kind.ident) => {
+    outer: while (!tok.isEof()) : (tok = it.inc()) switch (tok.kind) {
+        '(' => {
             tok = it.inc();
             switch (tok.kind) {
-                '{' => {
+                @intFromEnum(token.Kind.keyword_node) => {
                     tok = it.inc();
-                    try recurseInBody(ctx, .node_decl_simple, it.i - 2);
+                    tok = it.inc();
+                    try recurseInBody(ctx, .node_decl_simple, it.i - 1);
+                    continue :outer;
                 },
-                '=' => {
-                    while (!tok.isEof()) : (tok = it.inc()) switch (tok.kind) {
-                        '\n' => break,
-                        '{' => return ctx.err(
-                            .token,
-                            "unexpected '{{' in variable declaration",
-                            .{},
-                        ),
-                        else => {},
-                    };
-
-                    const var_name_i = it.i - 3;
+                @intFromEnum(token.Kind.keyword_const) => {
+                    tok = it.inc();
+                    const const_name_i = it.i;
+                    tok = it.inc();
                     try appendNodeToChilds(ctx, .{
-                        .tag = .var_decl_literal,
-                        .data = .{ .lhs = var_name_i, .rhs = it.i - 1 },
+                        .tag = .const_decl,
+                        .data = .{ .lhs = const_name_i, .rhs = it.i },
                     });
+                    tok = it.inc();
+                    continue :outer;
                 },
-                '\n' => {
-                    const ref_i = it.i - 1;
-                    try appendNodeToChilds(ctx, .{
-                        .tag = .reference,
-                        .data = .{ .lhs = ref_i },
-                    });
-                },
-                else => return ctx.err(
-                    .token,
-                    "expected '{{', '=', or newline following identifier " ++
-                        "'{s}', but found '{s}'",
-                    .{ ctx.lexeme(it.i - 1), ctx.lexeme(it.i) },
-                ),
+                ')' => return ctx.err("empty expression", .{}),
+                else => return ctx.err("DEBUG '{s}'", .{ctx.lexeme(it.i)}),
             }
         },
-        '{' => return ctx.err(.token, "expected node name before body", .{}),
-        '}' => {
-            if (!in_root_node) return;
-            return ctx.err(.token, "'}}' here does not match any '{{'", .{});
+        ')' => {
+            if (!meta.in_root_node) return;
+            return ctx.err("')' here does not match any '('", .{});
         },
-        @intFromEnum(token.Kind.eof) => {
-            if (!in_root_node) return ctx.err(
-                .token,
-                "unexpected end of file; '}}' required to end node",
-                .{},
-            );
-        },
-        else => {},
+        else => return ctx.err(
+            "expected '(' or end of file, but found '{s}'",
+            .{ctx.lexeme(it.i)},
+        ),
     };
+    if (!meta.in_root_node) return ctx.err("unexpected end of file", .{});
 }
 
 fn recurseInBody(ctx: *Context, comptime tag: Node.Tag, lhs: u32) !void {
@@ -120,7 +92,7 @@ fn recurseInBody(ctx: *Context, comptime tag: Node.Tag, lhs: u32) !void {
         .data = .{ .lhs = lhs, .rhs = ctx.childs_i },
     });
 
-    try parseTreeFromToksRecurse(ctx, false);
+    try parseTreeFromToks(ctx, .{ .in_root_node = false });
 
     ctx.childs_i = prev_childs_i;
 }

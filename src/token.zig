@@ -11,11 +11,24 @@ pub const Kind = enum(u8) {
     // they're not included here. Token.kind: u8 is either a syntax character
     // or an enum value below this comment.
 
+    keyword_beg,
+    keyword_const,
+    keyword_node,
+    keyword_end,
+
     str,
     ident,
     builtin,
 
     eof,
+
+    pub fn isKeyword(literal: []const u8) ?@This() {
+        if (std.mem.eql(u8, literal, "const")) {
+            return .keyword_const;
+        } else if (std.mem.eql(u8, literal, "node")) {
+            return .keyword_node;
+        } else return null;
+    }
 };
 
 pub const Token = struct {
@@ -53,19 +66,12 @@ pub fn parseToksFromBuf(ctx: *Context) !void {
     var last_i = it.i;
 
     chars: while (it.nextCodepoint()) |c1| : (last_i = it.i) switch (c1) {
-        '\r', '\t', ' ' => continue,
-        '{',
-        '}',
-        '\n',
-        '=',
-        '(',
-        ')',
-        => try toksAppendCharHere(ctx, c1),
+        '\r', '\t', ' ', '\n' => continue,
+        '(', ')' => try toksAppendCharHere(ctx, c1),
         '/' => {
             if (ctx.buf[it.i] != '/') {
                 try toksAppendCharHere(ctx, c1);
                 return ctx.err(
-                    .char,
                     "invalid '/'; did you mean '//' to start a comment?",
                     .{},
                 );
@@ -83,7 +89,6 @@ pub fn parseToksFromBuf(ctx: *Context) !void {
                 if (ctx.buf[it.i] == '\n') {
                     try toksAppendCharHere(ctx, c1);
                     return ctx.err(
-                        .char,
                         "expected '\"' to end string before newline " ++
                             "(multiline strings not yet implemented)",
                         .{},
@@ -106,30 +111,35 @@ pub fn parseToksFromBuf(ctx: *Context) !void {
             if (c1 != '@' and !isValidSymbolChar(@intCast(c1))) {
                 try toksAppendCharHere(ctx, c1);
                 return ctx.err(
-                    .char,
                     "'{c}' is invalid syntax",
                     .{std.math.lossyCast(u8, c1)},
                 );
             }
-
-            const beg_i: u32 = @intCast(last_i);
 
             const this_kind: Kind = switch (c1) {
                 '@' => .builtin,
                 else => .ident,
             };
 
+            const beg_i: u32 = @intCast(last_i);
+
             if (isValidSymbolChar(it.peek(1)[0])) {
                 while (it.nextCodepoint()) |_| : (last_i = it.i) {
                     if (!isValidSymbolChar(it.peek(1)[0])) break;
                 }
             }
+            const end_i = it.i;
 
-            try ctx.toks.append(allocator, .{
+            const new_tok = Token{
                 .beg_i = beg_i,
-                .end_i = @intCast(it.i),
-                .kind = @intFromEnum(this_kind),
-            });
+                .end_i = @intCast(end_i),
+                .kind = if (Kind.isKeyword(ctx.buf[beg_i..end_i])) |keyword|
+                    @intFromEnum(keyword)
+                else
+                    @intFromEnum(this_kind),
+            };
+
+            try ctx.toks.append(allocator, new_tok);
         },
     };
 

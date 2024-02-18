@@ -49,11 +49,11 @@ pub fn parseAndPrint(
     if (is_debug) {
         try token.parseToksFromBuf(self);
         try print.toks(self);
-        try ast.parseTreeFromToks(self);
+        try ast.parseTreeFromToks(self, .{});
         try print.debugAst(self);
     } else {
         try token.parseToksFromBuf(self);
-        try ast.parseTreeFromToks(self);
+        try ast.parseTreeFromToks(self, .{});
         try print.prettyAst(use_ansi_clr, self);
     }
 }
@@ -104,22 +104,14 @@ pub fn filePosFromIndex(self: @This(), index: u32) FilePos {
     return pos;
 }
 
-pub fn err(
-    self: *@This(),
-    comptime mode: enum { char, token },
-    comptime fmt: []const u8,
-    args: anytype,
-) anyerror {
+pub fn err(self: *@This(), comptime fmt: []const u8, args: anytype) anyerror {
     const writer = self.err_writer;
 
-    const beg_i = switch (mode) {
-        inline .char => self.buf_it.i,
-        inline .token => if (self.toks.items(.kind)[self.tok_it.i] ==
-            @intFromEnum(token.Kind.eof))
-            self.toks.items(.beg_i)[self.tok_it.i]
-        else
-            self.toks.items(.beg_i)[self.tok_it.i] + 1,
-    };
+    const beg_i = if (self.toks.items(.kind)[self.tok_it.i] ==
+        @intFromEnum(token.Kind.eof))
+        self.toks.items(.beg_i)[self.tok_it.i]
+    else
+        self.toks.items(.beg_i)[self.tok_it.i] + 1;
 
     const pos = self.filePosFromIndex(@intCast(beg_i));
 
@@ -130,13 +122,8 @@ pub fn err(
     for (pos.row_beg_i + 1..beg_i) |_| try writer.writeByte(' ');
     try writer.writeByte('^');
 
-    switch (mode) {
-        inline .char => {},
-        inline .token => {
-            const end_i = self.toks.items(.end_i)[self.tok_it.i];
-            for (beg_i..end_i) |_| try writer.writeByte('~');
-        },
-    }
+    const end_i = self.toks.items(.end_i)[self.tok_it.i];
+    for (beg_i..end_i) |_| try writer.writeByte('~');
 
     try writer.writeByte('\n');
     return error{ParseError}.ParseError;
