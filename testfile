@@ -1,23 +1,12 @@
-week {
-    date = 2023_12_11Z;
-    day { 
-        name = "mon";
-        task {
-            desc = "do something";
-            done = false;
-        }
-    }
-    day { 
-        name = "tue";
-        task {
-            desc = "do something else";
-            done = true;
-        }
-    }
-}
-
-todo {
-    for task: (@all | .@name == "task" | .done == false) {
-        task;
-    }
-}
+(node week
+    (node day
+        (const name 123)
+        (node task
+            (const desc "do something")
+        ))
+    (node day
+        (const name "tue")
+        (node task
+            (const desc "do something else")
+        )))
+(const files (@run "ls"))

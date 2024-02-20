@@ -1,73 +1,76 @@
-#include "base.h"
+#include "base.c"
 
-#include "parse.h"
+#include "args.c"
 
-#ifdef UNITY_BUILD
-    #include "base.c"
-    #include "parse.c"
-#endif
+#define version_lit "0.4-dev"
+const Str8 version_text = str8("nota version " version_lit "\n");
 
-#include <stdio.h>
+const Str8 help_text = str8(
+"nota (version " version_lit ")\n"
+"\n"
+"Usage: nota <file>\n"
+"\n"
+"Options:\n"
+"  -h, --help\n"
+"        Print this help and exit\n"
+"      --version\n"
+"        Print version information and exit\n"
+);
 
-// #define ARGS_IMPLEMENTATION
-// #define ARGS_BINARY_NAME "nota"
-// #define ARGS_BINARY_VERSION "0.4-dev"
-// #include "args.h"
+#include "parse.c"
+
+static error main_wrapper(Parse_Context *ctx) {
+    try (arena_init(&ctx->arena, 4 * 1024));
+
+    Args_Flag help_flag_short = { .name = str8("h") };
+    Args_Flag help_flag_long = { .name = str8("help") };
+    Args_Flag version_flag = { .name = str8("version") };
+    Args_Flag *flags[] = {
+        &help_flag_short, &help_flag_long,
+        &version_flag,
+    };
+    Args_Desc args_desc = {
+        .exe_kind = args_kind_single_pos,
+        .flags = slice(flags),
+    };
+    try (args_parse(ctx->argc, ctx->argv, &args_desc));
+
+    if (help_flag_short.is_present || help_flag_long.is_present) {
+        printf("%.*s", str8_fmt(help_text));
+        return 0;
+    }
+
+    if (version_flag.is_present) {
+        printf("%.*s", str8_fmt(version_text));
+        return 0;
+    }
+
+    ctx->path = args_desc.single_pos;
+    try (file_read(&ctx->arena, ctx->path, "rb", &ctx->bytes));
+    if (ctx->bytes.len >= UINT32_MAX) {
+        usize max_mb = UINT32_MAX / 1024 / 1024;
+        return errf(
+            "file '%.*s' exceeds max size %zu megabytes",
+            str8_fmt(ctx->path), max_mb
+        );
+    }
+    printf("=== FILE BEGIN\\\n%.*s=== FILE END\n", str8_fmt(ctx->bytes));
+
+    try (parse_lex(ctx));
+    parse_print_tokens(ctx);
+
+    return 0;
+}
 
 int main(int argc, char **argv) {
-    (void)argc;
-
-    int exitcode = 1;
-
-    arena arena = { 0 };
-    arena_init(&arena);
-    if (!arena.mem) goto defer;
-
-    // Args_Flag flag_help = { .kind = ARGS_KIND_HELP };
-    // Args_Flag flag_version = { .kind = ARGS_KIND_VERSION };
-    // Args_Def args_def = {
-    //     .arg_list = arg_list_from(argc, argv),
-    //     .flags = (flag_slice)slice_lit({
-    //         &flag_help,
-    //         &flag_version,
-    //     }),
-    //     .info = {
-    //         .desc = str8_lit("parser for the nota langauge"),
-    //         .usage = str8_lit("<file> [options]"),
-    //         .version = str8_lit("0.4-dev"),
-    //     },
-    // };
-
-    const str8 path = str8_from_cstr(argv[1]);
-
-    str8 filebuf = file_read(&arena, path);
-    if (!filebuf.ptr || !filebuf.len) {
-        fprintf(stderr, "error: unable to open '%s'\n", path.ptr);
-        goto defer;
+    if (argc == 1) {
+        printf("%.*s", str8_fmt(help_text));
+        return 1;
     }
 
-    if (filebuf.len >= UINT32_MAX) {
-        const f64 max_mb = UINT32_MAX / 1024 / 1024;
-        fprintf(stderr, 
-            "error: file '%s' is %0.0lf megabytes or larger\n", 
-            path.ptr, max_mb
-        );
-        goto defer;
-    }
-
-    Parse_Context ctx = { 
-        .arena = &arena,
-        .path = path,
-        .buf = filebuf,
-    };
-    
-    if (!parse_tokens_from_buf(&ctx)) goto defer;
-
-    parse_print_tokens(&ctx);
-
-    exitcode = 0;
-
-    defer:
-    arena_deinit(&arena);
-    return exitcode;
+    Parse_Context ctx = { .argc = argc, .argv = argv };
+    error e = main_wrapper(&ctx);
+    arena_deinit(&ctx.arena);
+    return e;
 }
+
