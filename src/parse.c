@@ -83,7 +83,7 @@ static error parse_lex(Parse_Context *ctx) {
         }
 
         u32 symbol_beg_i = i;
-        while (!parse_char_is_symbol(buf.ptr[i]) && i < buf.len) i += 1;
+        while (parse_char_is_symbol(buf.ptr[i]) && i < buf.len) i += 1;
         u32 symbol_end_i = i;
         slice_push(*toks, ((Parse_Token){ 
             .kind = parse_token_kind_symbol, 
