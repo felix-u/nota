@@ -300,14 +300,18 @@ static error parse_eval_sexpr(Parse_Context *ctx, Parse_Sexpr *sexpr) {
             return err("unimplemented");
         }; break;
         case parse_sexpr_kind_pair: {
-            return err("TODO: evaluate items after first, then call first");
-            u32 sexpr_i = s.lhs;
-            do {
-                try (parse_eval_sexpr(ctx, &ctx->sexprs.ptr[sexpr_i]));
-                sexpr_i = ctx->sexprs.ptr[sexpr_i].rhs;
-            } while (sexpr_i != 0);
+            // return err("TODO: evaluate items after first, then call first");
+            Parse_Sexpr *first = &ctx->sexprs.ptr[s.lhs];
+            Parse_Sexpr *next = &ctx->sexprs.ptr[first->rhs];
+            while (next->rhs != 0) {
+                parse_print_sexpr_info(*next);
+                try (parse_eval_sexpr(ctx, next));
+                next = &ctx->sexprs.ptr[next->rhs];
+            }
+            return err("unimplemented: lookup func & eval");
         }; break;
     }
+    return 0;
 }
 
 static error parse_eval_ast(Parse_Context *ctx) {
