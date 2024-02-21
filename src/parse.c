@@ -106,22 +106,19 @@ static void parse_print_sexpr(
     usize indent_level
 ) {
     Parse_Sexpr_Slice sexprs = ctx->sexprs;
-    for (usize i = 0; i < indent_level; i += 1) putchar('\t');
-    parse_print_sexpr_info(sexpr);
+    for (usize i = 0; i < indent_level; i += 1) printf("    ");
 
     switch (sexpr.kind) {
-        case parse_sexpr_kind_nil: {
-            putchar('\n'); 
-            for (usize i = 1; i < indent_level; i += 1) putchar('\t');
-            printf(")\n");
-        } break;
+        case parse_sexpr_kind_nil: printf("<nil>\n"); break;
         case parse_sexpr_kind_atom: {
+            parse_print_sexpr_info(sexpr);
             putchar(' ');
             parse_print_token(ctx, ctx->toks.ptr[sexpr.lhs]);
             putchar('\n');
         } break;
         case parse_sexpr_kind_pair: {
-            printf(" (\n");
+            parse_print_sexpr_info(sexpr);
+            putchar('\n');
             for (
                 u32 sexpr_i = sexpr.lhs; 
                 sexpr_i != 0; 
@@ -226,16 +223,15 @@ static error parse_ast_from_toks(Parse_Context *ctx) {
             continue;
         }
         switch (tok.kind) {
-            case parse_token_kind_symbol: {
+            case parse_token_kind_symbol: 
+            case parse_token_kind_string: 
+            {
                 u32 rhs = (u32)sexprs->len + 1;
                 slice_push(*sexprs, ((Parse_Sexpr){
                     .kind = parse_sexpr_kind_atom,
                     .lhs = *i,
                     .rhs = rhs,
                 }));
-            }; break;
-            case parse_token_kind_string: {
-                return err("unimplemented");
             }; break;
             default: {
                 return errf("invalid token at index %d", *i);
