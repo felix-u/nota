@@ -15,7 +15,6 @@ typedef struct {
     u32 beg_i;
     u32 end_i;
 } Parse_Token;
-
 typedef Slice(Parse_Token) Parse_Token_Slice;
 
 typedef enum {
@@ -29,8 +28,14 @@ typedef struct {
     u32 lhs;
     u32 rhs;
 } Parse_Sexpr;
-
 typedef Slice(Parse_Sexpr) Parse_Sexpr_Slice;
+
+typedef error (*parse_eval_fn)(void *ctx, void *extra);
+typedef struct {
+    Str8 name;
+    parse_eval_fn eval_fn;
+} Parse_Symbol;
+typedef Slice(Parse_Symbol) Parse_Symbol_Slice;
 
 typedef struct {
     Arena arena;
@@ -45,6 +50,7 @@ typedef struct {
     u32 tok_i;
     Parse_Sexpr ast_root;
     Parse_Sexpr_Slice sexprs;
+    Parse_Symbol_Slice symbols;
 } Parse_Context;
 
 const bool parse_char_is_whitespace_table[256] = {
@@ -243,3 +249,72 @@ static error parse_ast_from_toks(Parse_Context *ctx) {
     return 0;
 }
 
+static error parse_ensure_arity(
+    Parse_Context *ctx, 
+    Parse_Sexpr sexpr, 
+    u32 arity
+) {
+    u32 count = 0;
+    while (sexpr.rhs != 0 && count < arity) {
+        sexpr = ctx->sexprs.ptr[sexpr.rhs];
+        count += 1;
+    }
+    if (sexpr.rhs != 0) return errf("arity greater than %d", arity);
+    if (count != arity) {
+        return errf("expected arity %d but got %d", arity, count);
+    }
+    return 0;
+}
+
+static error parse_builtin_const_fn(void *_ctx, void *extra) {
+    Parse_Context *ctx = _ctx;
+    u32 *sexpr_i = (u32 *)extra;
+    u32 cdr_i = ctx->sexprs.ptr[*sexpr_i].rhs;
+    Parse_Sexpr cdr = ctx->sexprs.ptr[cdr_i];
+
+    try (parse_ensure_arity(ctx, cdr, 2));
+    return 0;
+}
+
+static error parse_eval_init(Parse_Context *ctx) {
+    try (arena_alloc(
+        &ctx->arena, 
+        ctx->sexprs.len * sizeof(Parse_Symbol), 
+        &ctx->symbols.ptr
+    ));
+
+    slice_push(ctx->symbols, ((Parse_Symbol){
+        .name = str8("const"),
+        .eval_fn = parse_builtin_const_fn,
+    }));
+
+    return 0;
+}
+
+static error parse_eval_sexpr(Parse_Context *ctx, Parse_Sexpr *sexpr) {
+    (void)ctx;
+    Parse_Sexpr s = *sexpr;
+    switch (s.kind) {
+        case parse_sexpr_kind_nil: return 0; break;
+        case parse_sexpr_kind_atom: {
+            return err("unimplemented");
+        }; break;
+        case parse_sexpr_kind_pair: {
+            return err("TODO: evaluate items after first, then call first");
+            u32 sexpr_i = s.lhs;
+            do {
+                try (parse_eval_sexpr(ctx, &ctx->sexprs.ptr[sexpr_i]));
+                sexpr_i = ctx->sexprs.ptr[sexpr_i].rhs;
+            } while (sexpr_i != 0);
+        }; break;
+    }
+}
+
+static error parse_eval_ast(Parse_Context *ctx) {
+    u32 sexpr_i = 0;
+    do {
+        try (parse_eval_sexpr(ctx, &ctx->sexprs.ptr[sexpr_i]));
+        sexpr_i = ctx->sexprs.ptr[sexpr_i].rhs;
+    } while (sexpr_i != 0);
+    return 0;
+}
