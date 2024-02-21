@@ -121,6 +121,7 @@ static error parse_lex(Parse_Context *ctx) {
             .beg_i = symbol_beg_i,
             .end_i = symbol_end_i,
         }));
+        i -= 1;
     }
 
     return 0;
