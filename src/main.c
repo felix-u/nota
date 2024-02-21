@@ -57,7 +57,9 @@ static error main_wrapper(Parse_Context *ctx) {
     printf("=== FILE BEGIN\\\n%.*s=== FILE END\n", str8_fmt(ctx->bytes));
 
     try (parse_lex(ctx));
+    printf("=== TOKENS BEGIN\n");
     parse_print_tokens(ctx);
+    printf("=== TOKENS END\n");
 
     return 0;
 }

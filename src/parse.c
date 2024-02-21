@@ -1,11 +1,13 @@
+#include <assert.h>
+
 typedef enum {
     // ASCII characters not enumerated here
-    token_kind_ascii_end = 128,
+    parse_token_kind_ascii_end = 128,
 
-    token_kind_symbol,
-    token_kind_string,
+    parse_token_kind_symbol,
+    parse_token_kind_string,
 
-    token_kind_count,
+    parse_token_kind_count,
 } Parse_Token_Kind;
 
 typedef struct {
@@ -40,13 +42,25 @@ static bool parse_char_is_symbol(u8 c) {
         !parse_char_is_syntax_table[c];
 }
 
+static Str8 parse_tok_lexeme(Parse_Context *ctx, Parse_Token tok) {
+    return str8_range(ctx->bytes, tok.beg_i, tok.end_i);
+}
+
+static Str8 parse_string_from_token_kind(Parse_Token_Kind kind) {
+    if (kind < parse_token_kind_ascii_end) return str8("<character>");
+    switch (kind) {
+        case parse_token_kind_symbol: return str8("<symbol>"); break;
+        case parse_token_kind_string: return str8("<string>"); break;
+        default: assert(false && "unreachable");
+    }
+}
+
 static void parse_print_tokens(Parse_Context *ctx) {
     Parse_Token_Slice toks = ctx->toks;
     for (u32 i = 0; i < toks.len; i += 1) {
-        // Parse_Token tok = toks.ptr[i];
-        Str8 lexeme = str8("LEXEME_PLACEHOLDER");
-        // Str8 tok_kind_string = parse_token_kind_string_table[tok.kind];
-        Str8 tok_kind_string = str8("TOK_KIND_PLACEHOLDER");
+        Parse_Token tok = toks.ptr[i];
+        Str8 lexeme = parse_tok_lexeme(ctx, tok);
+        Str8 tok_kind_string = parse_string_from_token_kind(tok.kind);
         printf("%d\t%.*s\t%.*s\n", i, str8_fmt(lexeme), str8_fmt(tok_kind_string));
     }
 }
@@ -72,7 +86,7 @@ static error parse_lex(Parse_Context *ctx) {
         while (!parse_char_is_symbol(buf.ptr[i]) && i < buf.len) i += 1;
         u32 symbol_end_i = i;
         slice_push(*toks, ((Parse_Token){ 
-            .kind = token_kind_symbol, 
+            .kind = parse_token_kind_symbol, 
             .beg_i = symbol_beg_i,
             .end_i = symbol_end_i,
         }));
