@@ -63,7 +63,7 @@ static error main_wrapper(Parse_Context *ctx) {
 
     try (parse_ast_from_toks(ctx));
     printf("=== AST BEGIN\n");
-    printf("Ast print unimplemented\n");
+    parse_print_ast(ctx);
     printf("=== AST END\n");
 
     return 0;
