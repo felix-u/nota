@@ -19,16 +19,17 @@ typedef struct {
 typedef Slice(Parse_Token) Parse_Token_Slice;
 
 typedef enum {
-    parse_sexpr_kind_literal,
-    parse_sexpr_kind_reference,
-    parse_sexpr_kind_count,
+    parse_sexpr_kind_atom,
+    parse_sexpr_kind_pair,
 } Parse_Sexpr_Kind;
 
 typedef struct {
     Parse_Sexpr_Kind kind; 
-    void *this;
-    void *next;
+    u32 lhs;
+    u32 rhs;
 } Parse_Sexpr;
+
+typedef Slice(Parse_Sexpr) Parse_Sexpr_Slice;
 
 typedef struct {
     Arena arena;
@@ -37,8 +38,12 @@ typedef struct {
 
     Str8 path;
     Str8 bytes;
+
     Parse_Token_Slice toks;
+
+    u32 tok_i;
     Parse_Sexpr ast_root;
+    Parse_Sexpr_Slice sexprs;
 } Parse_Context;
 
 const bool parse_char_is_whitespace_table[256] = {
@@ -122,8 +127,37 @@ static error parse_lex(Parse_Context *ctx) {
 }
 
 static error parse_ast_from_toks(Parse_Context *ctx) {
-    Parse_Token_Slice *toks = &ctx->toks;
-    (void)toks;
+    Parse_Token_Slice toks = ctx->toks;
+    Parse_Sexpr_Slice *sexprs = &ctx->sexprs;
+    u32 *i = &ctx->tok_i;
+    if (*i == 0) try (
+        arena_alloc(&ctx->arena, toks.len * sizeof(Parse_Sexpr), &sexprs->ptr)
+    );
+
+    for (
+        Parse_Token tok = toks.ptr[*i]; 
+        *i < toks.len; 
+        *i += 1, tok = toks.ptr[*i]
+    ) {
+        if (tok.kind == ')') return 0;
+        if (tok.kind == '(') {
+            *i += 1;
+            try (parse_ast_from_toks(ctx)); 
+            continue;
+        }
+        switch (tok.kind) {
+            case parse_token_kind_symbol: {
+                return err("unimplemented");
+            }; break;
+            case parse_token_kind_string: {
+                return err("unimplemented");
+            }; break;
+            default: {
+                return errf("invalid token at index %d", *i);
+            }break;
+        }
+    }
+
     return 0;
 }
 

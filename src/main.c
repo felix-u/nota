@@ -20,7 +20,7 @@ const Str8 help_text = str8(
 #include "parse.c"
 
 static error main_wrapper(Parse_Context *ctx) {
-    try (arena_init(&ctx->arena, 4 * 1024));
+    try (arena_init(&ctx->arena, 16 * 1024 * 1024));
 
     Args_Flag help_flag_short = { .name = str8("h") };
     Args_Flag help_flag_long = { .name = str8("help") };
@@ -60,6 +60,11 @@ static error main_wrapper(Parse_Context *ctx) {
     printf("=== TOKENS BEGIN\n");
     parse_print_tokens(ctx);
     printf("=== TOKENS END\n");
+
+    try (parse_ast_from_toks(ctx));
+    printf("=== AST BEGIN\n");
+    printf("Ast print unimplemented\n");
+    printf("=== AST END\n");
 
     return 0;
 }

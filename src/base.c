@@ -44,21 +44,27 @@ static error fatal(char *file, usize line, const char *func) {
 #define try(expression) \
     if ((expression) != 0) return fatal(__FILE__, __LINE__, __func__)
 
-#define err(s) _err(__func__, s)
-static error _err(const char *func, char *s) {
+#define err(s) _err(__FILE__, __LINE__, __func__, s)
+static error _err(char *file, usize line, const char *func, char *s) {
     fprintf(stderr, "error: %s\n", s);
 
     #ifdef DEBUG
-        fprintf(stderr, "note: in function '%s'\n", func);
+        fprintf(
+            stderr, 
+            "%s:%zu:%s(): error first returned here\n", 
+            file, line, func
+        );
     #else
+        (void)file;
+        (void)line;
         (void)func;
     #endif // DEBUG
 
     return 1;
 }
 
-#define errf(fmt, ...) _errf(__func__, fmt, __VA_ARGS__)
-static error _errf(const char *func, char *fmt, ...) {
+#define errf(fmt, ...) _errf(__FILE__, __LINE__, __func__, fmt, __VA_ARGS__)
+static error _errf(char *file, usize line, const char *func, char *fmt, ...) {
     fprintf(stderr, "error: ");
     va_list args;
     va_start(args, fmt);
@@ -67,8 +73,14 @@ static error _errf(const char *func, char *fmt, ...) {
     fprintf(stderr, "\n");
 
     #ifdef DEBUG
-        fprintf(stderr, "note: in function '%s'\n", func);
+        fprintf(
+            stderr, 
+            "%s:%zu:%s(): error first returned here\n", 
+            file, line, func
+        );
     #else
+        (void)file;
+        (void)line;
         (void)func;
     #endif // DEBUG
 
