@@ -18,6 +18,18 @@ typedef struct {
 
 typedef Slice(Parse_Token) Parse_Token_Slice;
 
+typedef enum {
+    parse_sexpr_kind_literal,
+    parse_sexpr_kind_reference,
+    parse_sexpr_kind_count,
+} Parse_Sexpr_Kind;
+
+typedef struct {
+    Parse_Sexpr_Kind kind; 
+    void *this;
+    void *next;
+} Parse_Sexpr;
+
 typedef struct {
     Arena arena;
     int argc;
@@ -26,15 +38,14 @@ typedef struct {
     Str8 path;
     Str8 bytes;
     Parse_Token_Slice toks;
+    Parse_Sexpr ast_root;
 } Parse_Context;
 
 const bool parse_char_is_whitespace_table[256] = {
     ['\r'] = 1, ['\n'] = 1, [' '] = 1, ['\t'] = 1,
 };
 
-const bool parse_char_is_syntax_table[256] = {
-    ['('] = 1, [')'] = 1,
-};
+const bool parse_char_is_syntax_table[256] = { ['('] = 1, [')'] = 1, };
 
 static bool parse_char_is_symbol(u8 c) {
     return 
@@ -82,8 +93,23 @@ static error parse_lex(Parse_Context *ctx) {
             continue;
         }
 
+        if (buf.ptr[i] == '"') {
+            i += 1;
+            u32 string_beg_i = i;
+            while (i < buf.len && buf.ptr[i] != '"') i += 1;
+            if (i >= buf.len) return err("string never terminates");
+            u32 string_end_i = i;
+
+            slice_push(*toks, ((Parse_Token){
+                .kind = parse_token_kind_string,
+                .beg_i = string_beg_i,
+                .end_i = string_end_i,
+            }));
+            continue;
+        }
+
         u32 symbol_beg_i = i;
-        while (parse_char_is_symbol(buf.ptr[i]) && i < buf.len) i += 1;
+        while (i < buf.len && parse_char_is_symbol(buf.ptr[i])) i += 1;
         u32 symbol_end_i = i;
         slice_push(*toks, ((Parse_Token){ 
             .kind = parse_token_kind_symbol, 
@@ -92,6 +118,12 @@ static error parse_lex(Parse_Context *ctx) {
         }));
     }
 
+    return 0;
+}
+
+static error parse_ast_from_toks(Parse_Context *ctx) {
+    Parse_Token_Slice *toks = &ctx->toks;
+    (void)toks;
     return 0;
 }
 
