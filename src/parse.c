@@ -292,7 +292,6 @@ static error parse_eval_init(Parse_Context *ctx) {
 }
 
 static error parse_eval_sexpr(Parse_Context *ctx, Parse_Sexpr *sexpr) {
-    (void)ctx;
     Parse_Sexpr s = *sexpr;
     switch (s.kind) {
         case parse_sexpr_kind_nil: return 0; break;
