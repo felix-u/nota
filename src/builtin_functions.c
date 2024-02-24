@@ -34,8 +34,8 @@ static error parse_builtin_run_fn(
     Parse_Context *ctx = _ctx;
     Parse_Sexpr cdr = ctx->sexprs.ptr[sexpr.rhs];
     try (parse_ensure_arity(ctx, cdr, 1));
+
     *out_sexpr = _sexpr_from_string(ctx, str8("PLACEHOLDER"));
-    out_sexpr->rhs = sexpr.rhs;
     printf("BUILTIN_RUN_FN: PLACEHOLDER\n");
     return 0;
 }

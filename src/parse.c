@@ -149,6 +149,14 @@ static void parse_print_sexpr_info(Parse_Sexpr sexpr) {
     );
 }
 
+static void parse_print_intern(Parse_Intern intern) {
+    switch (intern.type) {
+        case parse_intern_type_string: {
+            printf("intern string: '%.*s'", str8_fmt(intern.data.str));
+        }; break;
+    }
+}
+
 static void parse_print_sexpr(
     Parse_Context *ctx, 
     Parse_Sexpr sexpr, 
@@ -162,7 +170,15 @@ static void parse_print_sexpr(
         case parse_sexpr_kind_atom: {
             parse_print_sexpr_info(sexpr);
             putchar(' ');
-            parse_print_token(ctx, ctx->toks.ptr[sexpr.lhs]);
+            switch ((Parse_Sexpr_As)sexpr.tag.as) {
+                case parse_sexpr_as_literal:
+                case parse_sexpr_as_symbol: {
+                    parse_print_token(ctx, ctx->toks.ptr[sexpr.lhs]);
+                } break;
+                case parse_sexpr_as_intern: {
+                    parse_print_intern(ctx->interns.ptr[sexpr.lhs]);
+                } break;
+            }
             putchar('\n');
         } break;
         case parse_sexpr_kind_pair: {
@@ -316,12 +332,8 @@ static error parse_ensure_arity(
         sexpr = ctx->sexprs.ptr[sexpr.rhs];
         count += 1;
     }
-    if (sexpr.rhs != 0) {
-        parse_print_ast(ctx);
-        return errf("arity not equal to %d", arity);
-    }
+    if (sexpr.rhs != 0) return errf("arity greater than %d", arity);
     if (count != arity) {
-        parse_print_ast(ctx);
         return errf("expected arity %d but got %d", arity, count);
     }
     return 0;
@@ -405,7 +417,7 @@ static error parse_eval_sexpr(
                 next = &ctx->sexprs.ptr[next->rhs];
             }
             try (parse_function_eval(ctx, *first, out_sexpr));
-            // return err("unimplemented: lookup func & eval");
+            out_sexpr->rhs = sexpr.rhs;
         }; break;
     }
     return 0;
