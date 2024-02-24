@@ -66,8 +66,14 @@ static error main_wrapper(Parse_Context *ctx) {
     parse_print_ast(ctx);
     printf("=== AST END\n");
 
+    printf("=== EVAL BEGIN\n");
     try (parse_eval_init(ctx));
     try (parse_eval_ast(ctx));
+    printf("=== EVAL END\n");
+
+    printf("=== AST BEGIN\n");
+    parse_print_ast(ctx);
+    printf("=== AST END\n");
 
     return 0;
 }
