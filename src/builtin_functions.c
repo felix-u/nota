@@ -36,7 +36,7 @@ static error parse_builtin_run_fn(
     try (parse_ensure_arity(ctx, cdr, 1));
 
     char tmpfile_path_buf[64] = {0};
-    snprintf(tmpfile_path_buf, 64, "tmp_nota%d", rand() % 100000);
+    snprintf(tmpfile_path_buf, 64, "/tmp/tmp_nota%d", rand() % 100000);
     Str8 tmpfile_path = str8_from_cstr(tmpfile_path_buf);
 
     Str8 cmd_str8 = parse_tok_lexeme(ctx, ctx->toks.ptr[cdr.lhs]);
@@ -66,7 +66,6 @@ static error parse_builtin_run_fn(
     }
 
     *out_sexpr = _sexpr_from_string(ctx, cmd_output_capture);
-    printf("BUILTIN_RUN_FN: PLACEHOLDER\n");
     return 0;
 }
 

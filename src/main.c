@@ -71,7 +71,7 @@ static error main_wrapper(Parse_Context *ctx) {
     try (parse_eval_ast(ctx));
     printf("=== EVAL END\n");
 
-    printf("=== AST BEGIN\n");
+    printf("=== AST BEGIN (POST-EVALUATION)\n");
     parse_print_ast(ctx);
     printf("=== AST END\n");
 
