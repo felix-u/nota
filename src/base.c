@@ -152,11 +152,11 @@ static Str8 str8_from_cstr(char *s) {
     return (Str8){ .ptr = (u8 *)s, .len = len };
 }
 
-static char *cstr_from_str8(Arena *arena, Str8 s) {
-    char *cstr; arena_alloc(arena, s.len + 1, &cstr);
-    for (usize i = 0; i < s.len; i += 1) cstr[i] = s.ptr[i];
-    cstr[s.len] = '\0';
-    return cstr;
+static error cstr_from_str8(Arena *arena, Str8 s, char **out) {
+    try (arena_alloc(arena, s.len + 1, out));
+    for (usize i = 0; i < s.len; i += 1) (*out)[i] = s.ptr[i];
+    (*out)[s.len] = '\0';
+    return 0;
 }
 
 // Only bases <= 10
