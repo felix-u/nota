@@ -4,7 +4,7 @@ typedef enum {
     // ASCII characters not enumerated here
     parse_token_kind_ascii_end = 128,
 
-    parse_token_kind_symbol,
+    parse_token_kind_ident,
     parse_token_kind_string,
 
     parse_token_kind_count,
@@ -23,8 +23,18 @@ typedef enum {
     parse_sexpr_kind_pair,
 } Parse_Sexpr_Kind;
 
+typedef enum {
+    parse_sexpr_as_literal,
+    parse_sexpr_as_symbol,
+} Parse_Sexpr_As;
+
 typedef struct {
-    Parse_Sexpr_Kind kind; 
+    u16 kind;
+    u16 as;
+} Parse_Sexpr_Tag;
+
+typedef struct {
+    Parse_Sexpr_Tag tag;
     u32 lhs;
     u32 rhs;
 } Parse_Sexpr;
@@ -57,7 +67,9 @@ const bool parse_char_is_whitespace_table[256] = {
     ['\r'] = 1, ['\n'] = 1, [' '] = 1, ['\t'] = 1,
 };
 
-const bool parse_char_is_syntax_table[256] = { ['('] = 1, [')'] = 1, };
+const bool parse_char_is_syntax_table[256] = { 
+    ['('] = 1, [')'] = 1, ['\''] = 1
+};
 
 static bool parse_char_is_symbol(u8 c) {
     return 
@@ -72,7 +84,7 @@ static Str8 parse_tok_lexeme(Parse_Context *ctx, Parse_Token tok) {
 static Str8 parse_string_from_token_kind(Parse_Token_Kind kind) {
     if (kind < parse_token_kind_ascii_end) return str8("<character>");
     switch (kind) {
-        case parse_token_kind_symbol: return str8("<symbol>"); break;
+        case parse_token_kind_ident: return str8("<ident>"); break;
         case parse_token_kind_string: return str8("<string>"); break;
         default: assert(false && "unreachable");
     }
@@ -97,13 +109,26 @@ static Str8 parse_string_from_sexpr_kind(Parse_Sexpr_Kind kind) {
     switch (kind) {
         case parse_sexpr_kind_nil : return str8("<NIL>");  break;
         case parse_sexpr_kind_atom: return str8("<atom>"); break;
-        case parse_sexpr_kind_pair: return str8("<pair>"); break;
+        case parse_sexpr_kind_pair: return str8("<list>"); break;
+    }
+}
+
+static Str8 parse_string_from_sexpr_as(Parse_Sexpr_As as) {
+    switch (as) {
+        case parse_sexpr_as_literal: return str8("(literal)"); break;
+        case parse_sexpr_as_symbol:  return str8("(symbol)");  break;
     }
 }
 
 static void parse_print_sexpr_info(Parse_Sexpr sexpr) {
-    Str8 sexpr_kind_string = parse_string_from_sexpr_kind(sexpr.kind);
-    printf("%.*s l%d r%d", str8_fmt(sexpr_kind_string), sexpr.lhs, sexpr.rhs);
+    Str8 sexpr_kind_string = parse_string_from_sexpr_kind(sexpr.tag.kind);
+    Str8 sexpr_as_string = parse_string_from_sexpr_as(sexpr.tag.as);
+    printf(
+        "%.*s %.*s l%d r%d", 
+        str8_fmt(sexpr_kind_string), 
+        str8_fmt(sexpr_as_string), 
+        sexpr.lhs, sexpr.rhs
+    );
 }
 
 static void parse_print_sexpr(
@@ -114,7 +139,7 @@ static void parse_print_sexpr(
     Parse_Sexpr_Slice sexprs = ctx->sexprs;
     for (usize i = 0; i < indent_level; i += 1) printf("    ");
 
-    switch (sexpr.kind) {
+    switch (sexpr.tag.kind) {
         case parse_sexpr_kind_nil: printf("<nil>\n"); break;
         case parse_sexpr_kind_atom: {
             parse_print_sexpr_info(sexpr);
@@ -186,7 +211,7 @@ static error parse_lex(Parse_Context *ctx) {
         while (i < buf.len && parse_char_is_symbol(buf.ptr[i])) i += 1;
         u32 symbol_end_i = i;
         slice_push(*toks, ((Parse_Token){ 
-            .kind = parse_token_kind_symbol, 
+            .kind = parse_token_kind_ident, 
             .beg_i = symbol_beg_i,
             .end_i = symbol_end_i,
         }));
@@ -209,9 +234,17 @@ static error parse_ast_from_toks(Parse_Context *ctx) {
         *i < toks.len; 
         *i += 1, tok = toks.ptr[*i]
     ) {
+        Parse_Sexpr_As as = parse_sexpr_as_literal;
+        if (tok.kind == '\'') {
+            as = parse_sexpr_as_symbol;
+            *i += 1;
+            if (*i == toks.len) break;
+            tok = toks.ptr[*i];
+        }
+
         if (tok.kind == ')') {
             slice_push(*sexprs, ((Parse_Sexpr){
-                .kind = parse_sexpr_kind_nil,
+                .tag.kind = parse_sexpr_kind_nil,
                 .lhs = *i,
             }));
             return 0;
@@ -221,7 +254,10 @@ static error parse_ast_from_toks(Parse_Context *ctx) {
             u32 lhs = (u32)sexprs->len + 1;
             u32 sexpr_to_fix_rhs_i = (u32)sexprs->len;
             slice_push(*sexprs, ((Parse_Sexpr){
-                .kind = parse_sexpr_kind_pair,
+                .tag = (Parse_Sexpr_Tag){
+                    .kind = parse_sexpr_kind_pair,
+                    .as = (u16)as,
+                },
                 .lhs = lhs,
             }));
             try (parse_ast_from_toks(ctx)); 
@@ -229,23 +265,26 @@ static error parse_ast_from_toks(Parse_Context *ctx) {
             continue;
         }
         switch (tok.kind) {
-            case parse_token_kind_symbol: 
+            case parse_token_kind_ident: 
             case parse_token_kind_string: 
             {
                 u32 rhs = (u32)sexprs->len + 1;
                 slice_push(*sexprs, ((Parse_Sexpr){
-                    .kind = parse_sexpr_kind_atom,
+                    .tag = (Parse_Sexpr_Tag){
+                        .kind = parse_sexpr_kind_atom,
+                        .as = (u16)as,
+                    },
                     .lhs = *i,
                     .rhs = rhs,
                 }));
             }; break;
             default: {
                 return errf("invalid token at index %d", *i);
-            }break;
+            } break;
         }
     }
 
-    slice_push(*sexprs, ((Parse_Sexpr){ .kind = parse_sexpr_kind_nil }));
+    slice_push(*sexprs, ((Parse_Sexpr){ .tag.kind = parse_sexpr_kind_nil }));
     return 0;
 }
 
@@ -293,7 +332,7 @@ static error parse_eval_init(Parse_Context *ctx) {
 
 static error parse_eval_sexpr(Parse_Context *ctx, Parse_Sexpr *sexpr) {
     Parse_Sexpr s = *sexpr;
-    switch (s.kind) {
+    switch (s.tag.kind) {
         case parse_sexpr_kind_nil: return 0; break;
         case parse_sexpr_kind_atom: {
             return err("unimplemented");
