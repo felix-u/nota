@@ -456,7 +456,15 @@ static error parse_eval_sexpr(
                 case parse_sexpr_as_literal: return 0; break;
                 case parse_sexpr_as_symbol: return 0; break;
                 case parse_sexpr_as_ident: {
-                    return err("TODO: identifier lookup");
+                    Parse_Token ident_name_tok = ctx->toks.ptr[sexpr.lhs];
+                    Str8 ident_name = parse_tok_lexeme(ctx, ident_name_tok);
+                    Parse_Ident *resolved = 
+                        parse_lookup_ident(ctx, ident_name);
+                    if (resolved == NULL) return errf(
+                        "no such identifier '%.*s'\nTODO: fn lookup here?", 
+                        str8_fmt(ident_name)
+                    );
+                    *out_sexpr = ctx->sexprs.ptr[resolved->value_sexpr_i];
                 } break;
             }
         }; break;

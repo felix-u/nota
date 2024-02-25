@@ -1,2 +1,2 @@
-(const 'files (run "ls"))
-(const 'files2 "some stuff")
+(const 'kernel (run "uname -r | tr -d '\n'"))
+(const 'kernel-through-symbol-reference kernel)
