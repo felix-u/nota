@@ -1,14 +1,14 @@
 static Parse_Sexpr _sexpr_from_string(Parse_Context *ctx, Str8 str) {
-    slice_push(ctx->interns, ((Parse_Intern){
-        .type = parse_intern_type_string,
+    slice_push(ctx->literals, ((Parse_Literal){
+        .type = parse_literal_type_string,
         .data.str = str,
     }));
     return (Parse_Sexpr){
         .tag = (Parse_Sexpr_Tag){
             .kind = parse_sexpr_kind_atom,
-            .as = parse_sexpr_as_intern,
+            .as = parse_sexpr_as_literal,
         },
-        .lhs = (u32)ctx->interns.len - 1,
+        .lhs = (u32)ctx->literals.len - 1,
     };
 }
 
@@ -39,13 +39,17 @@ static error parse_builtin_run_fn(
     snprintf(tmpfile_path_buf, 64, "/tmp/tmp_nota%d", rand() % 100000);
     Str8 tmpfile_path = str8_from_cstr(tmpfile_path_buf);
 
-    Str8 cmd_str8 = parse_tok_lexeme(ctx, ctx->toks.ptr[cdr.lhs]);
+    Parse_Literal cmd_str_literal = ctx->literals.ptr[cdr.lhs];
+    if (cmd_str_literal.type != parse_literal_type_string) {
+        return err("expected string literal");
+    }
+
     char cmd_buf[2048] = {0};
     snprintf(
         cmd_buf, 
         2048,  
         "%.*s > %.*s", 
-        str8_fmt(cmd_str8), 
+        str8_fmt(cmd_str_literal.data.str), 
         str8_fmt(tmpfile_path)
     );
 
