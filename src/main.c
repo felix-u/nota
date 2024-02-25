@@ -11,6 +11,8 @@ const Str8 help_text = str8(
 "Usage: nota <file>\n"
 "\n"
 "Options:\n"
+"      --debug\n"
+"        Print debug information\n"
 "  -h, --help\n"
 "        Print this help and exit\n"
 "      --version\n"
@@ -18,14 +20,17 @@ const Str8 help_text = str8(
 );
 
 #include "parse.c"
+#include "print.c"
 
 static error main_wrapper(Parse_Context *ctx) {
     try (arena_init(&ctx->arena, 16 * 1024 * 1024));
 
+    Args_Flag debug_flag = { .name = str8("debug") };
     Args_Flag help_flag_short = { .name = str8("h") };
     Args_Flag help_flag_long = { .name = str8("help") };
     Args_Flag version_flag = { .name = str8("version") };
     Args_Flag *flags[] = {
+        &debug_flag,
         &help_flag_short, &help_flag_long,
         &version_flag,
     };
@@ -54,30 +59,24 @@ static error main_wrapper(Parse_Context *ctx) {
             str8_fmt(ctx->path), max_mb
         );
     }
-    printf("=== FILE BEGIN\\\n%.*s=== FILE END\n", str8_fmt(ctx->bytes));
+    if (debug_flag.is_present) {
+        printf("File:\\\n%.*s\\ File end\n", str8_fmt(ctx->bytes));
+    }
 
     try (parse_lex(ctx));
-    printf("=== TOKENS BEGIN\n");
-    parse_print_tokens(ctx);
-    printf("=== TOKENS END\n");
+    if (debug_flag.is_present) print_tokens(ctx);
 
     try (parse_ast_from_toks(ctx));
-    printf("=== AST BEGIN\n");
-    parse_print_ast(ctx);
-    printf("=== AST END\n");
+    if (debug_flag.is_present) print_ast(ctx);
 
-    printf("=== EVAL BEGIN\n");
+    if (debug_flag.is_present) printf("\nEvaluating... ");
     try (parse_eval_init(ctx));
     try (parse_eval_ast(ctx));
-    printf("=== EVAL END\n");
-
-    printf("=== AST BEGIN (POST-EVALUATION)\n");
-    parse_print_ast(ctx);
-    printf("=== AST END\n");
-
-    printf("=== IDENTS BEGIN\n");
-    parse_print_idents(ctx);
-    printf("=== IDENTS END\n");
+    if (debug_flag.is_present) {
+        printf("Done!\n\n");
+        print_ast(ctx);
+        print_idents(ctx);
+    }
 
     return 0;
 }
