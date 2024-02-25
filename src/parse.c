@@ -64,6 +64,12 @@ typedef struct {
 typedef Slice(Parse_Literal) Parse_Literal_Slice;
 
 typedef struct {
+    u32 name_tok_i;
+    u32 value_sexpr_i;
+} Parse_Ident;
+typedef Slice(Parse_Ident) Parse_Ident_Slice;
+
+typedef struct {
     Arena arena;
     int argc;
     char **argv;
@@ -78,6 +84,7 @@ typedef struct {
     Parse_Sexpr_Slice sexprs;
     Parse_Function_Slice functions;
     Parse_Literal_Slice literals;
+    Parse_Ident_Slice idents;
 } Parse_Context;
 
 const bool parse_char_is_whitespace_table[256] = {
@@ -96,6 +103,17 @@ static bool parse_char_is_ident(u8 c) {
 
 static Str8 parse_tok_lexeme(Parse_Context *ctx, Parse_Token tok) {
     return str8_range(ctx->bytes, tok.beg_i, tok.end_i);
+}
+
+static Parse_Ident *parse_lookup_ident(Parse_Context *ctx, Str8 name) {
+    for (u32 i = 0; i < ctx->idents.len; i += 1) {
+        Parse_Ident ident = ctx->idents.ptr[i];
+        Str8 ident_name = 
+            parse_tok_lexeme(ctx, ctx->toks.ptr[ident.name_tok_i]);
+        if (!str8_eql(ident_name, name)) continue;
+        return &ctx->idents.ptr[i];
+    }
+    return NULL;
 }
 
 static Str8 parse_string_from_token_kind(Parse_Token_Kind kind) {
@@ -139,22 +157,33 @@ static Str8 parse_string_from_sexpr_as(Parse_Sexpr_As as) {
     }
 }
 
-static void parse_print_sexpr_info(Parse_Sexpr sexpr) {
-    Str8 sexpr_kind_string = parse_string_from_sexpr_kind(sexpr.tag.kind);
-    Str8 sexpr_as_string = parse_string_from_sexpr_as(sexpr.tag.as);
-    printf(
-        "%.*s%.*s l%d r%d", 
-        str8_fmt(sexpr_kind_string), 
-        str8_fmt(sexpr_as_string), 
-        sexpr.lhs, sexpr.rhs
-    );
-}
-
 static void parse_print_literal(Parse_Literal literal) {
     switch (literal.type) {
         case parse_literal_type_string: {
             printf("literal<string> '%.*s'", str8_fmt(literal.data.str));
         }; break;
+    }
+}
+
+static void parse_print_sexpr_info(Parse_Context *ctx, Parse_Sexpr sexpr) {
+    Str8 sexpr_kind_string = parse_string_from_sexpr_kind(sexpr.tag.kind);
+    Str8 sexpr_as_string = parse_string_from_sexpr_as(sexpr.tag.as);
+    printf(
+        "%.*s%.*s l%d r%d ", 
+        str8_fmt(sexpr_kind_string), 
+        str8_fmt(sexpr_as_string), 
+        sexpr.lhs, sexpr.rhs
+    );
+    if (sexpr.tag.kind == parse_sexpr_kind_atom) {
+        switch ((Parse_Sexpr_As)sexpr.tag.as) {
+            case parse_sexpr_as_ident:
+            case parse_sexpr_as_symbol: {
+                parse_print_token(ctx, ctx->toks.ptr[sexpr.lhs]);
+            } break;
+            case parse_sexpr_as_literal: {
+                parse_print_literal(ctx->literals.ptr[sexpr.lhs]);
+            } break;
+        }
     }
 }
 
@@ -169,21 +198,11 @@ static void parse_print_sexpr(
     switch (sexpr.tag.kind) {
         case parse_sexpr_kind_nil: printf("<nil>\n"); break;
         case parse_sexpr_kind_atom: {
-            parse_print_sexpr_info(sexpr);
-            putchar(' ');
-            switch ((Parse_Sexpr_As)sexpr.tag.as) {
-                case parse_sexpr_as_ident:
-                case parse_sexpr_as_symbol: {
-                    parse_print_token(ctx, ctx->toks.ptr[sexpr.lhs]);
-                } break;
-                case parse_sexpr_as_literal: {
-                    parse_print_literal(ctx->literals.ptr[sexpr.lhs]);
-                } break;
-            }
+            parse_print_sexpr_info(ctx, sexpr);
             putchar('\n');
         } break;
         case parse_sexpr_kind_pair: {
-            parse_print_sexpr_info(sexpr);
+            parse_print_sexpr_info(ctx, sexpr);
             putchar('\n');
             for (
                 u32 sexpr_i = sexpr.lhs; 
@@ -199,7 +218,7 @@ static void parse_print_sexpr(
 static void parse_print_ast(Parse_Context *ctx) {
     for (u32 i = 0; i < ctx->sexprs.len; i += 1) {
         printf("%3d ", i);
-        parse_print_sexpr_info(ctx->sexprs.ptr[i]);
+        parse_print_sexpr_info(ctx, ctx->sexprs.ptr[i]);
         putchar('\n');
     }
     printf("\nTREE:\n");
@@ -378,6 +397,12 @@ static error parse_eval_init(Parse_Context *ctx) {
         &ctx->functions.ptr
     ));
 
+    try (arena_alloc(
+        &ctx->arena,
+        ctx->sexprs.len * sizeof(Parse_Ident),
+        &ctx->idents.ptr
+    ));
+
     slice_push(ctx->functions, ((Parse_Function){
         .name = str8("const"),
         .eval_fn = parse_builtin_const_fn,
@@ -457,4 +482,15 @@ static error parse_eval_ast(Parse_Context *ctx) {
         sexpr_i = ctx->sexprs.ptr[sexpr_i].rhs;
     } while (sexpr_i != 0);
     return 0;
+}
+
+static void parse_print_idents(Parse_Context *ctx) {
+    for (u32 i = 0; i < ctx->idents.len; i += 1) {
+        Parse_Ident ident = ctx->idents.ptr[i];
+        Str8 name = parse_tok_lexeme(ctx, ctx->toks.ptr[ident.name_tok_i]);
+        Parse_Sexpr value_sexpr = ctx->sexprs.ptr[ident.value_sexpr_i];
+        printf("%3d %.*s\t", i, str8_fmt(name));
+        parse_print_sexpr_info(ctx, value_sexpr);
+        putchar('\n');
+    }
 }

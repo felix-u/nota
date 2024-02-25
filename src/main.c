@@ -75,6 +75,10 @@ static error main_wrapper(Parse_Context *ctx) {
     parse_print_ast(ctx);
     printf("=== AST END\n");
 
+    printf("=== IDENTS BEGIN\n");
+    parse_print_idents(ctx);
+    printf("=== IDENTS END\n");
+
     return 0;
 }
 

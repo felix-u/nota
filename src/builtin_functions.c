@@ -17,12 +17,23 @@ static error parse_builtin_const_fn(
     Parse_Sexpr sexpr, 
     Parse_Sexpr *out_sexpr
 ) {
+    (void)out_sexpr;
+
     Parse_Context *ctx = _ctx;
     Parse_Sexpr cdr = ctx->sexprs.ptr[sexpr.rhs];
 
     try (parse_ensure_arity(ctx, cdr, 2));
-    (void)out_sexpr;
-    printf("BUILTIN_CONST_FN: PLACEHOLDER\n");
+
+    Str8 ident_name = parse_tok_lexeme(ctx, ctx->toks.ptr[cdr.lhs]);
+    if (parse_lookup_ident(ctx, ident_name) != NULL) {
+        return errf("symbol '%.*s' already exists", str8_fmt(ident_name));
+    }
+
+    slice_push(ctx->idents, ((Parse_Ident){
+        .name_tok_i = cdr.lhs,
+        .value_sexpr_i = cdr.rhs,
+    }));
+
     return 0;
 }
 

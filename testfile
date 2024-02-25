@@ -1,1 +1,2 @@
 (const 'files (run "ls"))
+(const 'files2 "some stuff")
