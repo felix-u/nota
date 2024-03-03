@@ -1,1 +1,2 @@
-(const 'kernel (run "uname -r | tr -d '\n'"))
+(const 'os "hi")
+(const 'os-second os)
