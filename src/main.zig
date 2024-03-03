@@ -49,8 +49,8 @@ pub fn main() !void {
         .writer = stdout_writer,
         .err_writer = stderr_writer,
     };
-    try ctx.initFromPath(args_parsed.nota.pos);
+    try ctx.initFromFilepath(args_parsed.nota.pos);
 
     const is_colour_on = std.io.tty.detectConfig(stdout) != .no_color;
-    try ctx.parseAndPrint(arg.debug, is_colour_on);
+    try ctx.parse(arg.debug, is_colour_on);
 }
