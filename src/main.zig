@@ -1,9 +1,8 @@
 const ansi = @import("ansi.zig");
 const args = @import("args.zig");
-const ast = @import("ast.zig");
 const Context = @import("Context.zig");
 const std = @import("std");
-const token = @import("token.zig");
+const token = @import("Token.zig");
 
 pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);

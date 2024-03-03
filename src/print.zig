@@ -1,26 +1,17 @@
 const ansi = @import("ansi.zig");
 const Context = @import("Context.zig");
 const std = @import("std");
-const token = @import("token.zig");
+const Token = @import("Token.zig");
 
 pub fn toks(ctx: *Context) !void {
     const writer = ctx.writer;
-
-    _ = try writer.write("TOKENS:\n");
-
-    for (0..ctx.toks.len) |i| {
-        const tok = ctx.toks.get(i);
+    _ = try writer.write("Tokens:\n");
+    for (ctx.toks.items, 0..ctx.toks.items.len) |tok, i| {
         const pos = ctx.filePosFromIndex(tok.beg_i);
-        if (tok.kind < 128) try writer.print(
-            "{d}:{d}\t{d}\t{s}\n",
-            .{ pos.row, pos.col, i, ctx.lexeme(@intCast(i)) },
-        ) else {
-            const tok_kind: token.Kind = @enumFromInt(tok.kind);
-            try writer.print(
-                "{d}:{d}\t{d}\t{s}\t{}\n",
-                .{ pos.row, pos.col, i, ctx.lexeme(@intCast(i)), tok_kind },
-            );
-        }
+        try writer.print(
+            "{d}:{d}\t{d}\t{s}\t{}\n",
+            .{ pos.row, pos.col, i, ctx.lexeme(@intCast(i)), tok.kind },
+        );
     }
 }
 
@@ -113,7 +104,7 @@ pub fn prettyAstRecurse(
             try writer.print("{s} = ", .{var_name});
 
             const literal = ctx.lexeme(node.data.rhs);
-            const var_type: token.Kind =
+            const var_type: Token.Kind =
                 @enumFromInt(ctx.toks.items(.kind)[node.data.rhs]);
             switch (var_type) {
                 .none,

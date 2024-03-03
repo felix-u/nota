@@ -1,7 +1,6 @@
-const ast = @import("ast.zig");
 const print = @import("print.zig");
 const std = @import("std");
-const token = @import("token.zig");
+const Token = @import("Token.zig");
 
 allocator: std.mem.Allocator,
 writer: std.fs.File.Writer,
@@ -10,23 +9,10 @@ err_writer: std.fs.File.Writer,
 filepath: []const u8 = undefined,
 buf: []const u8 = undefined,
 buf_it: std.unicode.Utf8Iterator = undefined,
-toks: std.MultiArrayList(token.Token) = undefined,
-tok_it: ast.TokenIterator = undefined,
-// idents: std.StringHashMap(u32) = undefined,
-nodes: ast.NodeList = .{},
-childs: ast.Childs = undefined,
-childs_i: u32 = 0,
+toks: std.ArrayList(Token) = undefined,
 
 pub fn init(self: *@This()) !void {
     self.buf_it = (try std.unicode.Utf8View.init(self.buf)).iterator();
-    self.tok_it = .{ .ctx = self, .i = 0 };
-    self.childs = ast.Childs.init(self.allocator);
-
-    try self.nodes.append(self.allocator, .{});
-
-    try self.childs.append(
-        try std.ArrayList(u32).initCapacity(self.allocator, 1),
-    );
 }
 
 pub fn initFromPath(self: *@This(), path: []const u8) !void {
@@ -37,8 +23,7 @@ pub fn initFromPath(self: *@This(), path: []const u8) !void {
 }
 
 pub fn parse(self: *@This()) !void {
-    try token.parseToksFromBuf(self);
-    try ast.parseTreeFromToks(self);
+    try Token.lexBytes(self);
 }
 
 pub fn parseAndPrint(
@@ -46,28 +31,14 @@ pub fn parseAndPrint(
     is_debug: bool,
     use_ansi_clr: bool,
 ) !void {
-    if (is_debug) {
-        try token.parseToksFromBuf(self);
-        try print.toks(self);
-        try ast.parseTreeFromToks(self, .{});
-        try print.debugAst(self);
-    } else {
-        try token.parseToksFromBuf(self);
-        try ast.parseTreeFromToks(self, .{});
-        try print.prettyAst(use_ansi_clr, self);
-    }
+    _ = use_ansi_clr;
+    try Token.lexBytes(self);
+    if (is_debug) try print.toks(self);
 }
 
 pub fn lexeme(self: *const @This(), tok_i: u32) []const u8 {
-    const kind = self.toks.items(.kind)[tok_i];
-    switch (kind) {
-        '\n' => return "\\n",
-        else => {
-            const beg = self.toks.items(.beg_i)[tok_i];
-            const end = self.toks.items(.end_i)[tok_i];
-            return self.buf[beg..end];
-        },
-    }
+    const tok = self.toks.items[tok_i];
+    return self.buf[tok.beg_i..tok.end_i];
 }
 
 pub const FilePos = struct {
@@ -108,7 +79,7 @@ pub fn err(self: *@This(), comptime fmt: []const u8, args: anytype) anyerror {
     const writer = self.err_writer;
 
     const beg_i = if (self.toks.items(.kind)[self.tok_it.i] ==
-        @intFromEnum(token.Kind.eof))
+        @intFromEnum(Token.Kind.eof))
         self.toks.items(.beg_i)[self.tok_it.i]
     else
         self.toks.items(.beg_i)[self.tok_it.i] + 1;
