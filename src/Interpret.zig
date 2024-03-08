@@ -1,10 +1,14 @@
 const Context = @import("Context.zig");
+const Procedure = @import("Procedure.zig");
+const Stack = @import("Stack.zig");
 const std = @import("std");
 
 pub fn fromToks(ctx: *Context) !void {
-    ctx.stack = std.ArrayList(isize).init(ctx.allocator);
-    ctx.return_stack = std.ArrayList(u32).init(ctx.allocator);
-    ctx.procedures = std.StringHashMap(u32).init(ctx.allocator);
+    ctx.stack = Stack.init(ctx.allocator);
+    ctx.jump_stack = std.ArrayList(u32).init(ctx.allocator);
+    ctx.procedures = std.StringHashMap(Procedure).init(ctx.allocator);
+    try Procedure.putBuiltins(ctx);
+
     const i = &ctx.tok_i;
 
     i.* = 0;
@@ -15,13 +19,19 @@ pub fn fromToks(ctx: *Context) !void {
             .number => {
                 const value =
                     try std.fmt.parseInt(isize, lexeme, 0);
-                try ctx.stack.append(value);
+                try ctx.stack.push(.{ .int = value });
             },
+            .string => try ctx.stack.push(.{ .string = lexeme }),
             .symbol => {
                 const procedure = ctx.procedures.get(lexeme) orelse {
                     return ctx.err("no such procedure '{s}'", .{lexeme});
                 };
-                _ = procedure;
+                if (procedure.immediate) |immediate_fn| {
+                    try immediate_fn(ctx);
+                } else {
+                    try ctx.jump_stack.append(i.*);
+                    i.* = procedure.address;
+                }
             },
         }
     }

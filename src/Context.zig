@@ -1,6 +1,8 @@
 const FilePosition = @import("FilePosition.zig");
 const Interpret = @import("Interpret.zig");
+const Procedure = @import("Procedure.zig");
 const Token = @import("Token.zig");
+const Stack = @import("Stack.zig");
 const std = @import("std");
 
 allocator: std.mem.Allocator,
@@ -11,9 +13,9 @@ bytes: []const u8 = undefined,
 bytes_it: std.unicode.Utf8Iterator = undefined,
 toks: std.ArrayList(Token) = undefined,
 tok_i: u32 = undefined,
-stack: std.ArrayList(isize) = undefined,
-return_stack: std.ArrayList(u32) = undefined,
-procedures: std.StringHashMap(u32) = undefined,
+stack: Stack = undefined,
+jump_stack: std.ArrayList(u32) = undefined,
+procedures: std.StringHashMap(Procedure) = undefined,
 
 pub fn initFromFilepath(self: *@This(), filepath: []const u8) !void {
     const bytes = try readFileAlloc(self.allocator, filepath);

@@ -6,7 +6,7 @@ kind: Kind,
 beg_i: u32 = 0,
 end_i: u32 = 0,
 
-pub const Kind = enum(u8) { number, symbol };
+pub const Kind = enum(u8) { number, string, symbol };
 
 pub fn lexBytes(ctx: *Context) !void {
     ctx.bytes_it = (try std.unicode.Utf8View.init(ctx.bytes)).iterator();
@@ -19,7 +19,7 @@ pub fn lexBytes(ctx: *Context) !void {
     var last_i = it.i;
     while (it.nextCodepoint()) |c1| : (last_i = it.i) switch (c1) {
         '\r', '\t', ' ', '\n' => continue,
-        '0'...'9' => {
+        '0'...'9', '-' => {
             const beg_i: u32 = @intCast(last_i);
             while (it.nextCodepoint()) |c2| : (last_i = it.i) switch (c2) {
                 '\r', '\t', ' ', '\n' => break,
@@ -28,6 +28,17 @@ pub fn lexBytes(ctx: *Context) !void {
             it.i -= 1;
             ctx.toks.appendAssumeCapacity(
                 .{ .beg_i = beg_i, .end_i = @intCast(it.i), .kind = .number },
+            );
+        },
+        '"' => {
+            const beg_i: u32 = @intCast(it.i);
+            while (it.nextCodepoint()) |c2| : (last_i = it.i) switch (c2) {
+                '\n' => return error{UnterminatedString}.UnterminatedString,
+                '"' => break,
+                else => continue,
+            };
+            ctx.toks.appendAssumeCapacity(
+                .{ .beg_i = beg_i, .end_i = @intCast(last_i), .kind = .string },
             );
         },
         else => {

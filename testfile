@@ -1,1 +1,10 @@
-50 50 + print
+procedure square
+    dup *
+end
+
+procedure power-of-four
+    square square
+end
+
+2 power-of-four
+println
