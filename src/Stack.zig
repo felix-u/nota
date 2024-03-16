@@ -1,16 +1,12 @@
 const Context = @import("Context.zig");
+const Instruction = @import("Instruction.zig");
 const std = @import("std");
 
 elements: std.ArrayList(Element),
 
 const StackError = error{ Underflow, TypeMismatch };
-
-const Element = union(Type) {
-    int: isize,
-    string: []const u8,
-};
-
-const Type = enum { int, string };
+const Element = Instruction.Operand;
+const Type = Instruction.Operand.Type;
 
 pub fn init(allocator: std.mem.Allocator) @This() {
     return .{ .elements = std.ArrayList(Element).init(allocator) };

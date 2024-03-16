@@ -1,37 +1,79 @@
 const Context = @import("Context.zig");
+const Instruction = @import("Instruction.zig");
 const Procedure = @import("Procedure.zig");
 const Stack = @import("Stack.zig");
 const std = @import("std");
 
-pub fn fromToks(ctx: *Context) !void {
+pub fn all(ctx: *Context) !void {
     ctx.stack = Stack.init(ctx.allocator);
     ctx.jump_stack = std.ArrayList(u32).init(ctx.allocator);
-    ctx.procedures = std.StringHashMap(Procedure).init(ctx.allocator);
-    try Procedure.putBuiltins(ctx);
 
-    const i = &ctx.tok_i;
-
-    i.* = 0;
-    while (i.* < ctx.toks.items.len) : (i.* += 1) {
-        const tok = ctx.toks.items[i.*];
-        const lexeme = ctx.lexeme(@intCast(i.*));
-        switch (tok.kind) {
-            .number => {
-                const value =
-                    try std.fmt.parseInt(isize, lexeme, 0);
-                try ctx.stack.push(.{ .int = value });
+    const instructions = ctx.instruction_stream.items;
+    var i: u32 = ctx.instruction_start_point;
+    var add: isize = 1;
+    while (i < instructions.len) : (i = @intCast(i + add)) {
+        add = 1;
+        const instruction = instructions[i];
+        const val = instruction.operand;
+        switch (instruction.operation) {
+            .none => {},
+            .@"+" => {
+                const right = try ctx.stack.popType(ctx, .int, isize);
+                const left = try ctx.stack.popType(ctx, .int, isize);
+                try ctx.stack.push(.{ .int = left + right });
             },
-            .string => try ctx.stack.push(.{ .string = lexeme }),
-            .symbol => {
-                const procedure = ctx.procedures.get(lexeme) orelse {
-                    return ctx.err("no such procedure '{s}'", .{lexeme});
-                };
-                if (procedure.immediate) |immediate_fn| {
-                    try immediate_fn(ctx);
-                } else {
-                    try ctx.jump_stack.append(i.*);
-                    i.* = procedure.address;
+            .@"-" => {
+                const right = try ctx.stack.popType(ctx, .int, isize);
+                const left = try ctx.stack.popType(ctx, .int, isize);
+                try ctx.stack.push(.{ .int = left - right });
+            },
+            .@"*" => {
+                const right = try ctx.stack.popType(ctx, .int, isize);
+                const left = try ctx.stack.popType(ctx, .int, isize);
+                try ctx.stack.push(.{ .int = left * right });
+            },
+            .@"/" => {
+                const right = try ctx.stack.popType(ctx, .int, isize);
+                const left = try ctx.stack.popType(ctx, .int, isize);
+                try ctx.stack.push(.{ .int = @divTrunc(left, right) });
+            },
+            .dup => {
+                const popped = try ctx.stack.pop(ctx);
+                try ctx.stack.push(popped);
+                try ctx.stack.push(popped);
+            },
+            .jump => {
+                i = @intCast(val.int);
+                add = 0;
+            },
+            .pop => {
+                @panic("TODO");
+            },
+            .println => {
+                const popped = try ctx.stack.pop(ctx);
+                switch (popped) {
+                    .none => _ = try ctx.writer.write("<none>\n"),
+                    .int => |int| try ctx.writer.print("{d}\n", .{int}),
+                    .string => |string| {
+                        try ctx.writer.print("{s}\n", .{string});
+                    },
                 }
+            },
+            .push => {
+                try ctx.stack.push(val);
+            },
+            .push_jumpstack => {
+                // TODO: why relative? should change instruction name
+                try ctx.jump_stack.append(@intCast(i + val.int));
+            },
+            .@"return" => {
+                i = ctx.jump_stack.popOrNull() orelse {
+                    return ctx.err(
+                        "jump stack underflow: no return address to jump to",
+                        .{},
+                    );
+                };
+                add = 0;
             },
         }
     }
