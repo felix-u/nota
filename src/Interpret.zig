@@ -37,6 +37,11 @@ pub fn all(ctx: *Context) !void {
                 const left = try ctx.stack.popType(ctx, .int, isize);
                 try ctx.stack.push(.{ .int = @divTrunc(left, right) });
             },
+            .@"=" => {
+                const right = try ctx.stack.popType(ctx, .int, isize);
+                const left = try ctx.stack.popType(ctx, .int, isize);
+                try ctx.stack.push(.{ .boolean = (left == right) });
+            },
             .drop => {
                 _ = try ctx.stack.pop(ctx);
             },
@@ -45,15 +50,36 @@ pub fn all(ctx: *Context) !void {
                 try ctx.stack.push(popped);
                 try ctx.stack.push(popped);
             },
+            .exit => {
+                i = @intCast(instructions.len);
+                add = 0;
+            },
             .jump => {
-                // TODO: why relative? should change instruction name
+                i = @intCast(try ctx.stack.popType(ctx, .int, isize));
+                add = 0;
+            },
+            .@"jump-relative" => {
                 i += @intCast(try ctx.stack.popType(ctx, .int, isize));
                 add = 0;
+            },
+            .@"jump-if-true-relative" => {
+                const jump = try ctx.stack.popType(ctx, .int, isize);
+                const popped = try ctx.stack.popType(ctx, .boolean, bool);
+                if (!popped) continue;
+                i += @intCast(jump);
+                add = 0;
+            },
+            .not => {
+                const popped = try ctx.stack.popType(ctx, .boolean, bool);
+                try ctx.stack.push(.{ .boolean = !popped });
             },
             .println => {
                 const popped = try ctx.stack.pop(ctx);
                 switch (popped) {
                     .none => _ = try ctx.writer.write("<none>\n"),
+                    .boolean => |boolean| {
+                        try ctx.writer.print("{}\n", .{boolean});
+                    },
                     .int => |int| try ctx.writer.print("{d}\n", .{int}),
                     .string => |string| {
                         try ctx.writer.print("{s}\n", .{string});
@@ -63,8 +89,7 @@ pub fn all(ctx: *Context) !void {
             .push => {
                 try ctx.stack.push(val);
             },
-            .push_jumpstack => {
-                // TODO: why relative? should change instruction name
+            .@"push-jumpstack-relative" => {
                 try ctx.jump_stack.append(@intCast(i + val.int));
             },
             .@"return" => {

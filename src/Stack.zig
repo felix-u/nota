@@ -24,8 +24,9 @@ pub fn popType(
     comptime typ: Type,
     comptime return_typ: type, // TODO infer return type from `typ`
 ) !return_typ {
-    const popped = self.elements.popOrNull() orelse
+    const popped = self.elements.popOrNull() orelse {
         return ctx.err("stack underflow", .{});
+    };
     return switch (popped) {
         typ => |value| value,
         else => |value| ctx.err(

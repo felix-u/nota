@@ -13,21 +13,27 @@ const Operation = enum(u8) {
     @"-",
     @"*",
     @"/",
+    @"=",
     drop,
     dup,
+    exit,
     jump,
+    @"jump-relative",
+    @"jump-if-true-relative",
+    not,
     println,
     push,
-    push_jumpstack,
+    @"push-jumpstack-relative",
     @"return",
 };
 
 pub const Operand = union(Type) {
     // TODO: stack as type here? as enum to choose parameter or jump stack
     none: void,
+    boolean: bool,
     int: isize,
     string: []const u8,
-    pub const Type = enum { none, int, string };
+    pub const Type = enum { none, boolean, int, string };
 };
 
 pub const List = std.ArrayList(@This());
@@ -90,15 +96,17 @@ pub fn fromTok(ctx: *Context, tok_i: u32) !void {
                         procedure.instructions.items.len,
                     );
                 }
+                const continuation_instruction_count = 3;
                 try ctx.instructions.appendSlice(&.{
                     .{
-                        .operation = .push_jumpstack,
-                        .operand = .{ .int = 2 },
+                        .operation = .@"push-jumpstack-relative",
+                        .operand = .{ .int = continuation_instruction_count },
                     },
                     .{
-                        .operation = .jump,
+                        .operation = .push,
                         .operand = .{ .int = procedure.compiled.? },
                     },
+                    .{ .operation = .jump },
                 });
             }
         },

@@ -45,6 +45,7 @@ pub fn lexeme(self: *const @This(), tok_i: u32) []const u8 {
     return self.bytes[tok.beg_i..tok.end_i];
 }
 
+// TODO: fix instruction-based errors
 pub fn err(self: *@This(), comptime fmt: []const u8, args: anytype) anyerror {
     const writer = self.err_writer;
     const tok = self.toks.items[self.tok_i];

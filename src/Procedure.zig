@@ -30,9 +30,15 @@ const builtin_fn_names = [_][]const u8{
     "-",
     "*",
     "/",
+    "=",
     "drop",
     "dup",
+    "exit",
     "jump",
+    "jump-relative",
+    "jump-if-true-relative",
+    "not",
+    "return",
     "println",
     "procedure",
 };
@@ -54,6 +60,10 @@ const Builtins = struct {
         try ctx.instructions.append(.{ .operation = .@"/" });
     }
 
+    fn @"="(ctx: *Context, _: Instruction.List) !void {
+        try ctx.instructions.append(.{ .operation = .@"=" });
+    }
+
     fn drop(ctx: *Context, _: Instruction.List) !void {
         try ctx.instructions.append(.{ .operation = .drop });
     }
@@ -62,8 +72,30 @@ const Builtins = struct {
         try ctx.instructions.append(.{ .operation = .dup });
     }
 
+    fn exit(ctx: *Context, _: Instruction.List) !void {
+        try ctx.instructions.append(.{ .operation = .exit });
+    }
+
     fn jump(ctx: *Context, _: Instruction.List) !void {
         try ctx.instructions.append(.{ .operation = .jump });
+    }
+
+    fn @"jump-relative"(ctx: *Context, _: Instruction.List) !void {
+        try ctx.instructions.append(.{ .operation = .@"jump-relative" });
+    }
+
+    fn @"jump-if-true-relative"(ctx: *Context, _: Instruction.List) !void {
+        try ctx.instructions.append(
+            .{ .operation = .@"jump-if-true-relative" },
+        );
+    }
+
+    fn not(ctx: *Context, _: Instruction.List) !void {
+        try ctx.instructions.append(.{ .operation = .not });
+    }
+
+    fn @"return"(ctx: *Context, _: Instruction.List) !void {
+        try ctx.instructions.append(.{ .operation = .@"return" });
     }
 
     fn println(ctx: *Context, _: Instruction.List) !void {
@@ -80,8 +112,6 @@ const Builtins = struct {
         i.* += 1;
         const proc_name = ctx.lexeme(i.*);
 
-        // TODO: something going wrong here. all procedures are ending up
-        // with just the return instruction
         const global_instructions = ctx.instructions;
         ctx.instructions = proc_instructions;
         defer ctx.instructions = global_instructions;

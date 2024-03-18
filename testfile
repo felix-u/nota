@@ -1,20 +1,20 @@
-"+" println
-10 -10 + println
+procedure test
+    println
+    0 = not 2 jump-if-true-relative return
+    "ERROR" println exit
+end
 
-"-" println
-10 10 - println
+1 -1 + "+" test
 
-"*" println
-10 0 * println
+1 1 - "-" test
 
-"/" println
-0 1 / println
+1 0 * "*" test
 
-"dup, drop" println
-0 dup drop println
+0 1 / "/" test
 
-"jump" println
-1 jump 0 println
+0 dup drop "dup drop" test
+
+1 jump-relative 0 "jump-relative" test
 
 // TODO: push-jumpstack
 // TODO: return

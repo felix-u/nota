@@ -421,12 +421,14 @@ pub const Cmd = struct {
             };
         }
 
-        return @Type(.{ .Struct = .{
-            .layout = .Auto,
-            .fields = &fields,
-            .decls = &.{},
-            .is_tuple = false,
-        } });
+        return @Type(.{
+            .Struct = .{
+                .layout = .auto,
+                .fields = &fields,
+                .decls = &.{},
+                .is_tuple = false,
+            },
+        });
     }
 
     fn listResultType(comptime cmds: []const @This()) type {
@@ -444,7 +446,7 @@ pub const Cmd = struct {
         }
 
         return @Type(.{ .Struct = .{
-            .layout = .Auto,
+            .layout = .auto,
             .fields = &fields,
             .decls = &.{},
             .is_tuple = false,
