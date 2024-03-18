@@ -36,6 +36,7 @@ pub fn parse(self: *@This(), is_debug: bool, use_ansi_clr: bool) !void {
     if (is_debug) try Token.printAll(self);
     try Instruction.fromToks(self);
     if (is_debug) try Instruction.printAll(self);
+    if (is_debug) _ = try self.writer.write("Interpret:\n");
     try Interpret.all(self);
 }
 

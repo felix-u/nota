@@ -30,7 +30,9 @@ const builtin_fn_names = [_][]const u8{
     "-",
     "*",
     "/",
+    "drop",
     "dup",
+    "jump",
     "println",
     "procedure",
 };
@@ -52,8 +54,16 @@ const Builtins = struct {
         try ctx.instructions.append(.{ .operation = .@"/" });
     }
 
+    fn drop(ctx: *Context, _: Instruction.List) !void {
+        try ctx.instructions.append(.{ .operation = .drop });
+    }
+
     fn dup(ctx: *Context, _: Instruction.List) !void {
         try ctx.instructions.append(.{ .operation = .dup });
+    }
+
+    fn jump(ctx: *Context, _: Instruction.List) !void {
+        try ctx.instructions.append(.{ .operation = .jump });
     }
 
     fn println(ctx: *Context, _: Instruction.List) !void {

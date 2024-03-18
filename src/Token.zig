@@ -19,6 +19,16 @@ pub fn lexBytes(ctx: *Context) !void {
     var last_i = it.i;
     while (it.nextCodepoint()) |c1| : (last_i = it.i) switch (c1) {
         '\r', '\t', ' ', '\n' => continue,
+        '/' => {
+            if (it.peek(1)[0] == '/') {
+                while (it.nextCodepoint()) |c2| : (last_i = it.i) switch (c2) {
+                    '\n' => break,
+                    else => {},
+                };
+                continue;
+            }
+            try parseSymbol(ctx, &last_i);
+        },
         '0'...'9', '-' => {
             const beg_i: u32 = @intCast(last_i);
             while (it.nextCodepoint()) |c2| : (last_i = it.i) switch (c2) {
@@ -26,8 +36,12 @@ pub fn lexBytes(ctx: *Context) !void {
                 else => continue,
             };
             it.i -= 1;
+            const kind: Kind = if (c1 == '-' and it.i - beg_i == 1)
+                .symbol
+            else
+                .number;
             ctx.toks.appendAssumeCapacity(
-                .{ .beg_i = beg_i, .end_i = @intCast(it.i), .kind = .number },
+                .{ .beg_i = beg_i, .end_i = @intCast(it.i), .kind = kind },
             );
         },
         '"' => {
@@ -41,18 +55,21 @@ pub fn lexBytes(ctx: *Context) !void {
                 .{ .beg_i = beg_i, .end_i = @intCast(last_i), .kind = .string },
             );
         },
-        else => {
-            const beg_i: u32 = @intCast(last_i);
-            while (it.nextCodepoint()) |c2| : (last_i = it.i) switch (c2) {
-                '\r', '\t', ' ', '\n' => break,
-                else => continue,
-            };
-            it.i -= 1;
-            ctx.toks.appendAssumeCapacity(
-                .{ .beg_i = beg_i, .end_i = @intCast(it.i), .kind = .symbol },
-            );
-        },
+        else => try parseSymbol(ctx, &last_i),
     };
+}
+
+fn parseSymbol(ctx: *Context, last_i: *usize) !void {
+    const it = &ctx.bytes_it;
+    const beg_i: u32 = @intCast(last_i.*);
+    while (it.nextCodepoint()) |c2| : (last_i.* = it.i) switch (c2) {
+        '\r', '\t', ' ', '\n' => break,
+        else => continue,
+    };
+    it.i -= 1;
+    ctx.toks.appendAssumeCapacity(
+        .{ .beg_i = beg_i, .end_i = @intCast(it.i), .kind = .symbol },
+    );
 }
 
 pub fn printAll(ctx: *Context) !void {

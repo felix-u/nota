@@ -37,17 +37,18 @@ pub fn all(ctx: *Context) !void {
                 const left = try ctx.stack.popType(ctx, .int, isize);
                 try ctx.stack.push(.{ .int = @divTrunc(left, right) });
             },
+            .drop => {
+                _ = try ctx.stack.pop(ctx);
+            },
             .dup => {
                 const popped = try ctx.stack.pop(ctx);
                 try ctx.stack.push(popped);
                 try ctx.stack.push(popped);
             },
             .jump => {
-                i = @intCast(val.int);
+                // TODO: why relative? should change instruction name
+                i += @intCast(try ctx.stack.popType(ctx, .int, isize));
                 add = 0;
-            },
-            .pop => {
-                @panic("TODO");
             },
             .println => {
                 const popped = try ctx.stack.pop(ctx);

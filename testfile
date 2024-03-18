@@ -1,10 +1,20 @@
-procedure square
-    dup *
-end
+"+" println
+10 -10 + println
 
-procedure power-of-four
-    square square
-end
+"-" println
+10 10 - println
 
-2 power-of-four
-println
+"*" println
+10 0 * println
+
+"/" println
+0 1 / println
+
+"dup, drop" println
+0 dup drop println
+
+"jump" println
+1 jump 0 println
+
+// TODO: push-jumpstack
+// TODO: return
