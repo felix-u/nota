@@ -12,9 +12,11 @@ end
 
 0 1 / "/" test
 
-0 dup drop "dup drop" test
+0 1 drop "drop" test
 
-1 jump-relative 0 "jump-relative" test
+0 dup "dup" test
+
+2 jump-relative noop 0 "jump-relative" test
 
 // TODO: push-jumpstack
 // TODO: return

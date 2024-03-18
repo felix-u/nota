@@ -1,6 +1,5 @@
 const Context = @import("Context.zig");
 const Procedure = @import("Procedure.zig");
-const Stack = @import("Stack.zig");
 const std = @import("std");
 const Token = @import("Token.zig");
 
@@ -8,7 +7,7 @@ operation: Operation,
 operand: Operand = .{ .none = undefined },
 
 const Operation = enum(u8) {
-    none = 0,
+    noop = 0,
     @"+",
     @"-",
     @"*",

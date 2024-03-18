@@ -26,6 +26,7 @@ const comptime_fn = *const fn (
 ) anyerror!void;
 
 const builtin_fn_names = [_][]const u8{
+    "noop",
     "+",
     "-",
     "*",
@@ -44,6 +45,10 @@ const builtin_fn_names = [_][]const u8{
 };
 
 const Builtins = struct {
+    fn noop(ctx: *Context, _: Instruction.List) !void {
+        try ctx.instructions.append(.{ .operation = .noop });
+    }
+
     fn @"+"(ctx: *Context, _: Instruction.List) !void {
         try ctx.instructions.append(.{ .operation = .@"+" });
     }

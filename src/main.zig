@@ -32,12 +32,6 @@ pub fn main() !void {
                     .long = "debug",
                     .desc = "Enable debugging-oriented formatting",
                 },
-                args.Flag{
-                    .short = 'n',
-                    .long = "node",
-                    .desc = "Evaluate and print specified node",
-                    .kind = .single_pos,
-                },
             },
         }},
     }) orelse return;

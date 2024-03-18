@@ -16,7 +16,7 @@ pub fn all(ctx: *Context) !void {
         const instruction = instructions[i];
         const val = instruction.operand;
         switch (instruction.operation) {
-            .none => {},
+            .noop => {},
             .@"+" => {
                 const right = try ctx.stack.popType(ctx, .int, isize);
                 const left = try ctx.stack.popType(ctx, .int, isize);
