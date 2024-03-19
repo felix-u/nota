@@ -126,4 +126,13 @@ const Builtins = struct {
             .{ .instructions = proc_instructions },
         );
     }
+
+    pub fn @"push-jumpstack-relative"(
+        ctx: *Context,
+        _: Instruction.List,
+    ) !void {
+        try ctx.instructions.append(
+            .{ .operation = .@"push-jumpstack-relative" },
+        );
+    }
 };

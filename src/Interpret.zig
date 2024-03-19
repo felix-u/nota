@@ -90,7 +90,8 @@ pub fn all(ctx: *Context) !void {
                 try ctx.stack.push(val);
             },
             .@"push-jumpstack-relative" => {
-                try ctx.jump_stack.append(@intCast(i + val.int));
+                const jump = try ctx.stack.popType(ctx, .int, isize);
+                try ctx.jump_stack.append(@intCast(i + jump));
             },
             .@"return" => {
                 i = ctx.jump_stack.popOrNull() orelse {

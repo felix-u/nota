@@ -98,9 +98,10 @@ pub fn fromTok(ctx: *Context, tok_i: u32) !void {
                 const continuation_instruction_count = 3;
                 try ctx.instructions.appendSlice(&.{
                     .{
-                        .operation = .@"push-jumpstack-relative",
+                        .operation = .push,
                         .operand = .{ .int = continuation_instruction_count },
                     },
+                    .{ .operation = .@"push-jumpstack-relative" },
                     .{
                         .operation = .push,
                         .operand = .{ .int = procedure.compiled.? },

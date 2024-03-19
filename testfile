@@ -4,19 +4,26 @@ procedure test
     "ERROR" println exit
 end
 
-1 -1 + "+" test
+1 -1 + 
+"+" test
 
-1 1 - "-" test
+1 1 - 
+"-" test
 
-1 0 * "*" test
+1 0 * 
+"*" test
 
-0 1 / "/" test
+0 1 / 
+"/" test
 
-0 1 drop "drop" test
+0 1 drop 
+"drop" test
 
-0 dup "dup" test
+0 dup 
+"dup" test
 
-2 jump-relative noop 0 "jump-relative" test
+2 jump-relative noop 0 
+"jump-relative" test
 
-// TODO: push-jumpstack
-// TODO: return
+3 push-jumpstack-relative noop return 0 
+"push-jumpstack-relative return" test
