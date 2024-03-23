@@ -45,6 +45,8 @@ pub fn fromToks(ctx: *Context) !void {
         ctx.toks.items.len,
     );
 
+    ctx.comptime_stack = Stack.init(ctx.allocator);
+
     ctx.procedures_map = Procedure.Map.init(ctx.allocator);
     ctx.procedures_list = Procedure.List.init(ctx.allocator);
     try Procedure.putBuiltins(ctx);
@@ -65,7 +67,6 @@ pub fn fromToks(ctx: *Context) !void {
 }
 
 pub fn fromTok(ctx: *Context, tok_i: u32) !void {
-    ctx.comptime_stack = Stack.init(ctx.allocator);
     const tok = ctx.toks.items[tok_i];
     const lexeme = ctx.lexeme(@intCast(tok_i));
     switch (tok.kind) {
