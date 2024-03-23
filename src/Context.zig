@@ -14,15 +14,18 @@ bytes: []const u8 = undefined,
 bytes_it: std.unicode.Utf8Iterator = undefined,
 toks: std.ArrayList(Token) = undefined,
 tok_i: u32 = undefined,
+
+comptime_stack: Stack = undefined,
+
 instructions: Instruction.List = undefined,
-instruction_stream: Instruction.List = undefined,
-instruction_start_point: u32 = undefined,
+// instruction_stream: Instruction.List = undefined,
+// instruction_start_point: u32 = undefined,
 
 stack: Stack = undefined,
 jump_stack: std.ArrayList(u32) = undefined,
 procedures_map: Procedure.Map = undefined,
 procedures_list: Procedure.List = undefined,
-procedures_total_instruction_count: u32 = undefined,
+// procedures_total_instruction_count: u32 = undefined,
 
 pub fn initFromFilepath(self: *@This(), filepath: []const u8) !void {
     const bytes = try readFileAlloc(self.allocator, filepath);

@@ -1,5 +1,6 @@
 const Context = @import("Context.zig");
 const Procedure = @import("Procedure.zig");
+const Stack = @import("Stack.zig");
 const std = @import("std");
 const Token = @import("Token.zig");
 
@@ -18,6 +19,7 @@ const Operation = enum(u8) {
     exit,
     jump,
     @"jump-relative",
+    @"jump-if-true",
     @"jump-if-true-relative",
     not,
     println,
@@ -63,6 +65,7 @@ pub fn fromToks(ctx: *Context) !void {
 }
 
 pub fn fromTok(ctx: *Context, tok_i: u32) !void {
+    ctx.comptime_stack = Stack.init(ctx.allocator);
     const tok = ctx.toks.items[tok_i];
     const lexeme = ctx.lexeme(@intCast(tok_i));
     switch (tok.kind) {
@@ -83,7 +86,7 @@ pub fn fromTok(ctx: *Context, tok_i: u32) !void {
             };
 
             if (procedure.@"comptime") |comptime_fn| {
-                try comptime_fn(ctx, procedure.instructions);
+                try comptime_fn(ctx);
             } else {
                 if (procedure.compiled == null) {
                     procedure.compiled =

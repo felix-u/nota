@@ -1,8 +1,14 @@
 procedure test
     println
-    0 = not 2 jump-if-true-relative return
+    0 = not 4 jump-if-true-relative "SUCCESS" println return
     "ERROR" println exit
 end
+
+// procedure test2
+//     println
+//     0 = not _ jump-if-true "SUCCESS" println return
+//     ^here "ERROR" println exit
+// end
 
 1 -1 + 
 "+" test

@@ -20,10 +20,7 @@ pub fn putBuiltins(ctx: *Context) !void {
     }
 }
 
-const comptime_fn = *const fn (
-    ctx: *Context,
-    instructions: Instruction.List,
-) anyerror!void;
+const comptime_fn = *const fn (ctx: *Context) anyerror!void;
 
 const builtin_fn_names = blk: {
     const builtin_fns = @typeInfo(Builtins).Struct.decls;
@@ -35,69 +32,90 @@ const builtin_fn_names = blk: {
 };
 
 const Builtins = struct {
-    pub fn noop(ctx: *Context, _: Instruction.List) !void {
+    pub fn noop(ctx: *Context) !void {
         try ctx.instructions.append(.{ .operation = .noop });
     }
 
-    pub fn @"+"(ctx: *Context, _: Instruction.List) !void {
+    pub fn @"_"(ctx: *Context) !void {
+        const instruction_i = ctx.instructions.items.len;
+        try ctx.instructions.append(.{ .operation = .noop });
+        // std.log.info("{any}", .{ctx.comptime_stack.elements.items});
+        try ctx.comptime_stack.push(.{ .int = @intCast(instruction_i) });
+        // std.log.info("{any}", .{ctx.comptime_stack.elements.items});
+    }
+
+    pub fn @"^here"(ctx: *Context) !void {
+        // std.log.info("{any}", .{ctx.comptime_stack.elements.items});
+        const instruction_i = try ctx.comptime_stack.popType(ctx, .int, isize);
+        ctx.instructions.items[@intCast(instruction_i)] = .{
+            .operation = .push,
+            .operand = .{ .int = @intCast(ctx.instructions.items.len) },
+        };
+    }
+
+    pub fn @"+"(ctx: *Context) !void {
         try ctx.instructions.append(.{ .operation = .@"+" });
     }
 
-    pub fn @"-"(ctx: *Context, _: Instruction.List) !void {
+    pub fn @"-"(ctx: *Context) !void {
         try ctx.instructions.append(.{ .operation = .@"-" });
     }
 
-    pub fn @"*"(ctx: *Context, _: Instruction.List) !void {
+    pub fn @"*"(ctx: *Context) !void {
         try ctx.instructions.append(.{ .operation = .@"*" });
     }
 
-    pub fn @"/"(ctx: *Context, _: Instruction.List) !void {
+    pub fn @"/"(ctx: *Context) !void {
         try ctx.instructions.append(.{ .operation = .@"/" });
     }
 
-    pub fn @"="(ctx: *Context, _: Instruction.List) !void {
+    pub fn @"="(ctx: *Context) !void {
         try ctx.instructions.append(.{ .operation = .@"=" });
     }
 
-    pub fn drop(ctx: *Context, _: Instruction.List) !void {
+    pub fn drop(ctx: *Context) !void {
         try ctx.instructions.append(.{ .operation = .drop });
     }
 
-    pub fn dup(ctx: *Context, _: Instruction.List) !void {
+    pub fn dup(ctx: *Context) !void {
         try ctx.instructions.append(.{ .operation = .dup });
     }
 
-    pub fn exit(ctx: *Context, _: Instruction.List) !void {
+    pub fn exit(ctx: *Context) !void {
         try ctx.instructions.append(.{ .operation = .exit });
     }
 
-    pub fn jump(ctx: *Context, _: Instruction.List) !void {
+    pub fn jump(ctx: *Context) !void {
         try ctx.instructions.append(.{ .operation = .jump });
     }
 
-    pub fn @"jump-relative"(ctx: *Context, _: Instruction.List) !void {
+    pub fn @"jump-relative"(ctx: *Context) !void {
         try ctx.instructions.append(.{ .operation = .@"jump-relative" });
     }
 
-    pub fn @"jump-if-true-relative"(ctx: *Context, _: Instruction.List) !void {
+    pub fn @"jump-if-true"(ctx: *Context) !void {
+        try ctx.instructions.append(.{ .operation = .@"jump-if-true" });
+    }
+
+    pub fn @"jump-if-true-relative"(ctx: *Context) !void {
         try ctx.instructions.append(
             .{ .operation = .@"jump-if-true-relative" },
         );
     }
 
-    pub fn not(ctx: *Context, _: Instruction.List) !void {
+    pub fn not(ctx: *Context) !void {
         try ctx.instructions.append(.{ .operation = .not });
     }
 
-    pub fn @"return"(ctx: *Context, _: Instruction.List) !void {
+    pub fn @"return"(ctx: *Context) !void {
         try ctx.instructions.append(.{ .operation = .@"return" });
     }
 
-    pub fn println(ctx: *Context, _: Instruction.List) !void {
+    pub fn println(ctx: *Context) !void {
         try ctx.instructions.append(.{ .operation = .println });
     }
 
-    pub fn procedure(ctx: *Context, _: Instruction.List) !void {
+    pub fn procedure(ctx: *Context) !void {
         var proc_instructions = Instruction.List.init(ctx.allocator);
         const i = &ctx.tok_i;
         if (i.* + 2 >= ctx.toks.items.len) {
@@ -127,10 +145,7 @@ const Builtins = struct {
         );
     }
 
-    pub fn @"push-jumpstack-relative"(
-        ctx: *Context,
-        _: Instruction.List,
-    ) !void {
+    pub fn @"push-jumpstack-relative"(ctx: *Context) !void {
         try ctx.instructions.append(
             .{ .operation = .@"push-jumpstack-relative" },
         );

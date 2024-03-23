@@ -62,6 +62,13 @@ pub fn all(ctx: *Context) !void {
                 i += @intCast(try ctx.stack.popType(ctx, .int, isize));
                 add = 0;
             },
+            .@"jump-if-true" => {
+                const jump = try ctx.stack.popType(ctx, .int, isize);
+                const popped = try ctx.stack.popType(ctx, .boolean, bool);
+                if (!popped) continue;
+                i = @intCast(jump);
+                add = 0;
+            },
             .@"jump-if-true-relative" => {
                 const jump = try ctx.stack.popType(ctx, .int, isize);
                 const popped = try ctx.stack.popType(ctx, .boolean, bool);
