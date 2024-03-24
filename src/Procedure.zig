@@ -4,6 +4,7 @@ const Procedure = @This();
 const std = @import("std");
 
 @"comptime": ?comptime_fn = null,
+macro: ?Instruction.List = null,
 instructions: Instruction.List = undefined,
 compiled: ?u32 = null,
 
@@ -39,13 +40,10 @@ const Builtins = struct {
     pub fn @"_"(ctx: *Context) !void {
         const instruction_i = ctx.instructions.items.len;
         try ctx.instructions.append(.{ .operation = .noop });
-        // std.log.info("{any}", .{ctx.comptime_stack.elements.items});
         try ctx.comptime_stack.push(.{ .int = @intCast(instruction_i) });
-        // std.log.info("{any}", .{ctx.comptime_stack.elements.items});
     }
 
     pub fn @"^here"(ctx: *Context) !void {
-        // std.log.info("{any}", .{ctx.comptime_stack.elements.items});
         const instruction_i = try ctx.comptime_stack.popType(ctx, .int, isize);
         ctx.instructions.items[@intCast(instruction_i)] = .{
             .operation = .push,
@@ -83,6 +81,12 @@ const Builtins = struct {
 
     pub fn exit(ctx: *Context) !void {
         try ctx.instructions.append(.{ .operation = .exit });
+    }
+
+    pub fn @"false"(ctx: *Context) !void {
+        try ctx.instructions.append(
+            .{ .operation = .push, .operand = .{ .boolean = false } },
+        );
     }
 
     pub fn jump(ctx: *Context) !void {
@@ -148,6 +152,12 @@ const Builtins = struct {
     pub fn @"push-jumpstack-relative"(ctx: *Context) !void {
         try ctx.instructions.append(
             .{ .operation = .@"push-jumpstack-relative" },
+        );
+    }
+
+    pub fn @"true"(ctx: *Context) !void {
+        try ctx.instructions.append(
+            .{ .operation = .push, .operand = .{ .boolean = true } },
         );
     }
 };

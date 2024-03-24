@@ -88,6 +88,9 @@ pub fn fromTok(ctx: *Context, tok_i: u32) !void {
 
             if (procedure.@"comptime") |comptime_fn| {
                 try comptime_fn(ctx);
+            } else if (procedure.macro) |instructions| {
+                _ = instructions;
+                @panic("unimplemented");
             } else {
                 if (procedure.compiled == null) {
                     procedure.compiled =

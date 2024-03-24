@@ -1,7 +1,11 @@
+procedure error
+    "ERROR" println exit
+end
+
 procedure test
     println
     0 = not _ jump-if-true "SUCCESS" println return
-    ^here "ERROR" println exit
+    ^here error
 end
 
 1 -1 + 
@@ -21,6 +25,9 @@ end
 
 0 dup 
 "dup" test
+
+// _ jump error ^here 0
+// "jump" test
 
 2 jump-relative noop 0 
 "jump-relative" test
