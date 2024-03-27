@@ -12,14 +12,14 @@ typedef struct Token {
     u32 beg_i;
     u32 end_i;
 } Token;
-typedef Slice(Token) Slice_Token;
-const Slice_Token nil_tokens = {0};
+typedef Array(Token) Array_Token ;
+const Array_Token nil_tokens = {0};
 
 typedef struct Context {
     Arena arena;
     Str8 path;
     Str8 bytes;
-    Slice_Token tokens;
+    Array_Token tokens;
 } Context;
 
 const bool char_is_num[256] = {
@@ -31,9 +31,10 @@ static bool char_is_alpha(u8 c) {
     return ('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z');
 }
 
-static Slice_Token tokens_from_bytes(Context *ctx) {
-    Slice_Token tokens = {0};
-    tokens.ptr = arena_alloc(&ctx->arena, ctx->bytes.len, sizeof(Token));
+static Array_Token tokens_from_bytes(Context *ctx) {
+    Array_Token tokens = {0};
+    tokens.ptr = arena_alloc(&ctx->arena, ctx->bytes.len, sizeof(Token)).ptr;
+    if (tokens.ptr != 0) tokens.cap = ctx->bytes.len;
 
     u8 *buf = ctx->bytes.ptr;
     u32 len = (u32)ctx->bytes.len;
@@ -47,7 +48,7 @@ static Slice_Token tokens_from_bytes(Context *ctx) {
                 .beg_i = beg_i, 
                 .end_i = end_i,
             };
-            slice_push(tokens, number);
+            array_push_unchecked(tokens, number);
         } else if (char_is_alpha(buf[i])) {
             u32 beg_i = i;
             while (i < len && char_is_alpha(buf[i])) i += 1;
@@ -57,7 +58,7 @@ static Slice_Token tokens_from_bytes(Context *ctx) {
                 .beg_i = beg_i,
                 .end_i = end_i,
             };
-            slice_push(tokens, symbol);
+            array_push_unchecked(tokens, symbol);
         }
 
         switch (buf[i]) {
@@ -75,7 +76,7 @@ static Slice_Token tokens_from_bytes(Context *ctx) {
                     .beg_i = i,
                     .end_i = i + 1,
                 };
-                slice_push(tokens, syntax_char);
+                array_push_unchecked(tokens, syntax_char);
             } break;
             case '"': {
                 i += 1;
@@ -88,7 +89,7 @@ static Slice_Token tokens_from_bytes(Context *ctx) {
                         .beg_i = beg_i,
                         .end_i = end_i,
                     };
-                    slice_push(tokens, string);
+                    array_push_unchecked(tokens, string);
                     goto next_char;
                 }
                 errf("string at byte index %d does not terminate", beg_i);
@@ -101,7 +102,7 @@ static Slice_Token tokens_from_bytes(Context *ctx) {
                     .beg_i = i,
                     .end_i = i + 1,
                 };
-                slice_push(tokens, syntax_char);
+                array_push_unchecked(tokens, syntax_char);
             }
         }
         next_char: continue;

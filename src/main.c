@@ -39,7 +39,7 @@ int main(int argc, char **argv) {
     };
     Args_Desc args_desc = {
         .exe_kind = args_kind_single_pos,
-        .flags = slice(flags),
+        .flags = array(flags),
     };
     if (args_parse(argc, argv, &args_desc) != 0) return 1;
 

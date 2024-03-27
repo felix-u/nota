@@ -80,15 +80,21 @@ static void _errf(char *file, usize line, const char *func, char *fmt, ...) {
     #endif // DEBUG
 }
 
-#define Array(type) struct { type *ptr; usize len; usize cap; }
-typedef Array(void) Array_Memory;
-
 typedef struct Arena {
     void *mem;
     usize offset;
     usize cap;
     usize last_offset;
 } Arena;
+
+#define count_of(arr) (sizeof(arr) / sizeof((arr)[0]))
+
+#define Array(type) struct { type *ptr; usize len; usize cap; Arena *arena; }
+typedef Array(void) Array_void;
+
+#define array(buf) { .ptr = buf, .len = count_of(buf), .cap = count_of(buf) }
+#define array_push_unchecked(array, item) (array).ptr[(array).len++] = (item)
+#define array_pop_unchecked(array) (array).ptr[--(array).len]
 
 static Arena arena_init(usize size) {
     Arena arena = {0};
@@ -104,14 +110,19 @@ static void arena_align(Arena *arena, usize align) {
 }
 
 #define ARENA_DEFAULT_ALIGNMENT (2 * sizeof(void *))
-static void *arena_alloc(Arena *arena, usize cap, usize sizeof_elem) {
+static Array_void arena_alloc(Arena *arena, usize cap, usize sizeof_elem) {
+    Array_void memory = {0};
     usize size = cap * sizeof_elem;
     arena_align(arena, ARENA_DEFAULT_ALIGNMENT);
     if (arena->offset + size >= arena->cap) {
         err("allocation failure");
-        return 0;
+        return memory;
     }
-    void *memory = (u8 *)arena->mem + arena->offset;
+    memory = (Array_void){
+        .ptr = (u8 *)arena->mem + arena->offset,
+        .cap = cap,
+        .arena = arena,
+    };
     arena->last_offset = arena->offset;
     arena->offset += size;
     return memory;
@@ -123,16 +134,7 @@ static void arena_deinit(Arena *arena) {
     arena->cap = 0;
 }
 
-#define count_of(arr) (sizeof(arr) / sizeof((arr)[0]))
-
-#define Slice(type) struct { type *ptr; usize len; }
-#define slice(arr) { .ptr = arr, .len = count_of(arr) }
-#define slice_expand(s) (s).ptr, (s).len
-#define slice_push(slice, item) (slice).ptr[(slice).len++] = (item)
-#define slice_pop(slice) (slice).ptr[--(slice).len]
-
-typedef Slice(u8) Str8;
-typedef Slice(Str8) Slice_Str8;
+typedef struct { u8 *ptr; usize len; } Str8;
 #define str8(s) (Str8){ .ptr = (u8 *)s, .len = sizeof(s) - 1 }
 #define str8_fmt(s) (int)(s).len, (s).ptr
 
@@ -152,7 +154,7 @@ static Str8 str8_from_cstr(char *s) {
 }
 
 static char *cstr_from_str8(Arena *arena, Str8 s) {
-    char *cstr = arena_alloc(arena, s.len + 1, sizeof(char));
+    char *cstr = arena_alloc(arena, s.len + 1, sizeof(char)).ptr;
     for (usize i = 0; i < s.len; i += 1) cstr[i] = s.ptr[i];
     cstr[s.len] = '\0';
     return cstr;
@@ -168,7 +170,7 @@ static Str8 str8_from_int_base(Arena *arena, usize _num, u8 base) {
         str.len += 1;
     } while (num > 0);
     
-    str.ptr = arena_alloc(arena, str.len, sizeof(u8));
+    str.ptr = arena_alloc(arena, str.len, sizeof(u8)).ptr;
 
     num = _num;
     for (i64 i = str.len - 1; i >= 0; i -= 1) {
@@ -218,7 +220,7 @@ static Str8 file_read(Arena *arena, Str8 path, char *mode) {
     
     fseek(file, 0L, SEEK_END);
     usize filesize = ftell(file);
-    bytes.ptr = arena_alloc(arena, filesize + 1, sizeof(u8));
+    bytes.ptr = arena_alloc(arena, filesize + 1, sizeof(u8)).ptr;
 
     fseek(file, 0L, SEEK_SET);
     bytes.len = fread(bytes.ptr, sizeof(u8), filesize, file);

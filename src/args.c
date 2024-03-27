@@ -13,7 +13,7 @@ typedef struct Args_Flag {
     struct { int beg_i; int end_i; } multi_pos;
 } Args_Flag;
 
-typedef Slice(Args_Flag *) Args_Flags;
+typedef Array(Args_Flag *) Args_Flags;
 
 typedef struct Args_Desc {
     Args_Kind exe_kind;
