@@ -13,12 +13,9 @@ typedef struct Args_Flag {
     struct { int beg_i; int end_i; } multi_pos;
 } Args_Flag;
 
-typedef Array(Args_Flag *) Args_Flags;
-
 typedef struct Args_Desc {
     Args_Kind exe_kind;
-    Args_Flags flags;
-
+    Args_Flag **flags; usize flags_len;
     Str8 single_pos;
     struct { int beg_i; int end_i; } multi_pos;
 } Args_Desc;
@@ -29,7 +26,8 @@ static int args_parse(int argc, char **argv, Args_Desc *desc) {
     if (argc == 0) return 1;
     if (argc == 1) return desc->exe_kind != args_kind_bool;
 
-    Args_Flags *flags = &desc->flags;
+    Args_Flag ***flags = &desc->flags;
+    usize flags_len = desc->flags_len;
     Str8 arg = str8_from_cstr(argv[1]);
     for (int i = 1; i < argc; i += 1, arg = str8_from_cstr(argv[i])) {
         if (arg.len == 1 || arg.ptr[0] != '-') {
@@ -76,15 +74,15 @@ static int args_parse(int argc, char **argv, Args_Desc *desc) {
         }
 
         Args_Flag *flag = 0;
-        for (usize j = 0; j < flags->len; j += 1) {
+        for (usize j = 0; j < flags_len; j += 1) {
             bool single_dash = (arg.ptr[0] == '-') && 
-                str8_eql(str8_range(arg, 1, arg.len), flags->ptr[j]->name);
+                str8_eql(str8_range(arg, 1, arg.len), (*flags[j])->name);
             bool double_dash = arg.len > 2 && 
                 str8_eql(str8_range(arg, 0, 2), str8("--")) &&
-                str8_eql(str8_range(arg, 2, arg.len), flags->ptr[j]->name);
+                str8_eql(str8_range(arg, 2, arg.len), (*flags[j])->name);
             if (!single_dash && !double_dash) continue;
 
-            flag = flags->ptr[j];
+            flag = (*flags[j]);
             flag->is_present = true;
             break;
         }

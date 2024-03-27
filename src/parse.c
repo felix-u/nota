@@ -12,14 +12,12 @@ typedef struct Token {
     u32 beg_i;
     u32 end_i;
 } Token;
-typedef Array(Token) Array_Token ;
-const Array_Token nil_tokens = {0};
 
 typedef struct Context {
     Arena arena;
     Str8 path;
     Str8 bytes;
-    Array_Token tokens;
+    Array(Token) tokens;
 } Context;
 
 const bool char_is_num[256] = {
@@ -31,10 +29,9 @@ static bool char_is_alpha(u8 c) {
     return ('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z');
 }
 
-static Array_Token tokens_from_bytes(Context *ctx) {
-    Array_Token tokens = {0};
-    tokens.ptr = arena_alloc(&ctx->arena, ctx->bytes.len, sizeof(Token)).ptr;
-    if (tokens.ptr != 0) tokens.cap = ctx->bytes.len;
+static Array(Token) tokens_from_bytes(Context *ctx) {
+    Array(Token) tokens = 
+        arena_alloc(&ctx->arena, ctx->bytes.len, sizeof(Token));
 
     u8 *buf = ctx->bytes.ptr;
     u32 len = (u32)ctx->bytes.len;
@@ -93,7 +90,7 @@ static Array_Token tokens_from_bytes(Context *ctx) {
                     goto next_char;
                 }
                 errf("string at byte index %d does not terminate", beg_i);
-                return nil_tokens;
+                return nil_array;
             } break;
             case '{': case '}':
             case '=': {

@@ -39,7 +39,7 @@ int main(int argc, char **argv) {
     };
     Args_Desc args_desc = {
         .exe_kind = args_kind_single_pos,
-        .flags = array(flags),
+        .flags = flags, .flags_len = count_of(flags),
     };
     if (args_parse(argc, argv, &args_desc) != 0) return 1;
 
@@ -52,7 +52,7 @@ int main(int argc, char **argv) {
         printf("%.*s", str8_fmt(version_text));
         return 0;
     }
-
+    
     Context ctx = { 
         .arena = arena_init(16 * 1024 * 1024),
         .path = args_desc.single_pos,
