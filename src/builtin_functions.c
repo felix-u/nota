@@ -1,3 +1,5 @@
+const Parse_Sexpr nil_sexpr = {0};
+
 static Parse_Sexpr _sexpr_from_string(Parse_Context *ctx, Str8 str) {
     slice_push(ctx->literals, ((Parse_Literal){
         .type = parse_literal_type_string,
@@ -12,21 +14,16 @@ static Parse_Sexpr _sexpr_from_string(Parse_Context *ctx, Str8 str) {
     };
 }
 
-static error parse_builtin_const_fn(
-    void *_ctx, 
-    Parse_Sexpr sexpr, 
-    Parse_Sexpr *out_sexpr
-) {
-    (void)out_sexpr;
-
+static Parse_Sexpr parse_builtin_const_fn(void *_ctx, Parse_Sexpr sexpr) {
     Parse_Context *ctx = _ctx;
     Parse_Sexpr cdr = ctx->sexprs.ptr[sexpr.rhs];
 
-    try (parse_ensure_arity(ctx, cdr, 2));
+    if (!parse_ensure_arity(ctx, cdr, 2)) return nil_sexpr;
 
     Str8 ident_name = parse_tok_lexeme(ctx, ctx->toks.ptr[cdr.lhs]);
-    if (parse_lookup_ident(ctx, ident_name) != NULL) {
-        return errf("symbol '%.*s' already exists", str8_fmt(ident_name));
+    if (parse_lookup_ident(ctx, ident_name) != 0) {
+        errf("symbol '%.*s' already exists", str8_fmt(ident_name));
+        return nil_sexpr;
     }
 
     slice_push(ctx->idents, ((Parse_Ident){
@@ -34,17 +31,13 @@ static error parse_builtin_const_fn(
         .value_sexpr_i = cdr.rhs,
     }));
 
-    return 0;
+    return nil_sexpr;
 }
 
-static error parse_builtin_run_fn(
-    void *_ctx, 
-    Parse_Sexpr sexpr, 
-    Parse_Sexpr *out_sexpr
-) {
+static Parse_Sexpr parse_builtin_run_fn(void *_ctx, Parse_Sexpr sexpr) {
     Parse_Context *ctx = _ctx;
     Parse_Sexpr cdr = ctx->sexprs.ptr[sexpr.rhs];
-    try (parse_ensure_arity(ctx, cdr, 1));
+    if (!parse_ensure_arity(ctx, cdr, 1)) return nil_sexpr;
 
     char tmpfile_path_buf[64] = {0};
     snprintf(tmpfile_path_buf, 64, "/tmp/tmp_nota%d", rand() % 100000);
@@ -52,7 +45,8 @@ static error parse_builtin_run_fn(
 
     Parse_Literal cmd_str_literal = ctx->literals.ptr[cdr.lhs];
     if (cmd_str_literal.type != parse_literal_type_string) {
-        return err("expected string literal");
+        err("expected string literal");
+        return nil_sexpr;
     }
 
     char cmd_buf[2048] = {0};
@@ -65,22 +59,18 @@ static error parse_builtin_run_fn(
     );
 
     if (system(cmd_buf) != 0) {
-        return errf("command '%s' returned non-zero exit code", cmd_buf);
+        errf("command '%s' returned non-zero exit code", cmd_buf);
+        return nil_sexpr;
     }
 
-    Str8 cmd_output_capture; try (file_read(
-        &ctx->arena, 
-        tmpfile_path, 
-        "rb", 
-        &cmd_output_capture
-    ));
+    Str8 cmd_output_capture = file_read(&ctx->arena, tmpfile_path, "rb");
 
     snprintf(cmd_buf, 2048, "rm %.*s", str8_fmt(tmpfile_path));
     if (system(cmd_buf) != 0) {
-        return errf("failed to remove '%.*s'", str8_fmt(tmpfile_path));
+        errf("failed to remove '%.*s'", str8_fmt(tmpfile_path));
+        return nil_sexpr;
     }
 
-    *out_sexpr = _sexpr_from_string(ctx, cmd_output_capture);
-    return 0;
+    return _sexpr_from_string(ctx, cmd_output_capture);
 }
 

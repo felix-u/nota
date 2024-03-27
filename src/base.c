@@ -22,32 +22,30 @@ typedef   int64_t   i64;
 typedef     float   f32;
 typedef    double   f64;
 
-typedef          char  byte;
 typedef unsigned char uchar;
 typedef        size_t usize;
 typedef     uintptr_t  uptr;
 typedef      intptr_t  iptr;
 
-typedef int error;
-
-static error fatal(char *file, usize line, const char *func) {
-    #ifdef DEBUG
-        fprintf(stderr, "%s:%zu:%s() fatal error\n", file, line, func);
-    #else
-        (void)file;
-        (void)line;
-        (void)func;
-    #endif // DEBUG
-    return 1;
-}
-
-#define try(expression) \
-    if ((expression) != 0) return fatal(__FILE__, __LINE__, __func__)
+// static void err_accumulation_begin(void);
+// static void err(Str8 error);
+// static void errf(char *fmt, ...);
+// static Str8 err_accumulation_end(Arena *arena);
+//
+// typedef struct Error_Node {
+//     struct Error_Node *next;
+//     usize pos;
+//     Str8 error;
+// } Error_Node;
+//
+// typedef struct Error_Info {
+//     Arena *arena;
+//     Error_Node *stack;
+// } Error_Info;
 
 #define err(s) _err(__FILE__, __LINE__, __func__, s)
-static error _err(char *file, usize line, const char *func, char *s) {
+static void _err(char *file, usize line, const char *func, char *s) {
     fprintf(stderr, "error: %s\n", s);
-
     #ifdef DEBUG
         fprintf(
             stderr, 
@@ -59,19 +57,16 @@ static error _err(char *file, usize line, const char *func, char *s) {
         (void)line;
         (void)func;
     #endif // DEBUG
-
-    return 1;
 }
 
 #define errf(fmt, ...) _errf(__FILE__, __LINE__, __func__, fmt, __VA_ARGS__)
-static error _errf(char *file, usize line, const char *func, char *fmt, ...) {
+static void _errf(char *file, usize line, const char *func, char *fmt, ...) {
     fprintf(stderr, "error: ");
     va_list args;
     va_start(args, fmt);
     vfprintf(stderr, fmt, args);
     va_end(args);
     fprintf(stderr, "\n");
-
     #ifdef DEBUG
         fprintf(
             stderr, 
@@ -83,9 +78,10 @@ static error _errf(char *file, usize line, const char *func, char *fmt, ...) {
         (void)line;
         (void)func;
     #endif // DEBUG
-
-    return 1;
 }
+
+#define Array(type) struct { type *ptr; usize len; usize cap; }
+typedef Array(void) Array_Memory;
 
 typedef struct Arena {
     void *mem;
@@ -94,12 +90,12 @@ typedef struct Arena {
     usize last_offset;
 } Arena;
 
-static error arena_init(Arena *arena, usize size) {
-    arena->offset = 0;
-    arena->cap = size; 
-    arena->mem = calloc(1, size);
-    if (arena->mem == NULL) return errf("allocation of %d bytes failed", size);
-    return 0;
+static Arena arena_init(usize size) {
+    Arena arena = {0};
+    arena.mem = calloc(1, size);
+    if (arena.mem == 0) err("allocation failure");
+    arena.cap = size; 
+    return arena;
 }
 
 static void arena_align(Arena *arena, usize align) {
@@ -108,14 +104,18 @@ static void arena_align(Arena *arena, usize align) {
 }
 
 #define ARENA_DEFAULT_ALIGNMENT (2 * sizeof(void *))
-#define arena_alloc(arena, size, out) _arena_alloc(arena, size, (void **)(out))
-static error _arena_alloc(Arena *arena, usize size, void **out) {
+static Array_Memory arena_alloc(Arena *arena, usize size) {
+    Array_Memory memory = {0};
     arena_align(arena, ARENA_DEFAULT_ALIGNMENT);
-    if (arena->offset + size >= arena->cap) return err("allocation failure");
-    *out = (u8 *)arena->mem + arena->offset;
+    if (arena->offset + size >= arena->cap) {
+        err("allocation failure");
+        return memory;
+    }
+    memory.ptr = (u8 *)arena->mem + arena->offset;
+    memory.cap = size;
     arena->last_offset = arena->offset;
     arena->offset += size;
-    return 0;
+    return memory;
 }
 
 static void arena_deinit(Arena *arena) {
@@ -152,32 +152,32 @@ static Str8 str8_from_cstr(char *s) {
     return (Str8){ .ptr = (u8 *)s, .len = len };
 }
 
-static error cstr_from_str8(Arena *arena, Str8 s, char **out) {
-    try (arena_alloc(arena, s.len + 1, out));
-    for (usize i = 0; i < s.len; i += 1) (*out)[i] = s.ptr[i];
-    (*out)[s.len] = '\0';
-    return 0;
+static char *cstr_from_str8(Arena *arena, Str8 s) {
+    char *cstr = arena_alloc(arena, s.len + 1).ptr;
+    for (usize i = 0; i < s.len; i += 1) cstr[i] = s.ptr[i];
+    cstr[s.len] = '\0';
+    return cstr;
 }
 
 // Only bases <= 10
-static error str8_from_int_base(Arena *arena, usize _num, u8 base, Str8 *out) {
-    out->len = 0;
+static Str8 str8_from_int_base(Arena *arena, usize _num, u8 base) {
+    Str8 str = {0};
     usize num = _num;
 
     do {
         num /= base;
-        out->len += 1;
+        str.len += 1;
     } while (num > 0);
     
-    try (arena_alloc(arena, out->len, &out->ptr));
+    str.ptr = arena_alloc(arena, str.len).ptr;
 
     num = _num;
-    for (i64 i = out->len - 1; i >= 0; i -= 1) {
-        out->ptr[i] = (num % base) + '0';
+    for (i64 i = str.len - 1; i >= 0; i -= 1) {
+        str.ptr[i] = (num % base) + '0';
         num /= base;
     }
 
-    return 0;
+    return str;
 }
 
 static Str8 str8_range(Str8 s, usize beg, usize end) {
@@ -204,34 +204,35 @@ static usize decimal_from_hex_str8(Str8 s) {
     return result;
 }
 
-static error file_open(Str8 path, char *mode, FILE **file_out) {
-    if (path.len == 0) return err("empty path");
-    if (mode == NULL) return err("invalid mode");
-    *file_out = fopen((char *)path.ptr, mode);
-    if (*file_out == NULL) {
-        return errf("failed to open file '%.*s'", str8_fmt(path));
-    }
-    return 0;
+static FILE *file_open(Str8 path, char *mode) {
+    if (path.len == 0 || mode == 0) return 0;
+    FILE *file = fopen((char *)path.ptr, mode);
+    if (file == 0) errf("failed to open file '%.*s'", str8_fmt(path));
+    return file;
 }
 
-static error file_read(Arena *arena, Str8 path, char *mode, Str8 *out) {
-    FILE *file; try (file_open(path, mode, &file));
+static Str8 file_read(Arena *arena, Str8 path, char *mode) {
+    Str8 bytes = {0};
+    if (path.len == 0 || mode == 0) return bytes;
+
+    FILE *file = file_open(path, mode);
     
     fseek(file, 0L, SEEK_END);
     usize filesize = ftell(file);
-    try (arena_alloc(arena, filesize + 1, &out->ptr));
+    bytes.ptr = arena_alloc(arena, filesize + 1).ptr;
 
     fseek(file, 0L, SEEK_SET);
-    out->len = fread(out->ptr, sizeof(u8), filesize, file);
-    out->ptr[out->len] = '\0';
+    bytes.len = fread(bytes.ptr, sizeof(u8), filesize, file);
+    bytes.ptr[bytes.len] = '\0';
 
     if (ferror(file)) {
         fclose(file);
-        return err("error reading file");
+        errf("error reading file '%.*s'", str8_fmt(path));
+        return (Str8){0};
     }
 
     fclose(file);
-    return 0;
+    return bytes;
 }
 
 static void file_write(FILE *file, Str8 memory) {

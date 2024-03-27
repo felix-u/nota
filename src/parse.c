@@ -41,12 +41,8 @@ typedef struct {
 } Parse_Sexpr;
 typedef Slice(Parse_Sexpr) Parse_Sexpr_Slice;
 
-typedef error (*parse_eval_fn)(
-    void *ctx, 
-    Parse_Sexpr sexpr, 
-    Parse_Sexpr *out_sexpr
-);
-typedef struct {
+typedef Parse_Sexpr (*parse_eval_fn)(void *ctx, Parse_Sexpr sexpr);
+typedef struct Parse_Function {
     Str8 name;
     parse_eval_fn eval_fn;
 } Parse_Function;
@@ -126,16 +122,16 @@ static Str8 parse_string_from_token_kind(Parse_Token_Kind kind) {
     return str8("unreachable");
 }
 
-static error parse_lex(Parse_Context *ctx) {
-    Str8 buf = ctx->bytes;
-    Parse_Token_Slice *toks = &ctx->toks;
-    try (arena_alloc(&ctx->arena, buf.len * sizeof(Parse_Token), &toks->ptr));
+static Parse_Token_Slice parse_lex(Arena *arena, Str8 buf) {
+    Parse_Token_Slice nil_toks = {0};
+    Parse_Token_Slice toks = {0};
+    toks.ptr = arena_alloc(arena, buf.len * sizeof(Parse_Token)).ptr;
 
     for (u32 i = 0; i < buf.len; i += 1) {
         if (parse_char_is_whitespace_table[buf.ptr[i]]) continue;
 
         if (parse_char_is_syntax_table[buf.ptr[i]]) {
-            slice_push(*toks, ((Parse_Token){
+            slice_push(toks, ((Parse_Token){
                 .kind = buf.ptr[i],
                 .beg_i = i,
                 .end_i = i + 1,
@@ -147,10 +143,13 @@ static error parse_lex(Parse_Context *ctx) {
             i += 1;
             u32 string_beg_i = i;
             while (i < buf.len && buf.ptr[i] != '"') i += 1;
-            if (i >= buf.len) return err("string never terminates");
+            if (i >= buf.len) {
+                err("string never terminates");
+                return nil_toks;
+            }
             u32 string_end_i = i;
 
-            slice_push(*toks, ((Parse_Token){
+            slice_push(toks, ((Parse_Token){
                 .kind = parse_token_kind_string,
                 .beg_i = string_beg_i,
                 .end_i = string_end_i,
@@ -161,7 +160,7 @@ static error parse_lex(Parse_Context *ctx) {
         u32 ident_beg_i = i;
         while (i < buf.len && parse_char_is_ident(buf.ptr[i])) i += 1;
         u32 ident_end_i = i;
-        slice_push(*toks, ((Parse_Token){ 
+        slice_push(toks, ((Parse_Token){ 
             .kind = parse_token_kind_ident, 
             .beg_i = ident_beg_i,
             .end_i = ident_end_i,
@@ -169,24 +168,22 @@ static error parse_lex(Parse_Context *ctx) {
         i -= 1;
     }
 
-    return 0;
+    return toks;
 }
 
-static error parse_ast_from_toks(Parse_Context *ctx) {
+static void parse_ast_from_toks(Parse_Context *ctx) {
     Parse_Token_Slice toks = ctx->toks;
     Parse_Sexpr_Slice *sexprs = &ctx->sexprs;
     u32 *i = &ctx->tok_i;
     if (*i == 0) {
-        try (arena_alloc(
+        sexprs->ptr = arena_alloc(
             &ctx->arena, 
-            toks.len * sizeof(Parse_Sexpr), 
-            &sexprs->ptr
-        )); 
-        try (arena_alloc(
+            toks.len * sizeof(Parse_Sexpr)
+        ).ptr; 
+        ctx->literals.ptr = arena_alloc(
             &ctx->arena,
-            toks.len * sizeof(Parse_Literal),
-            &ctx->literals.ptr
-        ));
+            toks.len * sizeof(Parse_Literal)
+        ).ptr;
     }
 
     for (
@@ -211,7 +208,7 @@ static error parse_ast_from_toks(Parse_Context *ctx) {
                 },
                 .lhs = *i,
             }));
-            return 0;
+            return;
         }
         if (tok.kind == '(') {
             *i += 1;
@@ -224,7 +221,7 @@ static error parse_ast_from_toks(Parse_Context *ctx) {
                 },
                 .lhs = lhs,
             }));
-            try (parse_ast_from_toks(ctx)); 
+            parse_ast_from_toks(ctx); 
             sexprs->ptr[sexpr_to_fix_rhs_i].rhs = (u32)sexprs->len;
             continue;
         }
@@ -256,7 +253,7 @@ static error parse_ast_from_toks(Parse_Context *ctx) {
                 }));
             }; break;
             default: {
-                return errf("invalid token at index %d", *i);
+                errf("invalid token at index %d", *i);
             } break;
         }
     }
@@ -265,10 +262,10 @@ static error parse_ast_from_toks(Parse_Context *ctx) {
         .kind = parse_sexpr_kind_nil,
         .as = parse_sexpr_as_ident,
     } }));
-    return 0;
+    return;
 }
 
-static error parse_ensure_arity(
+static bool parse_ensure_arity(
     Parse_Context *ctx, 
     Parse_Sexpr sexpr, 
     u32 arity
@@ -278,27 +275,29 @@ static error parse_ensure_arity(
         sexpr = ctx->sexprs.ptr[sexpr.rhs];
         count += 1;
     }
-    if (sexpr.rhs != 0) return errf("arity greater than %d", arity);
-    if (count != arity) {
-        return errf("expected arity %d but got %d", arity, count);
+    if (sexpr.rhs != 0) {
+        errf("arity greater than %d", arity);
+        return false;
     }
-    return 0;
+    if (count != arity) {
+        errf("expected arity %d but got %d", arity, count);
+        return false;
+    }
+    return true;
 }
 
 #include "builtin_functions.c"
 
-static error parse_eval_init(Parse_Context *ctx) {
-    try (arena_alloc(
+static void parse_eval_init(Parse_Context *ctx) {
+    ctx->functions.ptr = arena_alloc(
         &ctx->arena, 
-        ctx->sexprs.len * sizeof(Parse_Function), 
-        &ctx->functions.ptr
-    ));
+        ctx->sexprs.len * sizeof(Parse_Function)
+    ).ptr;
 
-    try (arena_alloc(
+    ctx->idents.ptr = arena_alloc(
         &ctx->arena,
-        ctx->sexprs.len * sizeof(Parse_Ident),
-        &ctx->idents.ptr
-    ));
+        ctx->sexprs.len * sizeof(Parse_Ident)
+    ).ptr;
 
     slice_push(ctx->functions, ((Parse_Function){
         .name = str8("const"),
@@ -309,59 +308,52 @@ static error parse_eval_init(Parse_Context *ctx) {
         .name = str8("run"),
         .eval_fn = parse_builtin_run_fn,
     }));
-
-    return 0;
 }
 
-static error parse_lookup_function(
-    Parse_Context *ctx, 
-    Str8 name, 
-    Parse_Function *out_function
-) {
+static Parse_Function parse_lookup_function(Parse_Context *ctx, Str8 name) {
     for (usize i = 0; i < ctx->functions.len; i += 1) {
         Parse_Function fn = ctx->functions.ptr[i];
         if (!str8_eql(name, fn.name)) continue;
-        *out_function = fn;
-        return 0;
+        return fn;
     }
-    return errf("no such function '%.*s'", str8_fmt(name));
+    errf("no such function '%.*s'", str8_fmt(name));
+    return (Parse_Function){0};
 }
 
-static error parse_function_eval(
-    Parse_Context *ctx, 
-    Parse_Sexpr sexpr, 
-    Parse_Sexpr *out_sexpr
-) {
-    if (sexpr.tag.as != parse_sexpr_as_ident) return err(
-        "cannot lookup function corresponding to non-identifier expression"
-    );
+static Parse_Sexpr parse_function_eval(Parse_Context *ctx, Parse_Sexpr sexpr) {
+    if (sexpr.tag.as != parse_sexpr_as_ident) {
+        err(
+            "cannot lookup function corresponding to non-identifier expression"
+        );
+        return nil_sexpr;
+    }
     Str8 lexeme = parse_tok_lexeme(ctx, ctx->toks.ptr[sexpr.lhs]);
-    Parse_Function fn; try (parse_lookup_function(ctx, lexeme, &fn));
-    try (fn.eval_fn(ctx, sexpr, out_sexpr));
-    return 0;
+    Parse_Function fn = parse_lookup_function(ctx, lexeme);
+    Parse_Sexpr result = nil_sexpr;
+    if (fn.eval_fn != 0) result = fn.eval_fn(ctx, sexpr);
+    return result;
 }
 
-static error parse_eval_sexpr(
-    Parse_Context *ctx, 
-    Parse_Sexpr sexpr, 
-    Parse_Sexpr *out_sexpr
-) {
+static Parse_Sexpr parse_eval_sexpr(Parse_Context *ctx, Parse_Sexpr sexpr) {
     switch (sexpr.tag.kind) {
-        case parse_sexpr_kind_nil: return 0; break;
+        case parse_sexpr_kind_nil: return nil_sexpr; break;
         case parse_sexpr_kind_atom: {
             switch ((Parse_Sexpr_As)sexpr.tag.as) {
-                case parse_sexpr_as_literal: return 0; break;
-                case parse_sexpr_as_symbol: return 0; break;
+                case parse_sexpr_as_literal: return nil_sexpr; break;
+                case parse_sexpr_as_symbol: return nil_sexpr; break;
                 case parse_sexpr_as_ident: {
                     Parse_Token ident_name_tok = ctx->toks.ptr[sexpr.lhs];
                     Str8 ident_name = parse_tok_lexeme(ctx, ident_name_tok);
                     Parse_Ident *resolved = 
                         parse_lookup_ident(ctx, ident_name);
-                    if (resolved == NULL) return errf(
-                        "no such identifier '%.*s'\nTODO: fn lookup here?", 
-                        str8_fmt(ident_name)
-                    );
-                    *out_sexpr = ctx->sexprs.ptr[resolved->value_sexpr_i];
+                    if (resolved == 0) {
+                        errf(
+                            "no such identifier '%.*s'\nTODO: fn lookup here?", 
+                            str8_fmt(ident_name)
+                        );
+                        return nil_sexpr;
+                    }
+                    return ctx->sexprs.ptr[resolved->value_sexpr_i];
                 } break;
             }
         }; break;
@@ -369,22 +361,22 @@ static error parse_eval_sexpr(
             Parse_Sexpr *first = &ctx->sexprs.ptr[sexpr.lhs];
             Parse_Sexpr *next = &ctx->sexprs.ptr[first->rhs];
             while (next->rhs != 0) {
-                try (parse_eval_sexpr(ctx, *next, next));
+                *next = parse_eval_sexpr(ctx, *next);
                 next = &ctx->sexprs.ptr[next->rhs];
             }
-            try (parse_function_eval(ctx, *first, out_sexpr));
-            out_sexpr->rhs = sexpr.rhs;
+            Parse_Sexpr result = parse_function_eval(ctx, *first);
+            result.rhs = sexpr.rhs;
+            return result;
         }; break;
     }
-    return 0;
+    return nil_sexpr;
 }
 
-static error parse_eval_ast(Parse_Context *ctx) {
+static void parse_eval_ast(Parse_Context *ctx) {
     u32 sexpr_i = 0;
     do {
         Parse_Sexpr *sexpr = &ctx->sexprs.ptr[sexpr_i];
-        try (parse_eval_sexpr(ctx, *sexpr, sexpr));
+        *sexpr = parse_eval_sexpr(ctx, *sexpr);
         sexpr_i = ctx->sexprs.ptr[sexpr_i].rhs;
     } while (sexpr_i != 0);
-    return 0;
 }

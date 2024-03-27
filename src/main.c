@@ -22,8 +22,18 @@ const Str8 help_text = str8(
 #include "parse.c"
 #include "print.c"
 
-static error main_wrapper(Parse_Context *ctx) {
-    try (arena_init(&ctx->arena, 16 * 1024 * 1024));
+int main(int argc, char **argv) {
+    int result = 0;
+    if (argc == 1) {
+        printf("%.*s", str8_fmt(help_text));
+        return 1;
+    }
+
+    Parse_Context ctx = { 
+        .argc = argc, 
+        .argv = argv,
+        .arena = arena_init(16 * 1024 * 1024),
+    };
 
     Args_Flag debug_flag = { .name = str8("debug") };
     Args_Flag help_flag_short = { .name = str8("h") };
@@ -38,58 +48,49 @@ static error main_wrapper(Parse_Context *ctx) {
         .exe_kind = args_kind_single_pos,
         .flags = slice(flags),
     };
-    try (args_parse(ctx->argc, ctx->argv, &args_desc));
+    result = args_parse(ctx.argc, ctx.argv, &args_desc);
 
     if (help_flag_short.is_present || help_flag_long.is_present) {
         printf("%.*s", str8_fmt(help_text));
-        return 0;
+        goto end;
     }
 
     if (version_flag.is_present) {
         printf("%.*s", str8_fmt(version_text));
-        return 0;
+        goto end;
     }
 
-    ctx->path = args_desc.single_pos;
-    try (file_read(&ctx->arena, ctx->path, "rb", &ctx->bytes));
-    if (ctx->bytes.len >= UINT32_MAX) {
+    ctx.path = args_desc.single_pos;
+    ctx.bytes = file_read(&ctx.arena, ctx.path, "rb");
+    if (ctx.bytes.len >= UINT32_MAX) {
         usize max_mb = UINT32_MAX / 1024 / 1024;
-        return errf(
+        errf(
             "file '%.*s' exceeds max size %zu megabytes",
-            str8_fmt(ctx->path), max_mb
+            str8_fmt(ctx.path), max_mb
         );
+        ctx.bytes = (Str8){0};
     }
     if (debug_flag.is_present) {
-        printf("File:\\\n%.*s\\ File end\n", str8_fmt(ctx->bytes));
+        printf("File:\\\n%.*s\\ File end\n", str8_fmt(ctx.bytes));
     }
 
-    try (parse_lex(ctx));
-    if (debug_flag.is_present) print_tokens(ctx);
+    ctx.toks = parse_lex(&ctx.arena, ctx.bytes);
+    if (debug_flag.is_present) print_tokens(&ctx);
 
-    try (parse_ast_from_toks(ctx));
-    if (debug_flag.is_present) print_ast(ctx);
+    parse_ast_from_toks(&ctx);
+    if (debug_flag.is_present) print_ast(&ctx);
 
     if (debug_flag.is_present) printf("\nEvaluating... ");
-    try (parse_eval_init(ctx));
-    try (parse_eval_ast(ctx));
+    parse_eval_init(&ctx);
+    parse_eval_ast(&ctx);
     if (debug_flag.is_present) {
         printf("Done!\n\n");
-        print_ast(ctx);
-        print_idents(ctx);
+        print_ast(&ctx);
+        print_idents(&ctx);
     }
 
-    return 0;
-}
-
-int main(int argc, char **argv) {
-    if (argc == 1) {
-        printf("%.*s", str8_fmt(help_text));
-        return 1;
-    }
-
-    Parse_Context ctx = { .argc = argc, .argv = argv };
-    error e = main_wrapper(&ctx);
+    end:
     arena_deinit(&ctx.arena);
-    return e;
+    return result;
 }
 
