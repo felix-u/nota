@@ -1,2 +1,11 @@
-(const 'os "hi")
-(const 'os-second os)
+// comment
+
+string = "text"
+number = 1234
+bool = true
+
+node {
+    nested {
+        value = "something"
+    }
+}

@@ -20,7 +20,6 @@ const Str8 help_text = str8(
 );
 
 #include "parse.c"
-#include "print.c"
 
 int main(int argc, char **argv) {
     int result = 0;
@@ -28,12 +27,6 @@ int main(int argc, char **argv) {
         printf("%.*s", str8_fmt(help_text));
         return 1;
     }
-
-    Parse_Context ctx = { 
-        .argc = argc, 
-        .argv = argv,
-        .arena = arena_init(16 * 1024 * 1024),
-    };
 
     Args_Flag debug_flag = { .name = str8("debug") };
     Args_Flag help_flag_short = { .name = str8("h") };
@@ -48,19 +41,23 @@ int main(int argc, char **argv) {
         .exe_kind = args_kind_single_pos,
         .flags = slice(flags),
     };
-    result = args_parse(ctx.argc, ctx.argv, &args_desc);
+    if (args_parse(argc, argv, &args_desc) != 0) return 1;
 
     if (help_flag_short.is_present || help_flag_long.is_present) {
         printf("%.*s", str8_fmt(help_text));
-        goto end;
+        return 0;
     }
 
     if (version_flag.is_present) {
         printf("%.*s", str8_fmt(version_text));
-        goto end;
+        return 0;
     }
 
-    ctx.path = args_desc.single_pos;
+    Context ctx = { 
+        .arena = arena_init(16 * 1024 * 1024),
+        .path = args_desc.single_pos,
+    };
+
     ctx.bytes = file_read(&ctx.arena, ctx.path, "rb");
     if (ctx.bytes.len >= UINT32_MAX) {
         usize max_mb = UINT32_MAX / 1024 / 1024;
@@ -70,26 +67,12 @@ int main(int argc, char **argv) {
         );
         ctx.bytes = (Str8){0};
     }
-    if (debug_flag.is_present) {
+    if (debug_flag.is_present && ctx.bytes.len > 0) {
         printf("File:\\\n%.*s\\ File end\n", str8_fmt(ctx.bytes));
     }
 
-    ctx.toks = parse_lex(&ctx.arena, ctx.bytes);
-    if (debug_flag.is_present) print_tokens(&ctx);
+    ctx.tokens = tokens_from_bytes(&ctx);
 
-    parse_ast_from_toks(&ctx);
-    if (debug_flag.is_present) print_ast(&ctx);
-
-    if (debug_flag.is_present) printf("\nEvaluating... ");
-    parse_eval_init(&ctx);
-    parse_eval_ast(&ctx);
-    if (debug_flag.is_present) {
-        printf("Done!\n\n");
-        print_ast(&ctx);
-        print_idents(&ctx);
-    }
-
-    end:
     arena_deinit(&ctx.arena);
     return result;
 }

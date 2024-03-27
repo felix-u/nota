@@ -104,15 +104,14 @@ static void arena_align(Arena *arena, usize align) {
 }
 
 #define ARENA_DEFAULT_ALIGNMENT (2 * sizeof(void *))
-static Array_Memory arena_alloc(Arena *arena, usize size) {
-    Array_Memory memory = {0};
+static void *arena_alloc(Arena *arena, usize cap, usize sizeof_elem) {
+    usize size = cap * sizeof_elem;
     arena_align(arena, ARENA_DEFAULT_ALIGNMENT);
     if (arena->offset + size >= arena->cap) {
         err("allocation failure");
-        return memory;
+        return 0;
     }
-    memory.ptr = (u8 *)arena->mem + arena->offset;
-    memory.cap = size;
+    void *memory = (u8 *)arena->mem + arena->offset;
     arena->last_offset = arena->offset;
     arena->offset += size;
     return memory;
@@ -153,7 +152,7 @@ static Str8 str8_from_cstr(char *s) {
 }
 
 static char *cstr_from_str8(Arena *arena, Str8 s) {
-    char *cstr = arena_alloc(arena, s.len + 1).ptr;
+    char *cstr = arena_alloc(arena, s.len + 1, sizeof(char));
     for (usize i = 0; i < s.len; i += 1) cstr[i] = s.ptr[i];
     cstr[s.len] = '\0';
     return cstr;
@@ -169,7 +168,7 @@ static Str8 str8_from_int_base(Arena *arena, usize _num, u8 base) {
         str.len += 1;
     } while (num > 0);
     
-    str.ptr = arena_alloc(arena, str.len).ptr;
+    str.ptr = arena_alloc(arena, str.len, sizeof(u8));
 
     num = _num;
     for (i64 i = str.len - 1; i >= 0; i -= 1) {
@@ -219,7 +218,7 @@ static Str8 file_read(Arena *arena, Str8 path, char *mode) {
     
     fseek(file, 0L, SEEK_END);
     usize filesize = ftell(file);
-    bytes.ptr = arena_alloc(arena, filesize + 1).ptr;
+    bytes.ptr = arena_alloc(arena, filesize + 1, sizeof(u8));
 
     fseek(file, 0L, SEEK_SET);
     bytes.len = fread(bytes.ptr, sizeof(u8), filesize, file);
