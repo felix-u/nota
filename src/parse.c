@@ -1,5 +1,5 @@
 typedef enum Token_Type {
-    token_invalid = 0,
+    token_nil = 0,
     // ASCII: <128
     token_ascii_end = 128,
     token_symbol,
@@ -13,11 +13,23 @@ typedef struct Token {
     u32 end_i;
 } Token;
 
+typedef enum Node_Type {
+    node_nil = 0,
+    node_decl,
+} Node_Type;
+typedef u32 Node_Index;
+typedef struct Node {
+    Node_Type type;
+    Node_Index lhs;
+    Node_Index rhs;
+} Node;
+
 typedef struct Context {
     Arena arena;
-    Str8 path;
+    char *path;
     Str8 bytes;
     Array(Token) tokens;
+    Array(Node) nodes;
 } Context;
 
 const bool char_is_num[256] = {
@@ -27,6 +39,10 @@ const bool char_is_num[256] = {
 
 static bool char_is_alpha(u8 c) {
     return ('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z');
+}
+
+static inline Str8 token_lexeme(Context *ctx, Token token) {
+    return str8_range(ctx->bytes, token.beg_i, token.end_i);
 }
 
 static Array(Token) tokens_from_bytes(Context *ctx) {
@@ -105,6 +121,26 @@ static Array(Token) tokens_from_bytes(Context *ctx) {
         next_char: continue;
     }
 
-    err("unimplemented");
     return tokens;
+}
+
+static Array(Node) parse_in_body(Context *ctx, Array(Node) nodes, u32 *i) {
+    (void)nodes;
+    err("unimplemented");
+    goto error;
+
+    error:
+    *i = (u32)array_len(ctx->tokens);
+    return nil_array;
+}
+
+static Array(Node) nodes_from_tokens(Context *ctx) {
+    Array(Node) nodes = 
+        arena_alloc(&ctx->arena, array_len(ctx->tokens), sizeof(Node));
+
+    for (u32 i = 0; i < array_len(ctx->tokens); i += 1) {
+        nodes = parse_in_body(ctx, nodes, &i);
+    }
+
+    return nodes;
 }

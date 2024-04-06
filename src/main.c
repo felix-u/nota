@@ -55,16 +55,13 @@ int main(int argc, char **argv) {
     
     Context ctx = { 
         .arena = arena_init(16 * 1024 * 1024),
-        .path = args_desc.single_pos,
+        .path = (char *)args_desc.single_pos.ptr,
     };
 
     ctx.bytes = file_read(&ctx.arena, ctx.path, "rb");
     if (ctx.bytes.len >= UINT32_MAX) {
         usize max_mb = UINT32_MAX / 1024 / 1024;
-        errf(
-            "file '%.*s' exceeds max size %zu megabytes",
-            str8_fmt(ctx.path), max_mb
-        );
+        errf("file '%s' exceeds max size %zu megabytes", ctx.path, max_mb);
         ctx.bytes = (Str8){0};
     }
     if (debug_flag.is_present && ctx.bytes.len > 0) {
@@ -72,6 +69,7 @@ int main(int argc, char **argv) {
     }
 
     ctx.tokens = tokens_from_bytes(&ctx);
+    ctx.nodes = nodes_from_tokens(&ctx);
 
     arena_deinit(&ctx.arena);
     return result;

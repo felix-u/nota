@@ -5,20 +5,22 @@ typedef enum Args_Kind {
 } Args_Kind;
 
 typedef struct Args_Flag {
-    char *name; usize name_len;
+    Str8 name;
     Args_Kind kind;
     
     bool is_present;
-    char *single_pos; usize single_pos_len;
+    Str8 single_pos;
     struct { int beg_i; int end_i; } multi_pos;
 } Args_Flag;
 
 typedef struct Args_Desc {
     Args_Kind exe_kind;
     Args_Flag **flags; usize flags_len;
-    char *single_pos; usize single_pos_len;
+    Str8 single_pos;
     struct { int beg_i; int end_i; } multi_pos;
 } Args_Desc;
+
+typedef struct Args { char **argv; int argc; } Args;
 
 static int args_parse(int argc, char **argv, Args_Desc *desc) {
     if (argc == 0) return 1;
@@ -26,18 +28,25 @@ static int args_parse(int argc, char **argv, Args_Desc *desc) {
 
     Args_Flag ***flags = &desc->flags;
     usize flags_len = desc->flags_len;
-    char *arg = argv[1];
-    usize arg_len = strlen(arg);
-    for (int i = 1; i < argc; i += 1, arg = argv[i], arg_len = strlen(arg)) {
-        if (arg_len == 1 || arg[0] != '-') {
+    Str8 arg = str8_from_cstr(argv[1]);
+    for (int i = 1; i < argc; i += 1, arg = str8_from_cstr(argv[i])) {
+        if (arg.len == 1 || arg.ptr[0] != '-') {
             switch (desc->exe_kind) {
                 case args_kind_bool: {
-                    errf("unexpected positional argument '%s'", arg);
+                    errf(
+                        "unexpected positional argument '%.*s'", 
+                        str8_fmt(arg)
+                    );
                     return 1;
                 } break;
                 case args_kind_single_pos: {
-                    if (desc->single_pos != 0) {
-                        errf("unexpected positional argument '%s'", arg);
+                    if (desc->single_pos.len != 0 || 
+                        desc->single_pos.ptr != 0
+                    ) {
+                        errf(
+                            "unexpected positional argument '%.*s'", 
+                            str8_fmt(arg)
+                        );
                         return 1;
                     }
                     desc->single_pos = arg;
@@ -51,9 +60,9 @@ static int args_parse(int argc, char **argv, Args_Desc *desc) {
 
                     if (desc->multi_pos.end_i < (int)i) {
                         errf(
-                            "unexpected positional argument '%s'; "
+                            "unexpected positional argument '%.*s'; "
                                 "positional arguments ended earlier",
-                            arg
+                            str8_fmt(arg)
                         );
                         return 1;
                     }
@@ -66,20 +75,19 @@ static int args_parse(int argc, char **argv, Args_Desc *desc) {
 
         Args_Flag *flag = 0;
         for (usize j = 0; j < flags_len; j += 1) {
-            Args_Flag *f = *flags[j];
-            bool single_dash = (arg[0] == '-') && 
-                !strncmp(arg + 1, f->name, f->name_len);
-            bool double_dash = arg_len > 2 && 
-                !strncmp(arg, "--", 2) &&
-                !strncmp(arg + 2, f->name, f->name_len);
+            bool single_dash = (arg.ptr[0] == '-') && 
+                str8_eql(str8_range(arg, 1, arg.len), (*flags[j])->name);
+            bool double_dash = arg.len > 2 && 
+                str8_eql(str8_range(arg, 0, 2), str8("--")) &&
+                str8_eql(str8_range(arg, 2, arg.len), (*flags[j])->name);
             if (!single_dash && !double_dash) continue;
 
-            flag = f;
+            flag = (*flags[j]);
             flag->is_present = true;
             break;
         }
         if (flag == 0) {
-            errf("invalid flag '%s'", arg);
+            errf("invalid flag '%.*s'", str8_fmt(arg));
             return 1;
         }
 
@@ -87,27 +95,39 @@ static int args_parse(int argc, char **argv, Args_Desc *desc) {
             case args_kind_bool: break;
             case args_kind_single_pos: {
                 if (i + 1 == argc || argv[i + 1][0] == '-') {
-                    errf("expected positional argument after '%s'", arg);
+                    errf(
+                        "expected positional argument after '%.*s'", 
+                        str8_fmt(arg)
+                    );
                     return 1;
                 }
-                if (flag->single_pos != 0) {
-                    errf("unexpected positional argument '%.*s'", arg);
+                if (flag->single_pos.len != 0 || flag->single_pos.ptr != 0) {
+                    errf(
+                        "unexpected positional argument '%.*s'", 
+                        str8_fmt(arg)
+                    );
                     return 1;
                 }
-                flag->single_pos = argv[++i];
-                flag->single_pos_len = strlen(flag->single_pos);
+                flag->single_pos = str8_from_cstr(argv[++i]);
             } break;
             case args_kind_multi_pos: {
                 if (i + 1 == argc || argv[i + 1][0] == '-') {
-                    errf("expected positional argument after '%s'", arg);
+                    errf(
+                        "expected positional argument after '%.*s'", 
+                        str8_fmt(arg)
+                    );
                     return 1;
                 }
 
                 flag->multi_pos.beg_i = i + 1;
                 flag->multi_pos.end_i = i + 2;
 
-                for (arg = argv[++i]; i < argc; arg = argv[++i]) {
-                    if (arg[0] == '-') {
+                for (
+                    arg = str8_from_cstr(argv[++i]); 
+                    i < argc; 
+                    arg = str8_from_cstr(argv[++i])
+                ) {
+                    if (arg.ptr[0] == '-') {
                         i -= 1;
                         break;
                     }

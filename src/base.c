@@ -192,16 +192,16 @@ static usize decimal_from_hex_str8(Str8 s) {
     return result;
 }
 
-static FILE *file_open(Str8 path, char *mode) {
-    if (path.len == 0 || mode == 0) return 0;
-    FILE *file = fopen((char *)path.ptr, mode);
-    if (file == 0) errf("failed to open file '%.*s'", str8_fmt(path));
+static FILE *file_open(char *path, char *mode) {
+    if (path == 0 || mode == 0) return 0;
+    FILE *file = fopen(path, mode);
+    if (file == 0) errf("failed to open file '%s'", path);
     return file;
 }
 
-static Str8 file_read(Arena *arena, Str8 path, char *mode) {
+static Str8 file_read(Arena *arena, char *path, char *mode) {
     Str8 bytes = {0};
-    if (path.len == 0 || mode == 0) return bytes;
+    if (path == 0 || mode == 0) return bytes;
 
     FILE *file = file_open(path, mode);
     
@@ -215,7 +215,7 @@ static Str8 file_read(Arena *arena, Str8 path, char *mode) {
 
     if (ferror(file)) {
         fclose(file);
-        errf("error reading file '%.*s'", str8_fmt(path));
+        errf("error reading file '%s'", path);
         return (Str8){0};
     }
 
