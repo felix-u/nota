@@ -29,6 +29,7 @@ typedef struct Context {
     char *path;
     Str8 bytes;
     Array(Token) tokens;
+    u32 token_i;
     Array(Node) nodes;
 } Context;
 
@@ -138,7 +139,27 @@ static Array(Node) nodes_from_tokens(Context *ctx) {
     Array(Node) nodes = 
         arena_alloc(&ctx->arena, array_len(ctx->tokens), sizeof(Node));
 
-    for (u32 i = 0; i < array_len(ctx->tokens); i += 1) {
+    for (u32 *i = &ctx->token_i; *i < array_len(ctx->tokens); *i += 1) {
+        switch (ctx->tokens[*i].type) {
+            case token_symbol: {
+                switch (token_next(ctx).type) {
+                    case '=': {
+                        nodes = parse_decl(ctx);
+                    } break;
+                    case '{': {
+                        nodes = parse_node(ctx);
+                    } break;
+                    default: {
+                        errf("expected '=' or open curly; other at %d", *i);
+                        return nil_array;
+                    }
+                }
+            } break;
+            default: {
+                errf("expected symbol; other at %d", *i);
+                return nil_array;
+            }
+        }
         nodes = parse_in_body(ctx, nodes, &i);
     }
 
