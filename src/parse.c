@@ -12,6 +12,7 @@ typedef struct Token {
     u32 beg_i;
     u32 end_i;
 } Token;
+typedef Slice(Token) Slice_Token;
 
 typedef enum Node_Type {
     node_nil = 0,
@@ -23,14 +24,15 @@ typedef struct Node {
     Node_Index lhs;
     Node_Index rhs;
 } Node;
+typedef Slice(Node) Slice_Node;
 
 typedef struct Context {
     Arena arena;
     char *path;
     Str8 bytes;
-    Array(Token) tokens;
+    Slice_Token tokens;
     u32 token_i;
-    Array(Node) nodes;
+    Slice_Node nodes;
 } Context;
 
 const bool char_is_num[256] = {
@@ -46,9 +48,9 @@ static inline Str8 token_lexeme(Context *ctx, Token token) {
     return str8_range(ctx->bytes, token.beg_i, token.end_i);
 }
 
-static Array(Token) tokens_from_bytes(Context *ctx) {
-    Array(Token) tokens = 
-        arena_alloc(&ctx->arena, ctx->bytes.len, sizeof(Token));
+static Slice_Token tokens_from_bytes(Context *ctx) {
+    Slice_Token tokens = {0};
+    tokens.ptr = arena_alloc(&ctx->arena, ctx->bytes.len, sizeof(Token));
 
     u8 *buf = ctx->bytes.ptr;
     u32 len = (u32)ctx->bytes.len;
@@ -62,7 +64,7 @@ static Array(Token) tokens_from_bytes(Context *ctx) {
                 .beg_i = beg_i, 
                 .end_i = end_i,
             };
-            array_push_unchecked(tokens, number);
+            slice_push(tokens, number);
         } else if (char_is_alpha(buf[i])) {
             u32 beg_i = i;
             while (i < len && char_is_alpha(buf[i])) i += 1;
@@ -72,7 +74,7 @@ static Array(Token) tokens_from_bytes(Context *ctx) {
                 .beg_i = beg_i,
                 .end_i = end_i,
             };
-            array_push_unchecked(tokens, symbol);
+            slice_push(tokens, symbol);
         }
 
         switch (buf[i]) {
@@ -90,7 +92,7 @@ static Array(Token) tokens_from_bytes(Context *ctx) {
                     .beg_i = i,
                     .end_i = i + 1,
                 };
-                array_push_unchecked(tokens, syntax_char);
+                slice_push(tokens, syntax_char);
             } break;
             case '"': {
                 i += 1;
@@ -103,11 +105,11 @@ static Array(Token) tokens_from_bytes(Context *ctx) {
                         .beg_i = beg_i,
                         .end_i = end_i,
                     };
-                    array_push_unchecked(tokens, string);
+                    slice_push(tokens, string);
                     goto next_char;
                 }
                 errf("string at byte index %d does not terminate", beg_i);
-                return nil_array;
+                return (Slice_Token){0};
             } break;
             case '{': case '}':
             case '=': {
@@ -116,7 +118,7 @@ static Array(Token) tokens_from_bytes(Context *ctx) {
                     .beg_i = i,
                     .end_i = i + 1,
                 };
-                array_push_unchecked(tokens, syntax_char);
+                slice_push(tokens, syntax_char);
             }
         }
         next_char: continue;
@@ -125,42 +127,42 @@ static Array(Token) tokens_from_bytes(Context *ctx) {
     return tokens;
 }
 
-static Array(Node) parse_in_body(Context *ctx, Array(Node) nodes, u32 *i) {
+static Slice_Node parse_in_body(Context *ctx, Slice_Node nodes, u32 *i) {
     (void)nodes;
     err("unimplemented");
     goto error;
 
     error:
-    *i = (u32)array_len(ctx->tokens);
-    return nil_array;
+    *i = (u32)ctx->tokens.len;
+    return (Slice_Node){0};
 }
 
-static Array(Node) nodes_from_tokens(Context *ctx) {
-    Array(Node) nodes = 
-        arena_alloc(&ctx->arena, array_len(ctx->tokens), sizeof(Node));
+static Slice_Node nodes_from_tokens(Context *ctx) {
+    Slice_Node nodes = {0};
+    nodes.ptr = arena_alloc(&ctx->arena, ctx->tokens.len, sizeof(Node));
 
-    for (u32 *i = &ctx->token_i; *i < array_len(ctx->tokens); *i += 1) {
-        switch (ctx->tokens[*i].type) {
+    for (u32 *i = &ctx->token_i; *i < ctx->tokens.len; *i += 1) {
+        switch (ctx->tokens.ptr[*i].type) {
             case token_symbol: {
-                switch (token_next(ctx).type) {
-                    case '=': {
-                        nodes = parse_decl(ctx);
-                    } break;
-                    case '{': {
-                        nodes = parse_node(ctx);
-                    } break;
-                    default: {
-                        errf("expected '=' or open curly; other at %d", *i);
-                        return nil_array;
-                    }
-                }
+                // switch (token_next(ctx).type) {
+                //     case '=': {
+                //         nodes = parse_decl(ctx);
+                //     } break;
+                //     case '{': {
+                //         nodes = parse_node(ctx);
+                //     } break;
+                //     default: {
+                //         errf("expected '=' or open curly; other at %d", *i);
+                //         return nil_array;
+                //     }
+                // }
             } break;
             default: {
                 errf("expected symbol; other at %d", *i);
-                return nil_array;
+                return (Slice_Node){0};
             }
         }
-        nodes = parse_in_body(ctx, nodes, &i);
+        nodes = parse_in_body(ctx, nodes, i);
     }
 
     return nodes;

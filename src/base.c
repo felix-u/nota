@@ -27,6 +27,8 @@ typedef        size_t usize;
 typedef     uintptr_t  uptr;
 typedef      intptr_t  iptr;
 
+#define discard(expression) (void)(expression)
+
 #define err(s) _err(__FILE__, __LINE__, __func__, s)
 static void _err(char *file, usize line, const char *func, char *s) {
     fprintf(stderr, "error: %s\n", s);
@@ -73,25 +75,16 @@ typedef struct Arena {
 
 #define count_of(arr) (sizeof(arr) / sizeof((arr)[0]))
 
-#define Array(type) type *
-typedef struct Array_Header { 
-    usize len; 
-    usize cap;
-    Arena *arena; 
-} Array_Header;
-
-static Array_Header nil_arrays[2] = {0};
-static Array(void) nil_array = &(nil_arrays[1].len);
-
-#define array_len(array) (((Array_Header *)(array) - 1)->len)
-#define array_cap(array) (((Array_Header *)(array) - 1)->cap)
-#define array_push_unchecked(array, item) (array)[array_len(array)++] = (item)
-#define array_pop_unchecked(array) (array)[--array_len(array)]
+static inline usize _next_power_of_2(usize n) {
+    usize result = 1;
+    while (result < n) result *= 2;
+    return result;
+}
 
 static Arena arena_init(usize size) {
     Arena arena = { .mem = calloc(1, size) };
     if (arena.mem == 0) err("allocation failure");
-    arena.cap = size; 
+    else arena.cap = size; 
     return arena;
 }
 
@@ -101,18 +94,69 @@ static void arena_align(Arena *arena, usize align) {
 }
 
 #define ARENA_DEFAULT_ALIGNMENT (2 * sizeof(void *))
-static Array(void) arena_alloc(Arena *arena, usize cap, usize sizeof_elem) {
-    usize size = sizeof(Array_Header) + cap * sizeof_elem;
+static void *arena_alloc(Arena *arena, usize cap, usize sizeof_elem) {
+    usize size = cap * sizeof_elem;
     arena_align(arena, ARENA_DEFAULT_ALIGNMENT);
     if (arena->offset + size >= arena->cap) {
         err("allocation failure");
-        return nil_array;
+        return 0;
     }
-    Array_Header *header = (Array_Header *)((u8 *)arena->mem + arena->offset);
-    *header = (Array_Header){ .arena = arena, .cap = cap };
+
+    void *mem = (u8 *)arena->mem + arena->offset;
     arena->last_offset = arena->offset;
     arena->offset += size;
-    return header + 1;
+    return mem;
+}
+
+static void *
+arena_realloc(Arena *arena, void *mem, usize cap, usize sizeof_elem) {
+    usize size = cap * sizeof_elem;
+    void *last_allocation = (u8 *)arena->mem + arena->last_offset;
+    if (mem == last_allocation && arena->last_offset + size <= arena->cap) {
+        arena->offset = arena->last_offset + size;
+        return mem;
+    }
+    return arena_alloc(arena, cap, sizeof_elem);
+}
+
+#define Array(type) struct { type *ptr; usize len, cap; }
+typedef Array(void) Array_void;
+
+#define arena_alloc_array(arena_ptr, array_ptr, cap) \
+    _arena_alloc_array(\
+        arena_ptr,\
+        (Array_void *)(array_ptr),\
+        cap,\
+        sizeof(*((array_ptr)->ptr))\
+    )
+static void _arena_alloc_array(
+    Arena *arena, Array_void *array, usize cap, usize sizeof_elem
+) {
+    array->ptr = arena_alloc(arena, cap, sizeof_elem);
+    array->len = 0;
+    array->cap = (array->ptr == 0) ? 0 : cap;
+}
+
+#define arena_realloc_array(arena_ptr, array_ptr, cap) \
+    _arena_realloc_array(\
+        arena_ptr,\
+        (Array_void *)(array_ptr),\
+        cap,\
+        sizeof(*((array_ptr)->ptr))\
+    )
+static void _arena_realloc_array(
+    Arena *arena, Array_void *array, usize cap, usize sizeof_elem
+) {
+    void *old_ptr = array->ptr;
+    array->ptr = arena_realloc(arena, array->ptr, cap, sizeof_elem);
+    if (array->ptr == 0) {
+        *array = (Array_void){0};
+        return;
+    }
+    // memmove instead of memcpy because there is overlap (the ranges are 
+    // identical) if arena_realloc() didn't need to really realloc
+    memmove(array->ptr, old_ptr, array->len * sizeof_elem);
+    array->cap = cap;
 }
 
 static void arena_deinit(Arena *arena) {
@@ -120,6 +164,45 @@ static void arena_deinit(Arena *arena) {
     arena->offset = 0;
     arena->cap = 0;
 }
+
+#define array_push_array(arena_ptr, base_ptr, push_ptr) \
+    _array_push_array(\
+        arena_ptr,\
+        (Array_void *)base_ptr,\
+        (Array_void *)push_ptr,\
+        sizeof(*((base_ptr)->ptr))\
+    )
+static void _array_push_array(
+    Arena *arena, Array_void *base, Array_void *push, usize sizeof_elem
+) {
+    usize new_len = base->len + push->len;
+    if (new_len >= base->cap) {
+        usize new_cap = _next_power_of_2(new_len);
+        _arena_realloc_array(arena, base, new_cap, sizeof_elem);
+        if (base->cap == 0) return;
+    }
+    memmove(
+        (u8 *)base->ptr + (base->len * sizeof_elem), 
+        push->ptr, 
+        push->len * sizeof_elem
+    );
+    base->len = new_len;
+}
+
+#define array_push(arena_ptr, array_ptr, item_ptr) \
+    _array_push(\
+        arena_ptr, (Array_void *)(array_ptr), item_ptr, sizeof(*(item_ptr))\
+    )
+static inline void 
+_array_push(Arena *arena, Array_void *array, void *item, usize sizeof_elem) {
+    Array_void push = { .ptr = item, .len = 1, .cap = 1 };
+    _array_push_array(arena, array, &push, sizeof_elem);
+}
+
+#define Slice(type) struct { type *ptr; usize len; }
+#define slice(c_array) { .ptr = c_array, .len = count_of(c_array) }
+#define slice_c_array(c_array) { .ptr = c_array, .len = count_of(c_array) }
+#define slice_push(slice, item) (slice).ptr[(slice).len++] = item
 
 typedef struct { u8 *ptr; usize len; } Str8;
 #define str8(s) (Str8){ .ptr = (u8 *)s, .len = sizeof(s) - 1 }

@@ -12,10 +12,11 @@ typedef struct Args_Flag {
     Str8 single_pos;
     struct { int beg_i; int end_i; } multi_pos;
 } Args_Flag;
+typedef Slice(Args_Flag *) Slice_Args_Flag_ptr;
 
 typedef struct Args_Desc {
     Args_Kind exe_kind;
-    Args_Flag **flags; usize flags_len;
+    Slice_Args_Flag_ptr flags;
     Str8 single_pos;
     struct { int beg_i; int end_i; } multi_pos;
 } Args_Desc;
@@ -26,8 +27,8 @@ static int args_parse(int argc, char **argv, Args_Desc *desc) {
     if (argc == 0) return 1;
     if (argc == 1) return desc->exe_kind != args_kind_bool;
 
-    Args_Flag ***flags = &desc->flags;
-    usize flags_len = desc->flags_len;
+    Args_Flag ***flags = &desc->flags.ptr;
+    usize flags_len = desc->flags.len;
     Str8 arg = str8_from_cstr(argv[1]);
     for (int i = 1; i < argc; i += 1, arg = str8_from_cstr(argv[i])) {
         if (arg.len == 1 || arg.ptr[0] != '-') {

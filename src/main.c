@@ -37,9 +37,10 @@ int main(int argc, char **argv) {
         &help_flag_short, &help_flag_long,
         &version_flag,
     };
+    Slice_Args_Flag_ptr flags_slice = slice(flags);
     Args_Desc args_desc = {
         .exe_kind = args_kind_single_pos,
-        .flags = flags, .flags_len = count_of(flags),
+        .flags = flags_slice,
     };
     if (args_parse(argc, argv, &args_desc) != 0) return 1;
 
