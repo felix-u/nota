@@ -34,8 +34,8 @@ static void _err(char *file, usize line, const char *func, char *s) {
     fprintf(stderr, "error: %s\n", s);
     #ifdef DEBUG
         fprintf(
-            stderr, 
-            "%s:%zu:%s(): error first returned here\n", 
+            stderr,
+            "%s:%zu:%s(): error first returned here\n",
             file, line, func
         );
     #else
@@ -55,8 +55,8 @@ static void _errf(char *file, usize line, const char *func, char *fmt, ...) {
     fprintf(stderr, "\n");
     #ifdef DEBUG
         fprintf(
-            stderr, 
-            "%s:%zu:%s(): error first returned here\n", 
+            stderr,
+            "%s:%zu:%s(): error first returned here\n",
             file, line, func
         );
     #else
@@ -84,7 +84,7 @@ static inline usize _next_power_of_2(usize n) {
 static Arena arena_init(usize size) {
     Arena arena = { .mem = calloc(1, size) };
     if (arena.mem == 0) err("allocation failure");
-    else arena.cap = size; 
+    else arena.cap = size;
     return arena;
 }
 
@@ -153,7 +153,7 @@ static void _arena_realloc_array(
         *array = (Array_void){0};
         return;
     }
-    // memmove instead of memcpy because there is overlap (the ranges are 
+    // memmove instead of memcpy because there is overlap (the ranges are
     // identical) if arena_realloc() didn't need to really realloc
     memmove(array->ptr, old_ptr, array->len * sizeof_elem);
     array->cap = cap;
@@ -182,8 +182,8 @@ static void _array_push_array(
         if (base->cap == 0) return;
     }
     memmove(
-        (u8 *)base->ptr + (base->len * sizeof_elem), 
-        push->ptr, 
+        (u8 *)base->ptr + (base->len * sizeof_elem),
+        push->ptr,
         push->len * sizeof_elem
     );
     base->len = new_len;
@@ -193,7 +193,7 @@ static void _array_push_array(
     _array_push(\
         arena_ptr, (Array_void *)(array_ptr), item_ptr, sizeof(*(item_ptr))\
     )
-static inline void 
+static inline void
 _array_push(Arena *arena, Array_void *array, void *item, usize sizeof_elem) {
     Array_void push = { .ptr = item, .len = 1, .cap = 1 };
     _array_push_array(arena, array, &push, sizeof_elem);
@@ -204,11 +204,11 @@ _array_push(Arena *arena, Array_void *array, void *item, usize sizeof_elem) {
 #define slice_c_array(c_array) { .ptr = c_array, .len = count_of(c_array) }
 #define slice_push(slice, item) (slice).ptr[(slice).len++] = item
 
-typedef struct { u8 *ptr; usize len; } Str8;
-#define str8(s) (Str8){ .ptr = (u8 *)s, .len = sizeof(s) - 1 }
-#define str8_fmt(s) (int)(s).len, (s).ptr
+typedef struct { u8 *ptr; usize len; } String;
+#define string(s) (String){ .ptr = (u8 *)s, .len = sizeof(s) - 1 }
+#define string_fmt(s) (int)(s).len, (s).ptr
 
-static bool str8_eql(Str8 s1, Str8 s2) {
+static bool string_eql(String s1, String s2) {
     if (s1.len != s2.len) return false;
     for (usize i = 0; i < s1.len; i += 1) {
         if (s1.ptr[i] != s2.ptr[i]) return false;
@@ -216,30 +216,30 @@ static bool str8_eql(Str8 s1, Str8 s2) {
     return true;
 }
 
-static Str8 str8_from_cstr(char *s) {
-    if (s == NULL) return (Str8){ 0 };
+static String string_from_cstring(char *s) {
+    if (s == NULL) return (String){ 0 };
     usize len = 0;
     while (s[len] != '\0') len += 1;
-    return (Str8){ .ptr = (u8 *)s, .len = len };
+    return (String){ .ptr = (u8 *)s, .len = len };
 }
 
-static char *cstr_from_str8(Arena *arena, Str8 s) {
-    char *cstr = arena_alloc(arena, s.len + 1, sizeof(char));
-    for (usize i = 0; i < s.len; i += 1) cstr[i] = s.ptr[i];
-    cstr[s.len] = '\0';
-    return cstr;
+static char *cstring_from_string(Arena *arena, String s) {
+    char *cstring = arena_alloc(arena, s.len + 1, sizeof(char));
+    for (usize i = 0; i < s.len; i += 1) cstring[i] = s.ptr[i];
+    cstring[s.len] = '\0';
+    return cstring;
 }
 
 // Only bases <= 10
-static Str8 str8_from_int_base(Arena *arena, usize _num, u8 base) {
-    Str8 str = {0};
+static String string_from_int_base(Arena *arena, usize _num, u8 base) {
+    String str = {0};
     usize num = _num;
 
     do {
         num /= base;
         str.len += 1;
     } while (num > 0);
-    
+
     str.ptr = arena_alloc(arena, str.len, sizeof(u8));
 
     num = _num;
@@ -251,21 +251,21 @@ static Str8 str8_from_int_base(Arena *arena, usize _num, u8 base) {
     return str;
 }
 
-static Str8 str8_range(Str8 s, usize beg, usize end) {
-    return (Str8){
+static String string_range(String s, usize beg, usize end) {
+    return (String){
         .ptr = s.ptr + beg,
         .len = end - beg,
     };
 }
 
 const u8 decimal_from_hex_char_table[256] = {
-    ['0'] = 0, ['1'] = 1, ['2'] = 2, ['3'] = 3, ['4'] = 4, 
-    ['5'] = 5, ['6'] = 6, ['7'] = 7, ['8'] = 8, ['9'] = 9, 
+    ['0'] = 0, ['1'] = 1, ['2'] = 2, ['3'] = 3, ['4'] = 4,
+    ['5'] = 5, ['6'] = 6, ['7'] = 7, ['8'] = 8, ['9'] = 9,
     ['A'] = 10, ['B'] = 11, ['C'] = 12, ['D'] = 13, ['E'] = 14, ['F'] = 15,
     ['a'] = 10, ['b'] = 11, ['c'] = 12, ['d'] = 13, ['e'] = 14, ['f'] = 15,
 };
 
-static usize decimal_from_hex_str8(Str8 s) {
+static usize decimal_from_hex_string(String s) {
     usize result = 0, magnitude = s.len;
     for (usize i = 0; i < s.len; i += 1, magnitude -= 1) {
         usize hex_digit = decimal_from_hex_char_table[s.ptr[i]];
@@ -282,12 +282,12 @@ static FILE *file_open(char *path, char *mode) {
     return file;
 }
 
-static Str8 file_read(Arena *arena, char *path, char *mode) {
-    Str8 bytes = {0};
+static String file_read(Arena *arena, char *path, char *mode) {
+    String bytes = {0};
     if (path == 0 || mode == 0) return bytes;
 
     FILE *file = file_open(path, mode);
-    
+
     fseek(file, 0L, SEEK_END);
     usize filesize = ftell(file);
     bytes.ptr = arena_alloc(arena, filesize + 1, sizeof(u8));
@@ -299,22 +299,22 @@ static Str8 file_read(Arena *arena, char *path, char *mode) {
     if (ferror(file)) {
         fclose(file);
         errf("error reading file '%s'", path);
-        return (Str8){0};
+        return (String){0};
     }
 
     fclose(file);
     return bytes;
 }
 
-static void file_write(FILE *file, Str8 memory) {
+static void file_write(FILE *file, String memory) {
     fwrite(memory.ptr, memory.len, 1, file);
 }
 
-#define min(a, b) ((a) < (b)) ? (b) : (a)
-#define max(a, b) ((a) > (b)) ? (b) : (a)
-#define clamp(x, _min, _max) {\
-    x = min((_min), (x));\
-    x = max((_max), (x));\
+#define min_(a, b) ((a) < (b)) ? (b) : (a)
+#define max_(a, b) ((a) > (b)) ? (b) : (a)
+#define clamp(x, min_val, max_val) {\
+    x = min_((min_val), (x));\
+    x = max_((max_val), (x));\
 }
 
 #endif // BASE
