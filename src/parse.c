@@ -111,7 +111,7 @@ static Slice_Token tokens_from_bytes(Context *ctx) {
 }
 
 static Slice_Node parse_in_body(Context *ctx, Slice_Node nodes, u32 *i) {
-    (void)nodes;
+    discard(nodes);
     err("unimplemented");
     goto error;
 
